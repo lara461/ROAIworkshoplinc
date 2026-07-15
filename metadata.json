@@ -1,0 +1,13 @@
+{
+  "name": "ROAI Future of Work Action Workshop",
+  "description": "Executive workshop tool: pre-work survey on AI & the future of work, challenge-based small groups, simulated C-level board challenge, plenary presentation, and individual 30-day commitments.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "Pre-work AI Survey",
+    "AI-Generated Challenges from Survey Data",
+    "Self-Selected Groups with Automatic Balancing (max 4)",
+    "Simulated C-level Board Challenge",
+    "Plenary Presentation View",
+    "Individual 30-Day Commitments"
+  ]
+}
