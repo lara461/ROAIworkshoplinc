@@ -1,10 +1,24 @@
 import { initializeApp } from "firebase/app";
-import {
-  getFirestore,
-  collection,
-  doc,
-} from "firebase/firestore";
-import firebaseConfig from "../firebase-applet-config.json";
+import { getFirestore, collection, doc } from "firebase/firestore";
+
+// Firebase config is injected at build time via VITE_FIREBASE_* env vars
+// instead of a committed JSON file, so no key ever lives in the git repo.
+// See .env.example for the required variables.
+const firebaseConfig = {
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+};
+
+if (!firebaseConfig.apiKey) {
+  // Fails loudly at build time rather than silently shipping a broken app
+  console.error(
+    "Missing Firebase config — make sure VITE_FIREBASE_* env vars are set (see .env.example)."
+  );
+}
 
 export const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);

@@ -16,9 +16,12 @@ cp .env.example .env
 Then fill in:
 - `ANTHROPIC_API_KEY` — from the [Anthropic Console](https://console.anthropic.com)
 - `ADMIN_SECRET` — a password of your choice for the facilitator
+- `VITE_FIREBASE_*` — the six values from Firebase Console → Project Settings → General → Your apps → Web app (see step 3)
+
+`.env` is git-ignored — no secret ever gets committed, so no GitHub secret-scanning alert on push.
 
 ### 3. Firebase
-This tool reuses the same Firebase project configuration as the base tool (`firebase-applet-config.json`) but writes to its **own, prefixed Firestore collections** (`fow_*`) so it can safely coexist with other ROAI Institute tools in the same project. If you'd rather isolate this workshop entirely, create a fresh Firebase project, enable Firestore, and drop its config into `firebase-applet-config.json`.
+No config file to edit anymore. This tool reads its Firebase web config purely from the `VITE_FIREBASE_*` env vars above at build time, and writes to its **own, prefixed Firestore collections** (`fow_*`) so it can safely coexist with other ROAI Institute tools in the same project. Use the same Firebase project as your other workshops, or create a fresh one — either way, just copy its six web-app config values into `.env` (locally) or into the Cloud Run service's env vars (in production).
 
 Publish the rules in `firestore.rules` (same permissive rules as the base tool — tighten before using with sensitive data if needed).
 
@@ -68,3 +71,11 @@ npm run build
 NODE_ENV=production npm run dev
 ```
 Or build the included `Dockerfile`.
+
+### Deploying on Google Cloud Run via GitHub
+1. Push this project to a GitHub repo (make sure `.env` and `firebase-applet-config.json` are never committed — they're in `.gitignore`).
+2. Cloud Run → Create Service → "Continuously deploy from a repository" → connect the repo → build type **Dockerfile**.
+3. In the service's **Variables & Secrets**, set all of: `ANTHROPIC_API_KEY`, `ADMIN_SECRET`, `VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_AUTH_DOMAIN`, `VITE_FIREBASE_PROJECT_ID`, `VITE_FIREBASE_STORAGE_BUCKET`, `VITE_FIREBASE_MESSAGING_SENDER_ID`, `VITE_FIREBASE_APP_ID`. Use Secret Manager for `ANTHROPIC_API_KEY` and `ADMIN_SECRET`.
+4. Every push to the connected branch triggers a new build & deploy automatically.
+
+Note: the frontend is built at **container startup** (see `Dockerfile`), not at image-build time, specifically so these env vars — only available once Cloud Run starts the container — get baked into the JS bundle. This adds a few seconds to cold start, which is fine at workshop scale.
