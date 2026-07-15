@@ -176,37 +176,33 @@ async function startServer() {
     }
   });
 
-  // Final — Workshop report (executive summary across challenges, groups, and 30-day commitments)
-  app.post("/api/generate-report", requireAdmin, async (req, res) => {
+  // Report tab — one report PER GROUP: how their thinking evolved from the
+  // initial answer through the board's challenge to their revised answer,
+  // plus the 30-day commitments of that group's (non-facilitator) members.
+  app.post("/api/generate-group-report", requireAdmin, async (req, res) => {
     if (!ANTHROPIC_API_KEY) { res.status(500).json({ error: "ANTHROPIC_API_KEY not configured" }); return; }
-    const { workshop, participants, challenges, groups, solutions, commitments } = req.body;
-    if (!workshop) { res.status(400).json({ error: "No workshop data" }); return; }
+    const { workshop, group, challenge, initialSolution, revisedSolution, personaChallenges, commitments } = req.body;
+    if (!group || !challenge) { res.status(400).json({ error: "Missing group or challenge data" }); return; }
 
-    const groupBlock = (groups || []).map((g: any) => {
-      const sol = (solutions || []).find((s: any) => s.groupId === g.id);
-      const challenge = (challenges || []).find((c: any) => c.id === g.challengeId);
-      return "GROUP: " + g.name + "\nChallenge: " + (challenge?.title || "N/A") +
-        "\nInitial answer: " + (sol?.initialSolution || "Not submitted") +
-        "\nRevised answer (after board challenge): " + (sol?.revisedSolution || "Not submitted");
-    }).join("\n\n---\n\n");
-
-    const commitmentLines = (commitments || []).map((c: any) => "- " + c.action).join("\n");
+    const boardBlock = (personaChallenges || []).map((pc: any) => "- " + pc.role + ": " + pc.objection).join("\n");
+    const commitmentBlock = (commitments || []).map((c: any) => "- " + c.action).join("\n");
 
     const prompt =
-      "You are a senior AI strategy advisor summarizing a C-level executive workshop on AI and the future of work for the ROAI Institute.\n\n" +
-      "WORKSHOP: " + workshop.name + "\nDATE: " + workshop.date + "\nPARTICIPANTS: " + (participants || []).length + " executives\n\n" +
-      "CHALLENGES EXPLORED:\n" + (challenges || []).map((c: any) => "- " + c.title + ": " + c.description).join("\n") + "\n\n" +
-      "GROUP OUTCOMES:\n" + groupBlock + "\n\n" +
-      "INDIVIDUAL 30-DAY COMMITMENTS:\n" + commitmentLines + "\n\n" +
-      "Write a comprehensive executive workshop report. Be specific, reference actual content.\n\n" +
+      "You are a senior AI strategy advisor writing a short report on ONE group's work during a C-level executive workshop on AI and the future of work, for the ROAI Institute.\n\n" +
+      "WORKSHOP: " + workshop.name + "\n" +
+      "GROUP: " + group.name + "\n" +
+      "CHALLENGE: " + challenge.title + " — " + challenge.description + "\n\n" +
+      "INITIAL ANSWER:\n" + (initialSolution || "Not submitted") + "\n\n" +
+      "C-LEVEL BOARD CHALLENGE:\n" + (boardBlock || "Not generated") + "\n\n" +
+      "REVISED ANSWER (after the board's pushback):\n" + (revisedSolution || "Not submitted") + "\n\n" +
+      "INDIVIDUAL 30-DAY COMMITMENTS FROM THIS GROUP'S MEMBERS:\n" + (commitmentBlock || "None submitted") + "\n\n" +
+      "Write a short, specific report on this group's work. Reference actual content, don't be generic.\n\n" +
       "Return ONLY valid JSON:\n" +
       "{\n" +
-      '  "executiveSummary": "3-4 sentence summary",\n' +
-      '  "keyThemes": ["theme 1", "theme 2", "theme 3"],\n' +
-      '  "groupHighlights": [{ "groupName": "name", "challenge": "title", "coreInsight": "2-3 sentences", "boldMove": "most ambitious element" }],\n' +
-      '  "commitmentPatterns": "2-3 sentences on patterns across the individual 30-day commitments",\n' +
-      '  "recommendedNextSteps": ["step 1", "step 2", "step 3"],\n' +
-      '  "closingNote": "2-sentence inspiring close"\n' +
+      '  "executiveSummary": "2-3 sentence summary of this group\'s challenge and answer",\n' +
+      '  "keyInsight": "1-2 sentence core strategic takeaway from this group\'s work",\n' +
+      '  "evolution": "2-3 sentences on how their thinking changed (or didn\'t) between the initial and revised answer, in response to the board\'s challenge",\n' +
+      '  "recommendedNextSteps": ["step 1", "step 2", "step 3"]\n' +
       "}";
 
     try {

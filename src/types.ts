@@ -22,8 +22,7 @@ export interface Participant {
   id: string;
   workshopId: string;
   name: string;
-  email: string; // optional in practice — the external survey doesn't collect it
-  token: string;
+  email: string;
   role: ParticipantRole;
   createdAt: string;
 }
@@ -68,8 +67,12 @@ export interface GroupSolution {
   workshopId: string;
   initialSolution: string;
   initialUpdatedAt?: string;
+  initialSubmitted?: boolean;
+  initialSubmittedAt?: string;
   revisedSolution: string;
   revisedUpdatedAt?: string;
+  revisedSubmitted?: boolean;
+  revisedSubmittedAt?: string;
 }
 
 export interface PersonaChallenge {
@@ -91,6 +94,17 @@ export interface Commitment {
   participantId: string;
   workshopId: string;
   action: string;
+  createdAt: string;
+}
+
+export interface GroupReport {
+  id: string; // == groupId
+  groupId: string;
+  workshopId: string;
+  executiveSummary: string;
+  keyInsight: string;
+  evolution: string; // how the group's thinking changed from initial to revised answer
+  recommendedNextSteps: string[];
   createdAt: string;
 }
 

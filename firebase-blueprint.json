@@ -5,137 +5,371 @@
       "title": "Workshop",
       "type": "object",
       "properties": {
-        "name": { "type": "string" },
-        "description": { "type": "string" },
-        "date": { "type": "string", "format": "date-time" },
-        "adminSecret": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" },
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "date": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "adminSecret": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
         "status": {
           "type": "string",
-          "enum": ["setup", "working", "presentation", "commitments", "closed"],
+          "enum": [
+            "setup",
+            "working",
+            "presentation",
+            "commitments",
+            "closed"
+          ],
           "description": "Coarse global phase. Per-group progress (challenge picked, solutions written) lives on Group/Challenge/GroupSolution docs instead."
         },
-        "presentationGroupId": { "type": "string" }
+        "presentationGroupId": {
+          "type": "string"
+        }
       },
-      "required": ["name", "date", "adminSecret", "createdAt", "status"]
+      "required": [
+        "name",
+        "date",
+        "adminSecret",
+        "createdAt",
+        "status"
+      ]
     },
     "Participant": {
       "title": "Participant",
       "type": "object",
       "properties": {
-        "workshopId": { "type": "string" },
-        "name": { "type": "string" },
-        "email": { "type": "string", "format": "email" },
-        "token": { "type": "string", "description": "Unique access token -> /w/:token" },
-        "role": { "type": "string", "enum": ["participant", "facilitator"], "description": "Fixed property of the person, not the group. Facilitators write their group's answers; everyone writes their own 30-day commitment." },
-        "createdAt": { "type": "string", "format": "date-time" }
+        "workshopId": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string",
+          "format": "email"
+        },
+        "role": {
+          "type": "string",
+          "enum": [
+            "participant",
+            "facilitator"
+          ],
+          "description": "Fixed property of the person, not the group. Facilitators write their group's answers; everyone writes their own 30-day commitment."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
       },
-      "required": ["workshopId", "email", "token", "role", "createdAt"]
+      "required": [
+        "workshopId",
+        "email",
+        "role",
+        "createdAt"
+      ],
+      "description": "No per-participant token anymore \u2014 everyone uses the same shared workshop link (/w/:workshopId) and identifies themselves by picking their name and confirming with email."
     },
     "SurveyResponse": {
       "title": "SurveyResponse",
       "description": "The pre-work survey runs OUTSIDE the tool; these records are imported from a CSV/XLSX file (or entered by hand for a manually-added participant).",
       "type": "object",
       "properties": {
-        "participantId": { "type": "string" },
-        "workshopId": { "type": "string" },
-        "orgSize": { "type": "string" },
-        "aiRelationship": { "type": "string" },
-        "biggestConcern": { "type": "string" },
-        "futureOfWorkView": { "type": "string" },
-        "moveTimeline": { "type": "string" },
-        "futureVision": { "type": "string" },
-        "ownershipPreference": { "type": "string" },
-        "employeeFreedom": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" }
+        "participantId": {
+          "type": "string"
+        },
+        "workshopId": {
+          "type": "string"
+        },
+        "aiRelationship": {
+          "type": "string"
+        },
+        "futureVision": {
+          "type": "string"
+        },
+        "opportunitiesChallenges": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
       },
-      "required": ["participantId", "workshopId", "createdAt"]
+      "required": [
+        "participantId",
+        "workshopId",
+        "createdAt"
+      ]
     },
     "Group": {
       "title": "Group",
       "description": "Created manually by the admin BEFORE challenges exist (max 4 participantIds).",
       "type": "object",
       "properties": {
-        "workshopId": { "type": "string" },
-        "name": { "type": "string" },
-        "participantIds": { "type": "array", "items": { "type": "string" } },
-        "challengeId": { "type": ["string", "null"], "description": "Set once a Challenge option is selected for this group" },
-        "createdAt": { "type": "string", "format": "date-time" }
+        "workshopId": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "participantIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "challengeId": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Set once a Challenge option is selected for this group"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
       },
-      "required": ["workshopId", "name", "participantIds", "createdAt"]
+      "required": [
+        "workshopId",
+        "name",
+        "participantIds",
+        "createdAt"
+      ]
     },
     "Challenge": {
       "title": "Challenge",
       "description": "Generated PER GROUP from that group's members' survey answers (C-level/boardroom framing). Multiple options per group; admin or facilitator picks one. Editable after generation.",
       "type": "object",
       "properties": {
-        "workshopId": { "type": "string" },
-        "groupId": { "type": "string" },
-        "title": { "type": "string" },
-        "description": { "type": "string" },
-        "themes": { "type": "array", "items": { "type": "string" } },
-        "status": { "type": "string", "enum": ["option", "selected"] },
-        "createdAt": { "type": "string", "format": "date-time" }
+        "workshopId": {
+          "type": "string"
+        },
+        "groupId": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "themes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "option",
+            "selected"
+          ]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
       },
-      "required": ["workshopId", "groupId", "title", "description", "status", "createdAt"]
+      "required": [
+        "workshopId",
+        "groupId",
+        "title",
+        "description",
+        "status",
+        "createdAt"
+      ]
     },
     "GroupSolution": {
       "title": "GroupSolution",
       "description": "Doc id == groupId. Only the group's facilitator(s) can write initialSolution/revisedSolution; other members see them read-only.",
       "type": "object",
       "properties": {
-        "groupId": { "type": "string" },
-        "workshopId": { "type": "string" },
-        "initialSolution": { "type": "string" },
-        "initialUpdatedAt": { "type": "string", "format": "date-time" },
-        "revisedSolution": { "type": "string" },
-        "revisedUpdatedAt": { "type": "string", "format": "date-time" }
+        "groupId": {
+          "type": "string"
+        },
+        "workshopId": {
+          "type": "string"
+        },
+        "initialSolution": {
+          "type": "string"
+        },
+        "initialUpdatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "revisedSolution": {
+          "type": "string"
+        },
+        "revisedUpdatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "initialSubmitted": {
+          "type": "boolean"
+        },
+        "initialSubmittedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "revisedSubmitted": {
+          "type": "boolean"
+        },
+        "revisedSubmittedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
       },
-      "required": ["groupId", "workshopId"]
+      "required": [
+        "groupId",
+        "workshopId"
+      ]
     },
     "BoardChallenge": {
       "title": "BoardChallenge",
       "description": "Doc id == groupId. Simulated C-level board challenge on the group's initial solution.",
       "type": "object",
       "properties": {
-        "groupId": { "type": "string" },
-        "workshopId": { "type": "string" },
+        "groupId": {
+          "type": "string"
+        },
+        "workshopId": {
+          "type": "string"
+        },
         "personaChallenges": {
           "type": "array",
           "items": {
             "type": "object",
             "properties": {
-              "role": { "type": "string" },
-              "objection": { "type": "string" },
-              "roaiTools": { "type": "array", "items": { "type": "string" } }
+              "role": {
+                "type": "string"
+              },
+              "objection": {
+                "type": "string"
+              },
+              "roaiTools": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
             }
           }
         },
-        "createdAt": { "type": "string", "format": "date-time" }
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
       },
-      "required": ["groupId", "workshopId", "personaChallenges", "createdAt"]
+      "required": [
+        "groupId",
+        "workshopId",
+        "personaChallenges",
+        "createdAt"
+      ]
     },
     "Commitment": {
       "title": "Commitment",
-      "description": "Individual 30-day action commitment — written by EVERY participant themselves, including facilitators. Not a group answer.",
+      "description": "Individual 30-day action commitment \u2014 written by EVERY participant themselves, including facilitators. Not a group answer.",
       "type": "object",
       "properties": {
-        "participantId": { "type": "string" },
-        "workshopId": { "type": "string" },
-        "action": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" }
+        "participantId": {
+          "type": "string"
+        },
+        "workshopId": {
+          "type": "string"
+        },
+        "action": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
       },
-      "required": ["participantId", "workshopId", "action", "createdAt"]
+      "required": [
+        "participantId",
+        "workshopId",
+        "action",
+        "createdAt"
+      ]
+    },
+    "GroupReport": {
+      "title": "GroupReport",
+      "description": "Doc id == groupId. One report PER GROUP, generated in the Report tab: executive summary, key insight, how the group's thinking evolved from initial to revised answer, and next steps.",
+      "type": "object",
+      "properties": {
+        "groupId": {
+          "type": "string"
+        },
+        "workshopId": {
+          "type": "string"
+        },
+        "executiveSummary": {
+          "type": "string"
+        },
+        "keyInsight": {
+          "type": "string"
+        },
+        "evolution": {
+          "type": "string"
+        },
+        "recommendedNextSteps": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "groupId",
+        "workshopId",
+        "createdAt"
+      ]
     }
   },
   "firestore": {
-    "fow_workshops": { "schema": "Workshop" },
-    "fow_participants": { "schema": "Participant" },
-    "fow_survey_responses": { "schema": "SurveyResponse" },
-    "fow_groups": { "schema": "Group" },
-    "fow_challenges": { "schema": "Challenge" },
-    "fow_group_solutions": { "schema": "GroupSolution" },
-    "fow_board_challenges": { "schema": "BoardChallenge" },
-    "fow_commitments": { "schema": "Commitment" }
+    "fow_workshops": {
+      "schema": "Workshop"
+    },
+    "fow_participants": {
+      "schema": "Participant"
+    },
+    "fow_survey_responses": {
+      "schema": "SurveyResponse"
+    },
+    "fow_groups": {
+      "schema": "Group"
+    },
+    "fow_challenges": {
+      "schema": "Challenge"
+    },
+    "fow_group_solutions": {
+      "schema": "GroupSolution"
+    },
+    "fow_board_challenges": {
+      "schema": "BoardChallenge"
+    },
+    "fow_commitments": {
+      "schema": "Commitment"
+    },
+    "fow_group_reports": {
+      "schema": "GroupReport"
+    }
   }
 }

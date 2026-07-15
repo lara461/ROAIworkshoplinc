@@ -32,6 +32,7 @@ export async function initFirebase() {
   col.groupSolutions = collection(db, "fow_group_solutions");
   col.boardChallenges = collection(db, "fow_board_challenges");
   col.commitments = collection(db, "fow_commitments");
+  col.groupReports = collection(db, "fow_group_reports");
 
   resolveReady();
 }

@@ -48,7 +48,7 @@ export default function App() {
   }
 
   if (path === "/admin") return <AdminApp />;
-  if (path.startsWith("/w/")) return <ParticipantApp token={path.replace("/w/", "")} />;
+  if (path.startsWith("/w/")) return <ParticipantApp workshopId={path.replace("/w/", "")} />;
   if (path.startsWith("/present/")) return <PresentationView workshopId={path.replace("/present/", "")} />;
   return <Home />;
 }

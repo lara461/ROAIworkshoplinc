@@ -12,6 +12,8 @@ import {
 import { nanoid } from "nanoid";
 import {
   CheckCircle2,
+  ChevronDown,
+  ChevronUp,
   Copy,
   Loader2,
   Plus,
@@ -30,6 +32,7 @@ import type {
   Challenge,
   Commitment,
   Group,
+  GroupReport,
   GroupSolution,
   Participant,
   SurveyResponse,
@@ -195,7 +198,6 @@ function ImportSection({ workshop }: { workshop: Workshop }) {
           workshopId: workshop.id,
           name: r.name,
           email: r.email,
-          token: nanoid(12),
           role: r.role,
           createdAt: new Date().toISOString(),
         });
@@ -225,8 +227,8 @@ function ImportSection({ workshop }: { workshop: Workshop }) {
   return (
     <Section title="Import participants & survey answers (CSV / Excel)">
       <p className="text-sm text-gray-500">
-        The pre-work survey is run externally. Upload a CSV or Excel file with one row per participant — name, email,
-        optional role, and their survey answers.
+        The pre-work survey is run externally. Upload the export — one row per participant, with name and their
+        survey answers. Add an "Email" column yourself if your export doesn't include one.
       </p>
       <div className="flex gap-2 flex-wrap">
         <Btn variant="outline" onClick={() => downloadTemplate()}>Download template</Btn>
@@ -293,7 +295,7 @@ function ImportSection({ workshop }: { workshop: Workshop }) {
   );
 }
 
-// ── Participants list + manual add ──────────────────────────────────────
+// ── Participants list + manual add + survey answers ─────────────────────
 function ParticipantsSection({
   workshop,
   participants,
@@ -306,6 +308,7 @@ function ParticipantsSection({
   const [newName, setNewName] = useState("");
   const [newEmail, setNewEmail] = useState("");
   const [newRole, setNewRole] = useState<"participant" | "facilitator">("participant");
+  const [expanded, setExpanded] = useState<string | null>(null);
 
   async function addParticipant() {
     if (!newName) return;
@@ -313,7 +316,6 @@ function ParticipantsSection({
       workshopId: workshop.id,
       name: newName,
       email: newEmail,
-      token: nanoid(12),
       role: newRole,
       createdAt: new Date().toISOString(),
     });
@@ -331,8 +333,6 @@ function ParticipantsSection({
       role: p.role === "facilitator" ? "participant" : "facilitator",
     });
   }
-
-  const participantLink = (token: string) => `${window.location.origin}/w/${token}`;
 
   return (
     <Section title="Participants">
@@ -360,27 +360,39 @@ function ParticipantsSection({
 
       <div className="divide-y divide-gray-100">
         {participants.map((p) => {
-          const done = responses.some((r) => r.participantId === p.id);
+          const response = responses.find((r) => r.participantId === p.id);
+          const isExpanded = expanded === p.id;
           return (
-            <div key={p.id} className="flex items-center justify-between py-2.5 text-sm">
-              <div>
-                <div className="font-bold text-[#0A0E2A] flex items-center gap-2">
-                  {p.name}
-                  {p.role === "facilitator" && <Tag color="coral">facilitator</Tag>}
+            <div key={p.id} className="py-2.5 text-sm">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="font-bold text-[#0A0E2A] flex items-center gap-2">
+                    {p.name}
+                    {p.role === "facilitator" && <Tag color="coral">facilitator</Tag>}
+                  </div>
+                  {p.email && <div className="text-gray-400 text-xs">{p.email}</div>}
                 </div>
-                {p.email && <div className="text-gray-400 text-xs">{p.email}</div>}
+                <div className="flex items-center gap-3">
+                  {response ? (
+                    <button onClick={() => setExpanded(isExpanded ? null : p.id)} className="text-green-600 flex items-center gap-1 font-bold text-xs">
+                      <CheckCircle2 className="w-4 h-4" /> survey {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                    </button>
+                  ) : (
+                    <Tag>no survey</Tag>
+                  )}
+                  <button onClick={() => toggleRole(p)} className="text-gray-400 hover:text-[#E8503A] font-bold text-xs">
+                    {p.role === "facilitator" ? "make participant" : "make facilitator"}
+                  </button>
+                  <button onClick={() => removeParticipant(p.id)} className="text-gray-400 hover:text-red-500 font-bold">remove</button>
+                </div>
               </div>
-              <div className="flex items-center gap-3">
-                {done ? <CheckCircle2 className="w-4 h-4 text-green-600" /> : <Tag>no survey</Tag>}
-                <button onClick={() => toggleRole(p)} className="text-gray-400 hover:text-[#E8503A] font-bold text-xs">
-                  {p.role === "facilitator" ? "make participant" : "make facilitator"}
-                </button>
-                <button onClick={() => navigator.clipboard.writeText(participantLink(p.token))}
-                  className="text-[#E8503A] hover:text-[#d4432f] flex items-center gap-1 font-bold">
-                  <Copy className="w-3.5 h-3.5" /> link
-                </button>
-                <button onClick={() => removeParticipant(p.id)} className="text-gray-400 hover:text-red-500 font-bold">remove</button>
-              </div>
+              {isExpanded && response && (
+                <div className="mt-2 ml-1 pl-3 border-l-2 border-gray-200 space-y-2 text-xs text-gray-600">
+                  <div><span className="font-bold text-gray-400 uppercase tracking-wide text-[10px]">AI relationship: </span>{response.aiRelationship}</div>
+                  <div><span className="font-bold text-gray-400 uppercase tracking-wide text-[10px]">Future vision: </span>{response.futureVision}</div>
+                  <div><span className="font-bold text-gray-400 uppercase tracking-wide text-[10px]">Opportunities/challenges: </span>{response.opportunitiesChallenges}</div>
+                </div>
+              )}
             </div>
           );
         })}
@@ -390,213 +402,7 @@ function ParticipantsSection({
   );
 }
 
-// ── One group's card: members, challenge options, solutions, board ─────
-function GroupCard({
-  workshop,
-  adminSecret,
-  group,
-  participants,
-  responses,
-  challenges,
-  solution,
-  board,
-}: {
-  workshop: Workshop;
-  adminSecret: string;
-  group: Group;
-  participants: Participant[];
-  responses: SurveyResponse[];
-  challenges: Challenge[];
-  solution: GroupSolution | undefined;
-  board: BoardChallenge | undefined;
-}) {
-  const [generating, setGenerating] = useState(false);
-  const [numOptions, setNumOptions] = useState(3);
-  const [editing, setEditing] = useState<Record<string, { title: string; description: string }>>({});
-
-  const members = group.participantIds.map((id) => participants.find((p) => p.id === id)).filter(Boolean) as Participant[];
-  const groupChallenges = challenges.filter((c) => c.groupId === group.id);
-  const selected = groupChallenges.find((c) => c.status === "selected");
-
-  async function removeMember(participantId: string) {
-    await updateDoc(docIn("groups", group.id), {
-      participantIds: group.participantIds.filter((id) => id !== participantId),
-    });
-  }
-
-  async function generateOptions() {
-    setGenerating(true);
-    try {
-      const responsePayload = members.map((m) => {
-        const r = responses.find((r) => r.participantId === m.id);
-        return {
-          participantName: m.name,
-          aiRelationship: r?.aiRelationship || "",
-          futureVision: r?.futureVision || "",
-          opportunitiesChallenges: r?.opportunitiesChallenges || "",
-        };
-      });
-      const { challenges: generated } = await api("/generate-group-challenges", adminSecret, {
-        workshop: { name: workshop.name },
-        groupName: group.name,
-        responses: responsePayload,
-        numOptions,
-      });
-      for (const c of generated) {
-        await addDoc(col.challenges, {
-          workshopId: workshop.id,
-          groupId: group.id,
-          title: c.title,
-          description: c.description,
-          themes: c.themes || [],
-          status: "option",
-          createdAt: new Date().toISOString(),
-        });
-      }
-    } catch (e: any) {
-      alert(e.message);
-    } finally {
-      setGenerating(false);
-    }
-  }
-
-  async function selectChallenge(challengeId: string) {
-    for (const c of groupChallenges) {
-      await updateDoc(docIn("challenges", c.id), { status: c.id === challengeId ? "selected" : "option" });
-    }
-    await updateDoc(docIn("groups", group.id), { challengeId });
-  }
-
-  function startEdit(c: Challenge) {
-    setEditing((prev) => ({ ...prev, [c.id]: { title: c.title, description: c.description } }));
-  }
-
-  async function saveEdit(c: Challenge) {
-    const edited = editing[c.id];
-    if (!edited) return;
-    await updateDoc(docIn("challenges", c.id), { title: edited.title, description: edited.description });
-    setEditing((prev) => {
-      const next = { ...prev };
-      delete next[c.id];
-      return next;
-    });
-  }
-
-  async function generateBoard() {
-    if (!selected || !solution?.initialSolution) return alert("This group hasn't submitted an initial answer yet.");
-    try {
-      const { personaChallenges } = await api("/generate-board-challenge", adminSecret, {
-        challenge: { title: selected.title, description: selected.description },
-        solution: solution.initialSolution,
-        groupName: group.name,
-      });
-      await setDoc(docIn("boardChallenges", group.id), {
-        groupId: group.id,
-        workshopId: workshop.id,
-        personaChallenges,
-        createdAt: new Date().toISOString(),
-      });
-    } catch (e: any) {
-      alert(e.message);
-    }
-  }
-
-  return (
-    <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-4">
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <div className="font-black text-[#0A0E2A]">{group.name}</div>
-        <div className="flex flex-wrap gap-1.5">
-          {members.map((m) => (
-            <span key={m.id} className="inline-flex items-center gap-1 text-xs bg-white border border-gray-200 rounded-full pl-2 pr-1 py-0.5">
-              {m.name}
-              {m.role === "facilitator" && <span className="text-[#E8503A] font-bold">★</span>}
-              <button onClick={() => removeMember(m.id)} className="text-gray-300 hover:text-red-500">
-                <X className="w-3 h-3" />
-              </button>
-            </span>
-          ))}
-        </div>
-      </div>
-
-      {/* Challenge options */}
-      {groupChallenges.length === 0 ? (
-        <div className="flex items-center gap-2">
-          <input type="number" min={2} max={5} value={numOptions} onChange={(e) => setNumOptions(Number(e.target.value))}
-            className="w-16 bg-white border border-gray-200 rounded-lg px-2 py-1.5 text-sm outline-none focus:border-[#E8503A]" />
-          <Btn variant="outline" onClick={generateOptions} loading={generating} disabled={members.length === 0}>
-            <Rocket className="w-3.5 h-3.5" /> Generate challenge options
-          </Btn>
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {groupChallenges.map((c) => {
-            const isEditing = !!editing[c.id];
-            return (
-              <div key={c.id} className={`bg-white border rounded-lg p-3 ${c.status === "selected" ? "border-[#E8503A]" : "border-gray-200"}`}>
-                {isEditing ? (
-                  <div className="space-y-2">
-                    <input value={editing[c.id].title} onChange={(e) => setEditing((prev) => ({ ...prev, [c.id]: { ...prev[c.id], title: e.target.value } }))}
-                      className="w-full font-bold text-sm border border-gray-200 rounded-lg px-2 py-1 outline-none focus:border-[#E8503A]" />
-                    <textarea value={editing[c.id].description} rows={2}
-                      onChange={(e) => setEditing((prev) => ({ ...prev, [c.id]: { ...prev[c.id], description: e.target.value } }))}
-                      className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1 outline-none focus:border-[#E8503A] resize-none" />
-                    <Btn variant="coral" className="text-xs px-3 py-1.5" onClick={() => saveEdit(c)}>Save</Btn>
-                  </div>
-                ) : (
-                  <>
-                    <div className="flex items-center justify-between">
-                      <div className="font-bold text-sm text-[#0A0E2A]">{c.title}</div>
-                      {c.status === "selected" && <Tag color="coral">selected</Tag>}
-                    </div>
-                    <p className="text-xs text-gray-500 mt-1">{c.description}</p>
-                    <div className="flex gap-2 mt-2">
-                      {c.status !== "selected" && (
-                        <Btn variant="coral" className="text-xs px-3 py-1.5" onClick={() => selectChallenge(c.id)}>Select this challenge</Btn>
-                      )}
-                      <Btn variant="outline" className="text-xs px-3 py-1.5" onClick={() => startEdit(c)}>Edit</Btn>
-                    </div>
-                  </>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Solutions + board */}
-      {selected && (
-        <div className="space-y-3 pt-2 border-t border-gray-200">
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">Initial answer (written by the facilitator)</p>
-            <p className="text-sm text-[#0A0E2A] whitespace-pre-wrap">{solution?.initialSolution || "Not submitted yet."}</p>
-          </div>
-          <Btn variant="outline" onClick={generateBoard}>
-            {board && <RefreshCw className="w-3.5 h-3.5" />}
-            {board ? "Regenerate board challenge" : "Get board challenge"}
-          </Btn>
-          {board && (
-            <div className="grid sm:grid-cols-2 gap-2">
-              {board.personaChallenges.map((pc, i) => (
-                <div key={i} className="bg-[#0A0E2A] rounded-lg p-3 text-xs">
-                  <div className="text-[#E8503A] font-bold uppercase tracking-widest text-[10px] mb-1">{pc.role}</div>
-                  <div className="text-white/90">{pc.objection}</div>
-                </div>
-              ))}
-            </div>
-          )}
-          {board && (
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">Revised answer (after board challenge)</p>
-              <p className="text-sm text-[#0A0E2A] whitespace-pre-wrap">{solution?.revisedSolution || "Not submitted yet."}</p>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ── Groups: manual creation + list ──────────────────────────────────────
+// ── Groups: manual creation (max 4, max 1 facilitator) + challenge setup ─
 function GroupsSection({
   workshop,
   adminSecret,
@@ -604,8 +410,6 @@ function GroupsSection({
   responses,
   groups,
   challenges,
-  solutions,
-  boards,
 }: {
   workshop: Workshop;
   adminSecret: string;
@@ -613,19 +417,28 @@ function GroupsSection({
   responses: SurveyResponse[];
   groups: Group[];
   challenges: Challenge[];
-  solutions: GroupSolution[];
-  boards: BoardChallenge[];
 }) {
   const [groupName, setGroupName] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [generatingAll, setGeneratingAll] = useState(false);
+  const [editing, setEditing] = useState<Record<string, { title: string; description: string }>>({});
+  const [numOptions, setNumOptions] = useState(3);
 
   const assignedIds = new Set(groups.flatMap((g) => g.participantIds));
   const unassigned = participants.filter((p) => !assignedIds.has(p.id));
 
   function toggle(id: string) {
+    const p = participants.find((p) => p.id === id);
     setSelectedIds((prev) => {
       if (prev.includes(id)) return prev.filter((x) => x !== id);
       if (prev.length >= 4) return prev;
+      if (p?.role === "facilitator") {
+        const alreadyHasFacilitator = prev.some((pid) => participants.find((pp) => pp.id === pid)?.role === "facilitator");
+        if (alreadyHasFacilitator) {
+          alert("A group can have at most 1 facilitator.");
+          return prev;
+        }
+      }
       return [...prev, id];
     });
   }
@@ -647,55 +460,449 @@ function GroupsSection({
     await deleteDoc(docIn("groups", id));
   }
 
+  async function removeMember(groupId: string, participantId: string, currentIds: string[]) {
+    await updateDoc(docIn("groups", groupId), {
+      participantIds: currentIds.filter((id) => id !== participantId),
+    });
+  }
+
+  async function generateForGroup(group: Group) {
+    const members = group.participantIds.map((id) => participants.find((p) => p.id === id)).filter(Boolean) as Participant[];
+    const responsePayload = members.map((m) => {
+      const r = responses.find((r) => r.participantId === m.id);
+      return {
+        participantName: m.name,
+        aiRelationship: r?.aiRelationship || "",
+        futureVision: r?.futureVision || "",
+        opportunitiesChallenges: r?.opportunitiesChallenges || "",
+      };
+    });
+    const { challenges: generated } = await api("/generate-group-challenges", adminSecret, {
+      workshop: { name: workshop.name },
+      groupName: group.name,
+      responses: responsePayload,
+      numOptions,
+    });
+    for (const c of generated) {
+      await addDoc(col.challenges, {
+        workshopId: workshop.id,
+        groupId: group.id,
+        title: c.title,
+        description: c.description,
+        themes: c.themes || [],
+        status: "option",
+        createdAt: new Date().toISOString(),
+      });
+    }
+  }
+
+  async function generateAllChallenges() {
+    setGeneratingAll(true);
+    try {
+      const groupsNeeding = groups.filter((g) => !challenges.some((c) => c.groupId === g.id));
+      for (const g of groupsNeeding) {
+        await generateForGroup(g);
+      }
+    } catch (e: any) {
+      alert(e.message);
+    } finally {
+      setGeneratingAll(false);
+    }
+  }
+
+  async function selectChallenge(group: Group, challengeId: string) {
+    const groupChallenges = challenges.filter((c) => c.groupId === group.id);
+    for (const c of groupChallenges) {
+      await updateDoc(docIn("challenges", c.id), { status: c.id === challengeId ? "selected" : "option" });
+    }
+    await updateDoc(docIn("groups", group.id), { challengeId });
+  }
+
+  function startEdit(c: Challenge) {
+    setEditing((prev) => ({ ...prev, [c.id]: { title: c.title, description: c.description } }));
+  }
+
+  async function saveEdit(c: Challenge) {
+    const edited = editing[c.id];
+    if (!edited) return;
+    await updateDoc(docIn("challenges", c.id), { title: edited.title, description: edited.description });
+    setEditing((prev) => {
+      const next = { ...prev };
+      delete next[c.id];
+      return next;
+    });
+  }
+
+  const groupsWithoutChallenges = groups.filter((g) => !challenges.some((c) => c.groupId === g.id)).length;
+
   return (
-    <Section title="Step 1 · Create groups (max 4 per group)">
-      <div className="space-y-2 bg-gray-50 border border-gray-200 rounded-xl p-4">
-        <Field label="Group name" value={groupName} onChange={setGroupName} placeholder="e.g. Group 1 — Ops Leaders" />
-        <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1.5">
-          Pick up to 4 unassigned participants ({selectedIds.length}/4)
+    <>
+      <Section title="Create groups (max 4 per group, max 1 facilitator per group)">
+        <div className="space-y-2 bg-gray-50 border border-gray-200 rounded-xl p-4">
+          <Field label="Group name" value={groupName} onChange={setGroupName} placeholder="e.g. Group 1 — Ops Leaders" />
+          <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1.5">
+            Pick up to 4 unassigned participants ({selectedIds.length}/4)
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {unassigned.map((p) => (
+              <button key={p.id} onClick={() => toggle(p.id)}
+                className={`text-xs px-3 py-1.5 rounded-full border font-medium transition-all ${
+                  selectedIds.includes(p.id) ? "bg-[#E8503A]/10 border-[#E8503A] text-[#E8503A]" : "bg-white border-gray-200 text-gray-600 hover:border-[#E8503A]/40"
+                }`}>
+                {p.name}{p.role === "facilitator" ? " ★" : ""}
+              </button>
+            ))}
+            {unassigned.length === 0 && <p className="text-gray-400 text-xs">All participants are already assigned to a group.</p>}
+          </div>
+          <Btn variant="coral" onClick={createGroup} disabled={!groupName || selectedIds.length === 0}>
+            <Plus className="w-4 h-4" /> Create group
+          </Btn>
+        </div>
+
+        <div className="space-y-2">
+          {groups.map((g) => {
+            const members = g.participantIds.map((id) => participants.find((p) => p.id === id)).filter(Boolean) as Participant[];
+            return (
+              <div key={g.id} className="relative bg-gray-50 border border-gray-200 rounded-xl p-3 flex items-center justify-between">
+                <div>
+                  <div className="font-bold text-[#0A0E2A] text-sm">{g.name}</div>
+                  <div className="flex flex-wrap gap-1.5 mt-1">
+                    {members.map((m) => (
+                      <span key={m.id} className="inline-flex items-center gap-1 text-xs bg-white border border-gray-200 rounded-full pl-2 pr-1 py-0.5">
+                        {m.name}{m.role === "facilitator" && <span className="text-[#E8503A] font-bold">★</span>}
+                        <button onClick={() => removeMember(g.id, m.id, g.participantIds)} className="text-gray-300 hover:text-red-500">
+                          <X className="w-3 h-3" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <button onClick={() => deleteGroup(g.id)} className="text-gray-300 hover:text-red-500">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            );
+          })}
+          {groups.length === 0 && <p className="text-gray-400 text-sm">No groups yet — create one above.</p>}
+        </div>
+      </Section>
+
+      {groups.length > 0 && (
+        <Section title="Generate challenges for all groups">
+          <p className="text-sm text-gray-500">
+            One click generates challenge options for every group that doesn't have any yet, from that group's members' survey answers.
+          </p>
+          <div className="flex items-center gap-2">
+            <input type="number" min={2} max={5} value={numOptions} onChange={(e) => setNumOptions(Number(e.target.value))}
+              className="w-16 bg-gray-50 border border-gray-200 rounded-lg px-2 py-1.5 text-sm outline-none focus:border-[#E8503A]" />
+            <span className="text-xs text-gray-400">options per group</span>
+            <Btn variant="coral" onClick={generateAllChallenges} loading={generatingAll} disabled={groupsWithoutChallenges === 0}>
+              <Rocket className="w-4 h-4" /> Generate challenges for {groupsWithoutChallenges || "all"} group{groupsWithoutChallenges === 1 ? "" : "s"}
+            </Btn>
+          </div>
+
+          <div className="space-y-3">
+            {groups.map((g) => {
+              const groupChallenges = challenges.filter((c) => c.groupId === g.id);
+              if (groupChallenges.length === 0) return null;
+              return (
+                <div key={g.id} className="bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-2">
+                  <div className="font-bold text-[#0A0E2A] text-sm">{g.name}</div>
+                  {groupChallenges.map((c) => {
+                    const isEditing = !!editing[c.id];
+                    return (
+                      <div key={c.id} className={`bg-white border rounded-lg p-3 ${c.status === "selected" ? "border-[#E8503A]" : "border-gray-200"}`}>
+                        {isEditing ? (
+                          <div className="space-y-2">
+                            <input value={editing[c.id].title} onChange={(e) => setEditing((prev) => ({ ...prev, [c.id]: { ...prev[c.id], title: e.target.value } }))}
+                              className="w-full font-bold text-sm border border-gray-200 rounded-lg px-2 py-1 outline-none focus:border-[#E8503A]" />
+                            <textarea value={editing[c.id].description} rows={2}
+                              onChange={(e) => setEditing((prev) => ({ ...prev, [c.id]: { ...prev[c.id], description: e.target.value } }))}
+                              className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1 outline-none focus:border-[#E8503A] resize-none" />
+                            <Btn variant="coral" className="text-xs px-3 py-1.5" onClick={() => saveEdit(c)}>Save</Btn>
+                          </div>
+                        ) : (
+                          <>
+                            <div className="flex items-center justify-between">
+                              <div className="font-bold text-sm text-[#0A0E2A]">{c.title}</div>
+                              {c.status === "selected" && <Tag color="coral">selected</Tag>}
+                            </div>
+                            <p className="text-xs text-gray-500 mt-1">{c.description}</p>
+                            <div className="flex gap-2 mt-2">
+                              {c.status !== "selected" && (
+                                <Btn variant="coral" className="text-xs px-3 py-1.5" onClick={() => selectChallenge(g, c.id)}>Select this challenge</Btn>
+                              )}
+                              <Btn variant="outline" className="text-xs px-3 py-1.5" onClick={() => startEdit(c)}>Edit</Btn>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })}
+          </div>
+        </Section>
+      )}
+    </>
+  );
+}
+
+// ── Workshop tab: solutions, board challenge, presentation, commitments ─
+function WorkshopTab({
+  workshop,
+  adminSecret,
+  participants,
+  groups,
+  challenges,
+  solutions,
+  boards,
+  commitments,
+}: {
+  workshop: Workshop;
+  adminSecret: string;
+  participants: Participant[];
+  groups: Group[];
+  challenges: Challenge[];
+  solutions: GroupSolution[];
+  boards: BoardChallenge[];
+  commitments: Commitment[];
+}) {
+  async function present(groupId: string | null) {
+    await updateDoc(docIn("workshops", workshop.id), { presentationGroupId: groupId, status: "presentation" });
+  }
+
+  async function generateBoard(group: Group, challenge: Challenge | undefined, solution: GroupSolution | undefined) {
+    if (!challenge || !solution?.initialSolution) return alert("This group hasn't submitted an initial answer yet.");
+    try {
+      const { personaChallenges } = await api("/generate-board-challenge", adminSecret, {
+        challenge: { title: challenge.title, description: challenge.description },
+        solution: solution.initialSolution,
+        groupName: group.name,
+      });
+      await setDoc(docIn("boardChallenges", group.id), {
+        groupId: group.id,
+        workshopId: workshop.id,
+        personaChallenges,
+        createdAt: new Date().toISOString(),
+      });
+    } catch (e: any) {
+      alert(e.message);
+    }
+  }
+
+  async function setWorkshopStatus(next: Workshop["status"]) {
+    await updateDoc(docIn("workshops", workshop.id), { status: next });
+  }
+
+  const nonFacilitatorParticipants = participants.filter((p) => p.role !== "facilitator");
+
+  return (
+    <div className="space-y-6">
+      <Section title="Question 1 → C-level board → revised answer">
+        <div className="space-y-3">
+          {groups.map((g) => {
+            const challenge = challenges.find((c) => c.id === g.challengeId);
+            const sol = solutions.find((s) => s.groupId === g.id);
+            const board = boards.find((b) => b.groupId === g.id);
+            if (!challenge) {
+              return (
+                <div key={g.id} className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm text-gray-400">
+                  {g.name} — no challenge selected yet (see Pre-workshop tab)
+                </div>
+              );
+            }
+            return (
+              <div key={g.id} className="bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="font-black text-[#0A0E2A]">{g.name}</div>
+                  <Tag color="navy">{challenge.title}</Tag>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Initial answer</p>
+                    {sol?.initialSubmitted && <Tag color="green">submitted</Tag>}
+                  </div>
+                  <p className="text-sm text-gray-600 whitespace-pre-wrap">{sol?.initialSolution || "Not submitted yet."}</p>
+                </div>
+
+                <Btn variant="outline" onClick={() => generateBoard(g, challenge, sol)}>
+                  {board && <RefreshCw className="w-3.5 h-3.5" />}
+                  {board ? "Regenerate board challenge" : "Get board challenge"}
+                </Btn>
+
+                {board && (
+                  <div className="grid sm:grid-cols-2 gap-2">
+                    {board.personaChallenges.map((pc, i) => (
+                      <div key={i} className="bg-white border border-gray-200 rounded-lg p-3 text-xs">
+                        <div className="text-[#E8503A] font-bold uppercase tracking-widest text-[10px] mb-1">{pc.role}</div>
+                        <div className="text-[#0A0E2A]">{pc.objection}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {board && (
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Revised answer</p>
+                      {sol?.revisedSubmitted && <Tag color="green">submitted</Tag>}
+                    </div>
+                    <p className="text-sm text-gray-600 whitespace-pre-wrap">{sol?.revisedSolution || "Not submitted yet."}</p>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+          {groups.length === 0 && <p className="text-gray-400 text-sm">No groups yet.</p>}
+        </div>
+      </Section>
+
+      <Section title="Plenary presentation">
+        <p className="text-sm text-gray-500">
+          Open <a href={`/present/${workshop.id}`} target="_blank" className="text-[#E8503A] font-bold underline">/present/{workshop.id}</a>{" "}
+          on the room screen, then click a group below to bring it up.
         </p>
         <div className="flex flex-wrap gap-2">
-          {unassigned.map((p) => (
-            <button key={p.id} onClick={() => toggle(p.id)}
-              className={`text-xs px-3 py-1.5 rounded-full border font-medium transition-all ${
-                selectedIds.includes(p.id) ? "bg-[#E8503A]/10 border-[#E8503A] text-[#E8503A]" : "bg-white border-gray-200 text-gray-600 hover:border-[#E8503A]/40"
-              }`}>
-              {p.name}{p.role === "facilitator" ? " ★" : ""}
-            </button>
+          {groups.map((g) => (
+            <Btn key={g.id} variant="outline" onClick={() => present(g.id)}>{g.name}</Btn>
           ))}
-          {unassigned.length === 0 && <p className="text-gray-400 text-xs">All participants are already assigned to a group.</p>}
+          <Btn variant="outline" onClick={() => present(null)}>Clear screen</Btn>
         </div>
-        <Btn variant="coral" onClick={createGroup} disabled={!groupName || selectedIds.length === 0}>
-          <Plus className="w-4 h-4" /> Create group
-        </Btn>
-      </div>
+      </Section>
 
-      <div className="space-y-3">
-        {groups.map((g) => (
-          <div key={g.id} className="relative">
-            <GroupCard
-              workshop={workshop}
-              adminSecret={adminSecret}
-              group={g}
-              participants={participants}
-              responses={responses}
-              challenges={challenges}
-              solution={solutions.find((s) => s.groupId === g.id)}
-              board={boards.find((b) => b.groupId === g.id)}
-            />
-            <button onClick={() => deleteGroup(g.id)} className="absolute -top-2 -right-2 bg-white border border-gray-200 rounded-full w-6 h-6 flex items-center justify-center text-gray-400 hover:text-red-500 hover:border-red-300 text-xs shadow-sm">
-              <X className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        ))}
-        {groups.length === 0 && <p className="text-gray-400 text-sm">No groups yet — create one above.</p>}
-      </div>
-    </Section>
+      <Section title="Individual 30-day commitments (facilitators don't answer this one)">
+        {workshop.status !== "commitments" && workshop.status !== "closed" && (
+          <Btn variant="coral" onClick={() => setWorkshopStatus("commitments")}>Open commitment form to participants</Btn>
+        )}
+        <p className="text-xs text-gray-400">{commitments.length}/{nonFacilitatorParticipants.length} participants have submitted</p>
+        <div className="space-y-2">
+          {commitments.map((c) => {
+            const p = participants.find((p) => p.id === c.participantId);
+            return (
+              <div key={c.id} className="bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm">
+                <div className="font-bold text-[#0A0E2A]">{p?.name || "Participant"}</div>
+                <div className="text-gray-500">{c.action}</div>
+              </div>
+            );
+          })}
+        </div>
+      </Section>
+    </div>
+  );
+}
+
+// ── Report tab: one report per group ────────────────────────────────────
+function ReportTab({
+  workshop,
+  adminSecret,
+  participants,
+  groups,
+  challenges,
+  solutions,
+  boards,
+  commitments,
+}: {
+  workshop: Workshop;
+  adminSecret: string;
+  participants: Participant[];
+  groups: Group[];
+  challenges: Challenge[];
+  solutions: GroupSolution[];
+  boards: BoardChallenge[];
+  commitments: Commitment[];
+}) {
+  const [reports, setReports] = useState<GroupReport[]>([]);
+  const [generating, setGenerating] = useState<string | null>(null);
+
+  useEffect(() => onSnapshot(query(col.groupReports, where("workshopId", "==", workshop.id)), (s) =>
+    setReports(s.docs.map((d) => ({ id: d.id, ...d.data() } as GroupReport)))
+  ), [workshop.id]);
+
+  async function generateReport(g: Group) {
+    const challenge = challenges.find((c) => c.id === g.challengeId);
+    if (!challenge) return alert("This group hasn't selected a challenge yet.");
+    const sol = solutions.find((s) => s.groupId === g.id);
+    const board = boards.find((b) => b.groupId === g.id);
+    const memberCommitments = commitments.filter((c) => g.participantIds.includes(c.participantId));
+    setGenerating(g.id);
+    try {
+      const result = await api("/generate-group-report", adminSecret, {
+        workshop: { name: workshop.name },
+        group: { name: g.name },
+        challenge: { title: challenge.title, description: challenge.description },
+        initialSolution: sol?.initialSolution,
+        revisedSolution: sol?.revisedSolution,
+        personaChallenges: board?.personaChallenges,
+        commitments: memberCommitments,
+      });
+      await setDoc(docIn("groupReports", g.id), {
+        groupId: g.id,
+        workshopId: workshop.id,
+        ...result,
+        createdAt: new Date().toISOString(),
+      });
+    } catch (e: any) {
+      alert(e.message);
+    } finally {
+      setGenerating(null);
+    }
+  }
+
+  async function closeWorkshop() {
+    await updateDoc(docIn("workshops", workshop.id), { status: "closed" });
+  }
+
+  return (
+    <div className="space-y-4">
+      {groups.map((g) => {
+        const challenge = challenges.find((c) => c.id === g.challengeId);
+        const report = reports.find((r) => r.groupId === g.id);
+        const members = g.participantIds.map((id) => participants.find((p) => p.id === id)).filter(Boolean) as Participant[];
+        return (
+          <Section key={g.id} title={g.name}>
+            <p className="text-xs text-gray-400">{members.map((m) => m.name).join(", ")}</p>
+            <Btn variant="outline" onClick={() => generateReport(g)} loading={generating === g.id} disabled={!challenge}>
+              {report && <RefreshCw className="w-3.5 h-3.5" />}
+              {report ? "Regenerate report" : "Generate report"}
+            </Btn>
+            {report && (
+              <div className="space-y-3 pt-2">
+                <p className="text-gray-600 text-sm">{report.executiveSummary}</p>
+                <div className="bg-gray-50 border border-gray-200 rounded-xl p-3">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-[#E8503A] mb-1">Key insight</p>
+                  <p className="text-sm text-[#0A0E2A]">{report.keyInsight}</p>
+                </div>
+                <div className="bg-gray-50 border border-gray-200 rounded-xl p-3">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">How their thinking evolved</p>
+                  <p className="text-sm text-gray-600">{report.evolution}</p>
+                </div>
+                <ul className="list-disc list-inside text-sm text-gray-600">
+                  {report.recommendedNextSteps?.map((s, i) => <li key={i}>{s}</li>)}
+                </ul>
+              </div>
+            )}
+          </Section>
+        );
+      })}
+      {groups.length === 0 && <Section title="Report"><p className="text-gray-400 text-sm">No groups yet.</p></Section>}
+
+      <Section title="Wrap up">
+        {workshop.status !== "closed" ? (
+          <Btn variant="coral" onClick={closeWorkshop}>Mark workshop as closed</Btn>
+        ) : (
+          <p className="text-green-600 text-sm font-medium flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4" /> Workshop closed.</p>
+        )}
+      </Section>
+    </div>
   );
 }
 
 // ── Workshop Dashboard ───────────────────────────────────────────────────
 function WorkshopDashboard({ workshop, adminSecret }: { workshop: Workshop; adminSecret: string }) {
+  const [tab, setTab] = useState<"pre" | "workshop" | "report">("pre");
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [responses, setResponses] = useState<SurveyResponse[]>([]);
   const [challenges, setChallenges] = useState<Challenge[]>([]);
@@ -703,9 +910,6 @@ function WorkshopDashboard({ workshop, adminSecret }: { workshop: Workshop; admi
   const [solutions, setSolutions] = useState<GroupSolution[]>([]);
   const [boards, setBoards] = useState<BoardChallenge[]>([]);
   const [commitments, setCommitments] = useState<Commitment[]>([]);
-  const [status, setStatus] = useState(workshop.status);
-  const [report, setReport] = useState<any>(null);
-  const [genReport, setGenReport] = useState(false);
 
   useEffect(() => onSnapshot(query(col.participants, where("workshopId", "==", workshop.id)), (s) =>
     setParticipants(s.docs.map((d) => ({ id: d.id, ...d.data() } as Participant)))
@@ -728,128 +932,84 @@ function WorkshopDashboard({ workshop, adminSecret }: { workshop: Workshop; admi
   useEffect(() => onSnapshot(query(col.commitments, where("workshopId", "==", workshop.id)), (s) =>
     setCommitments(s.docs.map((d) => ({ id: d.id, ...d.data() } as Commitment)))
   ), [workshop.id]);
-  useEffect(() => onSnapshot(docIn("workshops", workshop.id), (s) => {
-    const data = s.data() as Workshop | undefined;
-    if (data) setStatus(data.status);
-  }), [workshop.id]);
 
-  async function setWorkshopStatus(next: Workshop["status"]) {
-    await updateDoc(docIn("workshops", workshop.id), { status: next });
-  }
-
-  async function present(groupId: string | null) {
-    await updateDoc(docIn("workshops", workshop.id), { presentationGroupId: groupId, status: "presentation" });
-  }
-
-  async function generateReport() {
-    setGenReport(true);
-    try {
-      const result = await api("/generate-report", adminSecret, {
-        workshop: { name: workshop.name, date: workshop.date },
-        participants,
-        challenges,
-        groups,
-        solutions,
-        commitments,
-      });
-      setReport(result);
-      await setWorkshopStatus("closed");
-    } catch (e: any) {
-      alert(e.message);
-    } finally {
-      setGenReport(false);
-    }
-  }
+  const workshopLink = `${window.location.origin}/w/${workshop.id}`;
 
   return (
     <div className="min-h-screen bg-[#F4F6FB] px-6 py-10">
       <div className="max-w-5xl mx-auto space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-4">
             <ROAILogo size="sm" />
             <div className="h-8 w-px bg-gray-200" />
             <div>
               <h1 className="text-xl font-black text-[#0A0E2A]">{workshop.name}</h1>
-              <p className="text-gray-400 text-xs">{workshop.date} · status: {status}</p>
+              <p className="text-gray-400 text-xs">{workshop.date} · status: {workshop.status}</p>
             </div>
           </div>
-          <a href="/admin" className="text-sm text-gray-400 hover:text-[#E8503A] font-bold">← All workshops</a>
+          <div className="flex items-center gap-3">
+            <button onClick={() => navigator.clipboard.writeText(workshopLink)}
+              className="text-[#E8503A] hover:text-[#d4432f] flex items-center gap-1.5 font-bold text-sm bg-[#E8503A]/5 border border-[#E8503A]/20 rounded-lg px-3 py-1.5">
+              <Copy className="w-3.5 h-3.5" /> Copy participant link
+            </button>
+            <a href="/admin" className="text-sm text-gray-400 hover:text-[#E8503A] font-bold">← All workshops</a>
+          </div>
         </div>
 
-        <ImportSection workshop={workshop} />
-        <ParticipantsSection workshop={workshop} participants={participants} responses={responses} />
-        <GroupsSection
-          workshop={workshop}
-          adminSecret={adminSecret}
-          participants={participants}
-          responses={responses}
-          groups={groups}
-          challenges={challenges}
-          solutions={solutions}
-          boards={boards}
-        />
+        <div className="flex gap-1 bg-gray-100 rounded-xl p-1 w-fit">
+          {[
+            { key: "pre", label: "Pre-workshop" },
+            { key: "workshop", label: "Workshop" },
+            { key: "report", label: "Report" },
+          ].map((t) => (
+            <button key={t.key} onClick={() => setTab(t.key as any)}
+              className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+                tab === t.key ? "bg-white text-[#0A0E2A] shadow-sm" : "text-gray-400 hover:text-gray-600"
+              }`}>
+              {t.label}
+            </button>
+          ))}
+        </div>
 
-        {groups.length > 0 && (
-          <Section title="Step 2 · Plenary presentation">
-            {status !== "presentation" && status !== "commitments" && status !== "closed" && (
-              <Btn variant="coral" onClick={() => present(null)}>Open presentation mode</Btn>
-            )}
-            <p className="text-sm text-gray-500">
-              Open <a href={`/present/${workshop.id}`} target="_blank" className="text-[#E8503A] font-bold underline">/present/{workshop.id}</a>{" "}
-              on the room screen, then click a group below to bring it up.
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {groups.map((g) => (
-                <Btn key={g.id} variant="outline" onClick={() => present(g.id)}>{g.name}</Btn>
-              ))}
-              <Btn variant="outline" onClick={() => present(null)}>Clear screen</Btn>
-            </div>
-          </Section>
+        {tab === "pre" && (
+          <div className="space-y-6">
+            <ImportSection workshop={workshop} />
+            <ParticipantsSection workshop={workshop} participants={participants} responses={responses} />
+            <GroupsSection
+              workshop={workshop}
+              adminSecret={adminSecret}
+              participants={participants}
+              responses={responses}
+              groups={groups}
+              challenges={challenges}
+            />
+          </div>
         )}
 
-        {groups.length > 0 && (
-          <Section title="Step 3 · Individual 30-day commitments">
-            {status !== "commitments" && status !== "closed" && (
-              <Btn variant="coral" onClick={() => setWorkshopStatus("commitments")}>Open commitment form to participants</Btn>
-            )}
-            <div className="space-y-2">
-              {commitments.map((c) => {
-                const p = participants.find((p) => p.id === c.participantId);
-                return (
-                  <div key={c.id} className="bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm">
-                    <div className="font-bold text-[#0A0E2A]">{p?.name || "Participant"}</div>
-                    <div className="text-gray-500">{c.action}</div>
-                  </div>
-                );
-              })}
-            </div>
-            {commitments.length > 0 && (
-              <Btn variant="outline" onClick={generateReport} loading={genReport}>Generate final workshop report</Btn>
-            )}
-          </Section>
+        {tab === "workshop" && (
+          <WorkshopTab
+            workshop={workshop}
+            adminSecret={adminSecret}
+            participants={participants}
+            groups={groups}
+            challenges={challenges}
+            solutions={solutions}
+            boards={boards}
+            commitments={commitments}
+          />
         )}
 
-        {report && (
-          <Section title="Workshop report">
-            <p className="text-gray-600">{report.executiveSummary}</p>
-            <div className="flex flex-wrap gap-2">
-              {report.keyThemes?.map((t: string) => <Tag key={t} color="coral">{t}</Tag>)}
-            </div>
-            <div className="space-y-2">
-              {report.groupHighlights?.map((g: any, i: number) => (
-                <div key={i} className="bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm">
-                  <div className="font-bold text-[#0A0E2A]">{g.groupName} — {g.challenge}</div>
-                  <div className="text-gray-500">{g.coreInsight}</div>
-                  <div className="text-[#E8503A] text-xs font-bold mt-1">Bold move: {g.boldMove}</div>
-                </div>
-              ))}
-            </div>
-            <p className="text-gray-600 text-sm">{report.commitmentPatterns}</p>
-            <ul className="list-disc list-inside text-sm text-gray-600">
-              {report.recommendedNextSteps?.map((s: string, i: number) => <li key={i}>{s}</li>)}
-            </ul>
-            <p className="text-gray-400 italic text-sm">{report.closingNote}</p>
-          </Section>
+        {tab === "report" && (
+          <ReportTab
+            workshop={workshop}
+            adminSecret={adminSecret}
+            participants={participants}
+            groups={groups}
+            challenges={challenges}
+            solutions={solutions}
+            boards={boards}
+            commitments={commitments}
+          />
         )}
       </div>
     </div>
