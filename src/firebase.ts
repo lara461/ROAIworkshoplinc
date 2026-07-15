@@ -31,7 +31,6 @@ export const col = {
   participants: collection(db, "fow_participants"),
   surveyResponses: collection(db, "fow_survey_responses"),
   challenges: collection(db, "fow_challenges"),
-  groupSignups: collection(db, "fow_group_signups"),
   groups: collection(db, "fow_groups"),
   groupSolutions: collection(db, "fow_group_solutions"),
   boardChallenges: collection(db, "fow_board_challenges"),

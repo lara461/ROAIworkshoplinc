@@ -90,12 +90,14 @@ async function startServer() {
     else res.status(401).json({ error: "Unauthorized" });
   });
 
-  // Step 1 — Generate Challenges from aggregated pre-work survey responses
-  app.post("/api/generate-challenges", requireAdmin, async (req, res) => {
+  // Step 1 — Generate challenge OPTIONS for a specific group, from that
+  // group's members' (externally-collected) survey answers. Strategic,
+  // board-level framing since these are for C-level executives.
+  app.post("/api/generate-group-challenges", requireAdmin, async (req, res) => {
     if (!ANTHROPIC_API_KEY) { res.status(500).json({ error: "ANTHROPIC_API_KEY not configured" }); return; }
-    const { workshop, responses, numChallenges } = req.body;
-    if (!responses?.length) { res.status(400).json({ error: "No survey responses provided" }); return; }
-    const n = Math.max(2, Math.min(8, Number(numChallenges) || 5));
+    const { workshop, groupName, responses, numOptions } = req.body;
+    if (!responses?.length) { res.status(400).json({ error: "No survey responses provided for this group" }); return; }
+    const n = Math.max(2, Math.min(5, Number(numOptions) || 3));
 
     const responseLines = (responses || []).map((r: any) =>
       "Participant: " + r.participantName +
@@ -110,22 +112,24 @@ async function startServer() {
     ).join("\n---\n");
 
     const prompt =
-      "You are an expert facilitator for the ROAI Institute, designing small-group challenges for a C-level workshop on AI and the future of work.\n" +
-      "Synthesize the pre-work survey answers below into EXACTLY " + n + " distinct Challenges that participants can choose to work on in small groups.\n\n" +
+      "You are an expert facilitator for the ROAI Institute, designing challenge options for ONE small group of C-level executives in a workshop on AI and the future of work.\n" +
+      "Synthesize the pre-work survey answers of THIS GROUP's members below into EXACTLY " + n + " candidate challenge options. The group (or the facilitator on their behalf) will pick ONE to work on.\n\n" +
       "WORKSHOP: " + workshop.name + "\n" +
-      "PRE-WORK SURVEY RESPONSES:\n" + responseLines + "\n\n" +
+      "GROUP: " + groupName + "\n" +
+      "GROUP MEMBERS' SURVEY RESPONSES:\n" + responseLines + "\n\n" +
       "RULES:\n" +
-      "- Generate EXACTLY " + n + " challenges, no more no less.\n" +
-      "- Each challenge must be a real, decision-forcing question about AI, organizational redesign, or the future of work — grounded in patterns you see across the responses (concerns, timelines, ownership preferences, employee freedom stance).\n" +
-      "- Challenges must be distinct from one another and each attractive to a different sub-set of participants, since each participant will pick ONE to join.\n" +
+      "- Generate EXACTLY " + n + " options, no more no less.\n" +
+      "- Pitch these at C-LEVEL / BOARDROOM altitude: strategic, decision-forcing questions about AI, organizational redesign, or the future of work — the kind of question a CEO or CHRO would want a real answer to, not a tactical or how-to question.\n" +
+      "- Ground each option in patterns you actually see across THIS group's responses (their concerns, timelines, ownership preferences, employee-freedom stance).\n" +
+      "- The " + n + " options must be genuinely distinct from each other, each offering a different strategic angle, so the group has a real choice.\n" +
       "- Do NOT mention any real company or participant names. Use generic framing ('your organisation').\n" +
       "- Return ONLY valid JSON, nothing else.\n\n" +
       "Return this exact JSON:\n" +
       "{\n" +
       '  "challenges": [\n' +
       "    {\n" +
-      '      "title": "Short, concrete challenge title (max 12 words), phrased as something a group must solve",\n' +
-      '      "description": "2-3 sentence description of the challenge and why it matters, grounded in the survey patterns",\n' +
+      '      "title": "Short, boardroom-level challenge title (max 12 words), phrased as something the group must decide or solve",\n' +
+      '      "description": "2-3 sentence description of the strategic challenge and why it matters, grounded in the group\'s survey patterns",\n' +
       '      "themes": ["theme 1", "theme 2"]\n' +
       "    }\n" +
       "  ]\n" +
@@ -187,7 +191,8 @@ async function startServer() {
       const sol = (solutions || []).find((s: any) => s.groupId === g.id);
       const challenge = (challenges || []).find((c: any) => c.id === g.challengeId);
       return "GROUP: " + g.name + "\nChallenge: " + (challenge?.title || "N/A") +
-        "\nSolution: " + (sol?.solution || "Not submitted");
+        "\nInitial answer: " + (sol?.initialSolution || "Not submitted") +
+        "\nRevised answer (after board challenge): " + (sol?.revisedSolution || "Not submitted");
     }).join("\n\n---\n\n");
 
     const commitmentLines = (commitments || []).map((c: any) => "- " + c.action).join("\n");

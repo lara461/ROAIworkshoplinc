@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import {
   addDoc,
@@ -17,17 +17,19 @@ import {
   Plus,
   RefreshCw,
   Rocket,
+  Upload,
   Users,
+  X,
 } from "lucide-react";
 import { col, docIn } from "../firebase";
-import { buildGroups } from "../groupSplit";
-import { Btn, Card, Eyebrow, Field, ROAILogo, Tag, TextArea } from "../ui";
+import { downloadTemplate, parseParticipantsFile } from "../csvImport";
+import type { ImportedRow } from "../csvImport";
+import { Btn, Card, Field, ROAILogo, Tag, TextArea } from "../ui";
 import type {
   BoardChallenge,
   Challenge,
   Commitment,
   Group,
-  GroupSignup,
   GroupSolution,
   Participant,
   SurveyResponse,
@@ -80,9 +82,7 @@ function Login({ onLogin }: { onLogin: (secret: string) => void }) {
   return (
     <div className="min-h-screen bg-[#F4F6FB] flex items-center justify-center px-6">
       <div className="max-w-sm w-full space-y-6">
-        <div className="flex justify-center">
-          <ROAILogo size="lg" />
-        </div>
+        <div className="flex justify-center"><ROAILogo size="lg" /></div>
         <Card className="space-y-4">
           <h1 className="text-xl font-black text-[#0A0E2A] text-center">Facilitator Access</h1>
           <input
@@ -94,9 +94,7 @@ function Login({ onLogin }: { onLogin: (secret: string) => void }) {
             className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-[#E8503A]"
           />
           {error && <p className="text-red-500 text-sm font-medium">{error}</p>}
-          <Btn variant="coral" onClick={submit} loading={loading} className="w-full justify-center">
-            Enter
-          </Btn>
+          <Btn variant="coral" onClick={submit} loading={loading} className="w-full justify-center">Enter</Btn>
         </Card>
       </div>
     </div>
@@ -104,13 +102,7 @@ function Login({ onLogin }: { onLogin: (secret: string) => void }) {
 }
 
 // ── Create / Select Workshop ────────────────────────────────────────────
-function WorkshopPicker({
-  adminSecret,
-  onSelect,
-}: {
-  adminSecret: string;
-  onSelect: (w: Workshop) => void;
-}) {
+function WorkshopPicker({ adminSecret, onSelect }: { adminSecret: string; onSelect: (w: Workshop) => void }) {
   const [workshops, setWorkshops] = useState<Workshop[]>([]);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -119,9 +111,7 @@ function WorkshopPicker({
   useEffect(() => {
     return onSnapshot(col.workshops, (snap) => {
       setWorkshops(
-        snap.docs
-          .map((d) => ({ id: d.id, ...d.data() } as Workshop))
-          .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
+        snap.docs.map((d) => ({ id: d.id, ...d.data() } as Workshop)).sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
       );
     });
   }, []);
@@ -134,10 +124,10 @@ function WorkshopPicker({
       date,
       adminSecret,
       createdAt: new Date().toISOString(),
-      status: "survey",
+      status: "setup",
       presentationGroupId: null,
     });
-    onSelect({ id: ref.id, name, description, date, adminSecret, createdAt: new Date().toISOString(), status: "survey" });
+    onSelect({ id: ref.id, name, description, date, adminSecret, createdAt: new Date().toISOString(), status: "setup" });
   }
 
   return (
@@ -154,26 +144,17 @@ function WorkshopPicker({
           <TextArea label="Short description" value={description} onChange={setDescription} rows={2} />
           <div>
             <label className="block text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1.5">Date</label>
-            <input
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#E8503A]"
-            />
+            <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
+              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#E8503A]" />
           </div>
-          <Btn variant="coral" onClick={create}>
-            <Plus className="w-4 h-4" /> Create workshop
-          </Btn>
+          <Btn variant="coral" onClick={create}><Plus className="w-4 h-4" /> Create workshop</Btn>
         </Section>
 
         <Section title="Existing workshops">
           <div className="space-y-2">
             {workshops.map((w) => (
-              <button
-                key={w.id}
-                onClick={() => onSelect(w)}
-                className="w-full text-left bg-gray-50 hover:bg-[#E8503A]/5 border border-gray-200 hover:border-[#E8503A]/40 rounded-xl px-4 py-3 flex items-center justify-between transition-all group"
-              >
+              <button key={w.id} onClick={() => onSelect(w)}
+                className="w-full text-left bg-gray-50 hover:bg-[#E8503A]/5 border border-gray-200 hover:border-[#E8503A]/40 rounded-xl px-4 py-3 flex items-center justify-between transition-all group">
                 <div>
                   <div className="font-bold text-[#0A0E2A] group-hover:text-[#E8503A] transition-colors">{w.name}</div>
                   <div className="text-xs text-gray-400">{w.date} — status: {w.status}</div>
@@ -189,22 +170,553 @@ function WorkshopPicker({
   );
 }
 
+// ── Import participants + survey answers from CSV/XLSX ─────────────────
+function ImportSection({ workshop }: { workshop: Workshop }) {
+  const [rows, setRows] = useState<ImportedRow[] | null>(null);
+  const [unmatched, setUnmatched] = useState<string[]>([]);
+  const [importing, setImporting] = useState(false);
+  const [done, setDone] = useState(false);
+  const fileInput = useRef<HTMLInputElement>(null);
+
+  async function handleFile(file: File) {
+    setDone(false);
+    const { rows, unmatchedHeaders } = await parseParticipantsFile(file);
+    setRows(rows);
+    setUnmatched(unmatchedHeaders);
+  }
+
+  async function confirmImport() {
+    if (!rows) return;
+    setImporting(true);
+    try {
+      for (const r of rows) {
+        if (r._error) continue;
+        const pRef = await addDoc(col.participants, {
+          workshopId: workshop.id,
+          name: r.name,
+          email: r.email,
+          token: nanoid(12),
+          role: r.role,
+          createdAt: new Date().toISOString(),
+        });
+        const hasSurveyData = [
+          r.orgSize, r.aiRelationship, r.biggestConcern, r.futureOfWorkView,
+          r.moveTimeline, r.futureVision, r.ownershipPreference, r.employeeFreedom,
+        ].some((v) => v && v.length > 0);
+        if (hasSurveyData) {
+          await addDoc(col.surveyResponses, {
+            participantId: pRef.id,
+            workshopId: workshop.id,
+            orgSize: r.orgSize,
+            aiRelationship: r.aiRelationship,
+            biggestConcern: r.biggestConcern,
+            futureOfWorkView: r.futureOfWorkView,
+            moveTimeline: r.moveTimeline,
+            futureVision: r.futureVision,
+            ownershipPreference: r.ownershipPreference,
+            employeeFreedom: r.employeeFreedom,
+            createdAt: new Date().toISOString(),
+          });
+        }
+      }
+      setDone(true);
+      setRows(null);
+      if (fileInput.current) fileInput.current.value = "";
+    } finally {
+      setImporting(false);
+    }
+  }
+
+  const validCount = rows?.filter((r) => !r._error).length || 0;
+  const errorCount = rows?.filter((r) => r._error).length || 0;
+
+  return (
+    <Section title="Import participants & survey answers (CSV / Excel)">
+      <p className="text-sm text-gray-500">
+        The pre-work survey is run externally. Upload a CSV or Excel file with one row per participant — name, email,
+        optional role, and their survey answers.
+      </p>
+      <div className="flex gap-2 flex-wrap">
+        <Btn variant="outline" onClick={() => downloadTemplate()}>Download template</Btn>
+        <label className="inline-flex items-center gap-2 font-bold text-sm rounded-xl px-4 py-2.5 bg-gray-50 border border-gray-200 hover:border-[#E8503A] cursor-pointer text-[#0A0E2A]">
+          <Upload className="w-4 h-4" /> Choose file
+          <input
+            ref={fileInput}
+            type="file"
+            accept=".csv,.xlsx,.xls"
+            className="hidden"
+            onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
+          />
+        </label>
+      </div>
+
+      {unmatched.length > 0 && (
+        <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+          Columns not recognized (ignored): {unmatched.join(", ")}
+        </p>
+      )}
+
+      {rows && rows.length > 0 && (
+        <div className="space-y-3">
+          <p className="text-sm text-gray-600">
+            <span className="font-bold text-green-600">{validCount} ready to import</span>
+            {errorCount > 0 && <span className="text-red-500 font-bold"> · {errorCount} with errors (skipped)</span>}
+          </p>
+          <div className="max-h-72 overflow-auto border border-gray-200 rounded-xl">
+            <table className="w-full text-xs">
+              <thead className="bg-gray-50 sticky top-0">
+                <tr>
+                  <th className="text-left p-2 font-bold text-gray-400 uppercase tracking-wide">Row</th>
+                  <th className="text-left p-2 font-bold text-gray-400 uppercase tracking-wide">Name</th>
+                  <th className="text-left p-2 font-bold text-gray-400 uppercase tracking-wide">Email</th>
+                  <th className="text-left p-2 font-bold text-gray-400 uppercase tracking-wide">Role</th>
+                  <th className="text-left p-2 font-bold text-gray-400 uppercase tracking-wide">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r) => (
+                  <tr key={r._rowNumber} className="border-t border-gray-100">
+                    <td className="p-2 text-gray-400">{r._rowNumber}</td>
+                    <td className="p-2 font-medium text-[#0A0E2A]">{r.name}</td>
+                    <td className="p-2 text-gray-500">{r.email}</td>
+                    <td className="p-2">{r.role === "facilitator" ? <Tag color="coral">facilitator</Tag> : <Tag>participant</Tag>}</td>
+                    <td className="p-2">{r._error ? <span className="text-red-500 font-bold">{r._error}</span> : <span className="text-green-600 font-bold">OK</span>}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <Btn variant="coral" onClick={confirmImport} loading={importing} disabled={validCount === 0}>
+            Import {validCount} participants
+          </Btn>
+        </div>
+      )}
+
+      {done && (
+        <p className="text-green-600 text-sm font-medium flex items-center gap-1.5">
+          <CheckCircle2 className="w-4 h-4" /> Import complete.
+        </p>
+      )}
+    </Section>
+  );
+}
+
+// ── Participants list + manual add ──────────────────────────────────────
+function ParticipantsSection({
+  workshop,
+  participants,
+  responses,
+}: {
+  workshop: Workshop;
+  participants: Participant[];
+  responses: SurveyResponse[];
+}) {
+  const [newName, setNewName] = useState("");
+  const [newEmail, setNewEmail] = useState("");
+  const [newRole, setNewRole] = useState<"participant" | "facilitator">("participant");
+
+  async function addParticipant() {
+    if (!newName || !newEmail) return;
+    await addDoc(col.participants, {
+      workshopId: workshop.id,
+      name: newName,
+      email: newEmail,
+      token: nanoid(12),
+      role: newRole,
+      createdAt: new Date().toISOString(),
+    });
+    setNewName("");
+    setNewEmail("");
+    setNewRole("participant");
+  }
+
+  async function removeParticipant(id: string) {
+    await deleteDoc(docIn("participants", id));
+  }
+
+  async function toggleRole(p: Participant) {
+    await updateDoc(docIn("participants", p.id), {
+      role: p.role === "facilitator" ? "participant" : "facilitator",
+    });
+  }
+
+  const participantLink = (token: string) => `${window.location.origin}/w/${token}`;
+
+  return (
+    <Section title="Participants">
+      <div className="flex gap-2 flex-wrap items-end">
+        <div className="flex-1 min-w-[160px]">
+          <input placeholder="Full name" value={newName} onChange={(e) => setNewName(e.target.value)}
+            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-[#E8503A]" />
+        </div>
+        <div className="flex-1 min-w-[160px]">
+          <input placeholder="Email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)}
+            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-[#E8503A]" />
+        </div>
+        <select value={newRole} onChange={(e) => setNewRole(e.target.value as any)}
+          className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-[#E8503A]">
+          <option value="participant">Participant</option>
+          <option value="facilitator">Facilitator</option>
+        </select>
+        <Btn variant="coral" onClick={addParticipant}><Plus className="w-4 h-4" /></Btn>
+      </div>
+
+      <p className="text-sm text-gray-500 flex items-center gap-1.5">
+        <Users className="w-4 h-4" />
+        {responses.length}/{participants.length} have survey answers on file
+      </p>
+
+      <div className="divide-y divide-gray-100">
+        {participants.map((p) => {
+          const done = responses.some((r) => r.participantId === p.id);
+          return (
+            <div key={p.id} className="flex items-center justify-between py-2.5 text-sm">
+              <div>
+                <div className="font-bold text-[#0A0E2A] flex items-center gap-2">
+                  {p.name}
+                  {p.role === "facilitator" && <Tag color="coral">facilitator</Tag>}
+                </div>
+                <div className="text-gray-400 text-xs">{p.email}</div>
+              </div>
+              <div className="flex items-center gap-3">
+                {done ? <CheckCircle2 className="w-4 h-4 text-green-600" /> : <Tag>no survey</Tag>}
+                <button onClick={() => toggleRole(p)} className="text-gray-400 hover:text-[#E8503A] font-bold text-xs">
+                  {p.role === "facilitator" ? "make participant" : "make facilitator"}
+                </button>
+                <button onClick={() => navigator.clipboard.writeText(participantLink(p.token))}
+                  className="text-[#E8503A] hover:text-[#d4432f] flex items-center gap-1 font-bold">
+                  <Copy className="w-3.5 h-3.5" /> link
+                </button>
+                <button onClick={() => removeParticipant(p.id)} className="text-gray-400 hover:text-red-500 font-bold">remove</button>
+              </div>
+            </div>
+          );
+        })}
+        {participants.length === 0 && <p className="text-gray-400 text-sm py-2">No participants yet — import a file or add one above.</p>}
+      </div>
+    </Section>
+  );
+}
+
+// ── One group's card: members, challenge options, solutions, board ─────
+function GroupCard({
+  workshop,
+  adminSecret,
+  group,
+  participants,
+  responses,
+  challenges,
+  solution,
+  board,
+}: {
+  workshop: Workshop;
+  adminSecret: string;
+  group: Group;
+  participants: Participant[];
+  responses: SurveyResponse[];
+  challenges: Challenge[];
+  solution: GroupSolution | undefined;
+  board: BoardChallenge | undefined;
+}) {
+  const [generating, setGenerating] = useState(false);
+  const [numOptions, setNumOptions] = useState(3);
+  const [editing, setEditing] = useState<Record<string, { title: string; description: string }>>({});
+
+  const members = group.participantIds.map((id) => participants.find((p) => p.id === id)).filter(Boolean) as Participant[];
+  const groupChallenges = challenges.filter((c) => c.groupId === group.id);
+  const selected = groupChallenges.find((c) => c.status === "selected");
+
+  async function removeMember(participantId: string) {
+    await updateDoc(docIn("groups", group.id), {
+      participantIds: group.participantIds.filter((id) => id !== participantId),
+    });
+  }
+
+  async function generateOptions() {
+    setGenerating(true);
+    try {
+      const responsePayload = members.map((m) => {
+        const r = responses.find((r) => r.participantId === m.id);
+        return {
+          participantName: m.name,
+          orgSize: r?.orgSize || "",
+          aiRelationship: r?.aiRelationship || "",
+          biggestConcern: r?.biggestConcern || "",
+          futureOfWorkView: r?.futureOfWorkView || "",
+          moveTimeline: r?.moveTimeline || "",
+          futureVision: r?.futureVision || "",
+          ownershipPreference: r?.ownershipPreference || "",
+          employeeFreedom: r?.employeeFreedom || "",
+        };
+      });
+      const { challenges: generated } = await api("/generate-group-challenges", adminSecret, {
+        workshop: { name: workshop.name },
+        groupName: group.name,
+        responses: responsePayload,
+        numOptions,
+      });
+      for (const c of generated) {
+        await addDoc(col.challenges, {
+          workshopId: workshop.id,
+          groupId: group.id,
+          title: c.title,
+          description: c.description,
+          themes: c.themes || [],
+          status: "option",
+          createdAt: new Date().toISOString(),
+        });
+      }
+    } catch (e: any) {
+      alert(e.message);
+    } finally {
+      setGenerating(false);
+    }
+  }
+
+  async function selectChallenge(challengeId: string) {
+    for (const c of groupChallenges) {
+      await updateDoc(docIn("challenges", c.id), { status: c.id === challengeId ? "selected" : "option" });
+    }
+    await updateDoc(docIn("groups", group.id), { challengeId });
+  }
+
+  function startEdit(c: Challenge) {
+    setEditing((prev) => ({ ...prev, [c.id]: { title: c.title, description: c.description } }));
+  }
+
+  async function saveEdit(c: Challenge) {
+    const edited = editing[c.id];
+    if (!edited) return;
+    await updateDoc(docIn("challenges", c.id), { title: edited.title, description: edited.description });
+    setEditing((prev) => {
+      const next = { ...prev };
+      delete next[c.id];
+      return next;
+    });
+  }
+
+  async function generateBoard() {
+    if (!selected || !solution?.initialSolution) return alert("This group hasn't submitted an initial answer yet.");
+    try {
+      const { personaChallenges } = await api("/generate-board-challenge", adminSecret, {
+        challenge: { title: selected.title, description: selected.description },
+        solution: solution.initialSolution,
+        groupName: group.name,
+      });
+      await setDoc(docIn("boardChallenges", group.id), {
+        groupId: group.id,
+        workshopId: workshop.id,
+        personaChallenges,
+        createdAt: new Date().toISOString(),
+      });
+    } catch (e: any) {
+      alert(e.message);
+    }
+  }
+
+  return (
+    <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-4">
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="font-black text-[#0A0E2A]">{group.name}</div>
+        <div className="flex flex-wrap gap-1.5">
+          {members.map((m) => (
+            <span key={m.id} className="inline-flex items-center gap-1 text-xs bg-white border border-gray-200 rounded-full pl-2 pr-1 py-0.5">
+              {m.name}
+              {m.role === "facilitator" && <span className="text-[#E8503A] font-bold">★</span>}
+              <button onClick={() => removeMember(m.id)} className="text-gray-300 hover:text-red-500">
+                <X className="w-3 h-3" />
+              </button>
+            </span>
+          ))}
+        </div>
+      </div>
+
+      {/* Challenge options */}
+      {groupChallenges.length === 0 ? (
+        <div className="flex items-center gap-2">
+          <input type="number" min={2} max={5} value={numOptions} onChange={(e) => setNumOptions(Number(e.target.value))}
+            className="w-16 bg-white border border-gray-200 rounded-lg px-2 py-1.5 text-sm outline-none focus:border-[#E8503A]" />
+          <Btn variant="outline" onClick={generateOptions} loading={generating} disabled={members.length === 0}>
+            <Rocket className="w-3.5 h-3.5" /> Generate challenge options
+          </Btn>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {groupChallenges.map((c) => {
+            const isEditing = !!editing[c.id];
+            return (
+              <div key={c.id} className={`bg-white border rounded-lg p-3 ${c.status === "selected" ? "border-[#E8503A]" : "border-gray-200"}`}>
+                {isEditing ? (
+                  <div className="space-y-2">
+                    <input value={editing[c.id].title} onChange={(e) => setEditing((prev) => ({ ...prev, [c.id]: { ...prev[c.id], title: e.target.value } }))}
+                      className="w-full font-bold text-sm border border-gray-200 rounded-lg px-2 py-1 outline-none focus:border-[#E8503A]" />
+                    <textarea value={editing[c.id].description} rows={2}
+                      onChange={(e) => setEditing((prev) => ({ ...prev, [c.id]: { ...prev[c.id], description: e.target.value } }))}
+                      className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1 outline-none focus:border-[#E8503A] resize-none" />
+                    <Btn variant="coral" className="text-xs px-3 py-1.5" onClick={() => saveEdit(c)}>Save</Btn>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <div className="font-bold text-sm text-[#0A0E2A]">{c.title}</div>
+                      {c.status === "selected" && <Tag color="coral">selected</Tag>}
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">{c.description}</p>
+                    <div className="flex gap-2 mt-2">
+                      {c.status !== "selected" && (
+                        <Btn variant="coral" className="text-xs px-3 py-1.5" onClick={() => selectChallenge(c.id)}>Select this challenge</Btn>
+                      )}
+                      <Btn variant="outline" className="text-xs px-3 py-1.5" onClick={() => startEdit(c)}>Edit</Btn>
+                    </div>
+                  </>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Solutions + board */}
+      {selected && (
+        <div className="space-y-3 pt-2 border-t border-gray-200">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">Initial answer (written by the facilitator)</p>
+            <p className="text-sm text-[#0A0E2A] whitespace-pre-wrap">{solution?.initialSolution || "Not submitted yet."}</p>
+          </div>
+          <Btn variant="outline" onClick={generateBoard}>
+            {board && <RefreshCw className="w-3.5 h-3.5" />}
+            {board ? "Regenerate board challenge" : "Get board challenge"}
+          </Btn>
+          {board && (
+            <div className="grid sm:grid-cols-2 gap-2">
+              {board.personaChallenges.map((pc, i) => (
+                <div key={i} className="bg-[#0A0E2A] rounded-lg p-3 text-xs">
+                  <div className="text-[#E8503A] font-bold uppercase tracking-widest text-[10px] mb-1">{pc.role}</div>
+                  <div className="text-white/90">{pc.objection}</div>
+                </div>
+              ))}
+            </div>
+          )}
+          {board && (
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">Revised answer (after board challenge)</p>
+              <p className="text-sm text-[#0A0E2A] whitespace-pre-wrap">{solution?.revisedSolution || "Not submitted yet."}</p>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Groups: manual creation + list ──────────────────────────────────────
+function GroupsSection({
+  workshop,
+  adminSecret,
+  participants,
+  responses,
+  groups,
+  challenges,
+  solutions,
+  boards,
+}: {
+  workshop: Workshop;
+  adminSecret: string;
+  participants: Participant[];
+  responses: SurveyResponse[];
+  groups: Group[];
+  challenges: Challenge[];
+  solutions: GroupSolution[];
+  boards: BoardChallenge[];
+}) {
+  const [groupName, setGroupName] = useState("");
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+  const assignedIds = new Set(groups.flatMap((g) => g.participantIds));
+  const unassigned = participants.filter((p) => !assignedIds.has(p.id));
+
+  function toggle(id: string) {
+    setSelectedIds((prev) => {
+      if (prev.includes(id)) return prev.filter((x) => x !== id);
+      if (prev.length >= 4) return prev;
+      return [...prev, id];
+    });
+  }
+
+  async function createGroup() {
+    if (!groupName || selectedIds.length === 0) return;
+    await addDoc(col.groups, {
+      workshopId: workshop.id,
+      name: groupName,
+      participantIds: selectedIds,
+      challengeId: null,
+      createdAt: new Date().toISOString(),
+    });
+    setGroupName("");
+    setSelectedIds([]);
+  }
+
+  async function deleteGroup(id: string) {
+    await deleteDoc(docIn("groups", id));
+  }
+
+  return (
+    <Section title="Step 1 · Create groups (max 4 per group)">
+      <div className="space-y-2 bg-gray-50 border border-gray-200 rounded-xl p-4">
+        <Field label="Group name" value={groupName} onChange={setGroupName} placeholder="e.g. Group 1 — Ops Leaders" />
+        <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1.5">
+          Pick up to 4 unassigned participants ({selectedIds.length}/4)
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {unassigned.map((p) => (
+            <button key={p.id} onClick={() => toggle(p.id)}
+              className={`text-xs px-3 py-1.5 rounded-full border font-medium transition-all ${
+                selectedIds.includes(p.id) ? "bg-[#E8503A]/10 border-[#E8503A] text-[#E8503A]" : "bg-white border-gray-200 text-gray-600 hover:border-[#E8503A]/40"
+              }`}>
+              {p.name}{p.role === "facilitator" ? " ★" : ""}
+            </button>
+          ))}
+          {unassigned.length === 0 && <p className="text-gray-400 text-xs">All participants are already assigned to a group.</p>}
+        </div>
+        <Btn variant="coral" onClick={createGroup} disabled={!groupName || selectedIds.length === 0}>
+          <Plus className="w-4 h-4" /> Create group
+        </Btn>
+      </div>
+
+      <div className="space-y-3">
+        {groups.map((g) => (
+          <div key={g.id} className="relative">
+            <GroupCard
+              workshop={workshop}
+              adminSecret={adminSecret}
+              group={g}
+              participants={participants}
+              responses={responses}
+              challenges={challenges}
+              solution={solutions.find((s) => s.groupId === g.id)}
+              board={boards.find((b) => b.groupId === g.id)}
+            />
+            <button onClick={() => deleteGroup(g.id)} className="absolute -top-2 -right-2 bg-white border border-gray-200 rounded-full w-6 h-6 flex items-center justify-center text-gray-400 hover:text-red-500 hover:border-red-300 text-xs shadow-sm">
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        ))}
+        {groups.length === 0 && <p className="text-gray-400 text-sm">No groups yet — create one above.</p>}
+      </div>
+    </Section>
+  );
+}
+
 // ── Workshop Dashboard ───────────────────────────────────────────────────
 function WorkshopDashboard({ workshop, adminSecret }: { workshop: Workshop; adminSecret: string }) {
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [responses, setResponses] = useState<SurveyResponse[]>([]);
   const [challenges, setChallenges] = useState<Challenge[]>([]);
-  const [signups, setSignups] = useState<GroupSignup[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
   const [solutions, setSolutions] = useState<GroupSolution[]>([]);
   const [boards, setBoards] = useState<BoardChallenge[]>([]);
   const [commitments, setCommitments] = useState<Commitment[]>([]);
   const [status, setStatus] = useState(workshop.status);
-
-  const [newName, setNewName] = useState("");
-  const [newEmail, setNewEmail] = useState("");
-  const [numChallenges, setNumChallenges] = useState(5);
-  const [generating, setGenerating] = useState(false);
   const [report, setReport] = useState<any>(null);
   const [genReport, setGenReport] = useState(false);
 
@@ -216,9 +728,6 @@ function WorkshopDashboard({ workshop, adminSecret }: { workshop: Workshop; admi
   ), [workshop.id]);
   useEffect(() => onSnapshot(query(col.challenges, where("workshopId", "==", workshop.id)), (s) =>
     setChallenges(s.docs.map((d) => ({ id: d.id, ...d.data() } as Challenge)))
-  ), [workshop.id]);
-  useEffect(() => onSnapshot(query(col.groupSignups, where("workshopId", "==", workshop.id)), (s) =>
-    setSignups(s.docs.map((d) => ({ id: d.id, ...d.data() } as GroupSignup)))
   ), [workshop.id]);
   useEffect(() => onSnapshot(query(col.groups, where("workshopId", "==", workshop.id)), (s) =>
     setGroups(s.docs.map((d) => ({ id: d.id, ...d.data() } as Group)))
@@ -241,113 +750,8 @@ function WorkshopDashboard({ workshop, adminSecret }: { workshop: Workshop; admi
     await updateDoc(docIn("workshops", workshop.id), { status: next });
   }
 
-  async function addParticipant() {
-    if (!newName || !newEmail) return;
-    await addDoc(col.participants, {
-      workshopId: workshop.id,
-      name: newName,
-      email: newEmail,
-      token: nanoid(12),
-      status: "invited",
-      createdAt: new Date().toISOString(),
-    });
-    setNewName("");
-    setNewEmail("");
-  }
-
-  async function removeParticipant(id: string) {
-    await deleteDoc(docIn("participants", id));
-  }
-
-  const surveyCompletionCount = responses.length;
-
-  async function generateChallenges() {
-    setGenerating(true);
-    try {
-      const responsePayload = responses.map((r) => {
-        const p = participants.find((p) => p.id === r.participantId);
-        return {
-          participantName: p?.name || "Participant",
-          orgSize: r.orgSize,
-          aiRelationship: r.aiRelationship,
-          biggestConcern: r.biggestConcern,
-          futureOfWorkView: r.futureOfWorkView,
-          moveTimeline: r.moveTimeline,
-          futureVision: r.futureVision,
-          ownershipPreference: r.ownershipPreference,
-          employeeFreedom: r.employeeFreedom,
-        };
-      });
-      const { challenges: generated } = await api("/generate-challenges", adminSecret, {
-        workshop: { name: workshop.name },
-        responses: responsePayload,
-        numChallenges,
-      });
-      for (const c of generated) {
-        await addDoc(col.challenges, {
-          workshopId: workshop.id,
-          title: c.title,
-          description: c.description,
-          themes: c.themes || [],
-          createdAt: new Date().toISOString(),
-        });
-      }
-    } catch (e: any) {
-      alert(e.message);
-    } finally {
-      setGenerating(false);
-    }
-  }
-
-  async function publishChallenges() {
-    await setWorkshopStatus("challenges_ready");
-  }
-
-  async function openGroupSelection() {
-    await setWorkshopStatus("groups_open");
-  }
-
-  async function lockGroups() {
-    const draft = buildGroups(challenges, signups);
-    for (const g of draft) {
-      await addDoc(col.groups, {
-        workshopId: workshop.id,
-        challengeId: g.challengeId,
-        name: g.name,
-        participantIds: g.participantIds,
-        createdAt: new Date().toISOString(),
-      });
-    }
-    await setWorkshopStatus("groups_locked");
-  }
-
-  async function generateBoard(group: Group) {
-    const sol = solutions.find((s) => s.groupId === group.id);
-    const challenge = challenges.find((c) => c.id === group.challengeId);
-    if (!sol?.solution || !challenge) return alert("This group hasn't submitted a solution yet.");
-    try {
-      const { personaChallenges } = await api("/generate-board-challenge", adminSecret, {
-        challenge: { title: challenge.title, description: challenge.description },
-        solution: sol.solution,
-        groupName: group.name,
-      });
-      await setDoc(docIn("boardChallenges", group.id), {
-        groupId: group.id,
-        workshopId: workshop.id,
-        personaChallenges,
-        createdAt: new Date().toISOString(),
-      });
-    } catch (e: any) {
-      alert(e.message);
-    }
-  }
-
   async function present(groupId: string | null) {
     await updateDoc(docIn("workshops", workshop.id), { presentationGroupId: groupId, status: "presentation" });
-  }
-
-  async function openCommitments() {
-    await setWorkshopStatus("commitments");
   }
 
   async function generateReport() {
@@ -370,8 +774,6 @@ function WorkshopDashboard({ workshop, adminSecret }: { workshop: Workshop; admi
     }
   }
 
-  const participantLink = (token: string) => `${window.location.origin}/w/${token}`;
-
   return (
     <div className="min-h-screen bg-[#F4F6FB] px-6 py-10">
       <div className="max-w-5xl mx-auto space-y-6">
@@ -384,197 +786,44 @@ function WorkshopDashboard({ workshop, adminSecret }: { workshop: Workshop; admi
               <p className="text-gray-400 text-xs">{workshop.date} · status: {status}</p>
             </div>
           </div>
-          <a href="/admin" className="text-sm text-gray-400 hover:text-[#E8503A] font-bold">
-            ← All workshops
-          </a>
+          <a href="/admin" className="text-sm text-gray-400 hover:text-[#E8503A] font-bold">← All workshops</a>
         </div>
 
-        {/* Participants + Survey */}
-        <Section title="1 · Participants & pre-work survey">
-          <div className="flex gap-2">
-            <input
-              placeholder="Full name"
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-[#E8503A]"
-            />
-            <input
-              placeholder="Email"
-              value={newEmail}
-              onChange={(e) => setNewEmail(e.target.value)}
-              className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-[#E8503A]"
-            />
-            <Btn variant="coral" onClick={addParticipant}>
-              <Plus className="w-4 h-4" />
-            </Btn>
-          </div>
-          <p className="text-sm text-gray-500 flex items-center gap-1.5">
-            <Users className="w-4 h-4" />
-            {surveyCompletionCount}/{participants.length} completed the survey
-          </p>
-          <div className="divide-y divide-gray-100">
-            {participants.map((p) => {
-              const done = responses.some((r) => r.participantId === p.id);
-              return (
-                <div key={p.id} className="flex items-center justify-between py-2.5 text-sm">
-                  <div>
-                    <div className="font-bold text-[#0A0E2A]">{p.name}</div>
-                    <div className="text-gray-400 text-xs">{p.email}</div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    {done ? (
-                      <CheckCircle2 className="w-4 h-4 text-green-600" />
-                    ) : (
-                      <Tag>pending</Tag>
-                    )}
-                    <button
-                      onClick={() => navigator.clipboard.writeText(participantLink(p.token))}
-                      className="text-[#E8503A] hover:text-[#d4432f] flex items-center gap-1 font-bold"
-                    >
-                      <Copy className="w-3.5 h-3.5" /> link
-                    </button>
-                    <button onClick={() => removeParticipant(p.id)} className="text-gray-400 hover:text-red-500 font-bold">
-                      remove
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </Section>
+        <ImportSection workshop={workshop} />
+        <ParticipantsSection workshop={workshop} participants={participants} responses={responses} />
+        <GroupsSection
+          workshop={workshop}
+          adminSecret={adminSecret}
+          participants={participants}
+          responses={responses}
+          groups={groups}
+          challenges={challenges}
+          solutions={solutions}
+          boards={boards}
+        />
 
-        {/* Step 1: Challenges */}
-        <Section title="Step 1 · Define the challenges (from survey answers)">
-          {challenges.length === 0 ? (
-            <div className="flex items-center gap-3">
-              <input
-                type="number"
-                min={2}
-                max={8}
-                value={numChallenges}
-                onChange={(e) => setNumChallenges(Number(e.target.value))}
-                className="w-20 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-[#E8503A]"
-              />
-              <span className="text-sm text-gray-400">number of challenges to generate</span>
-              <Btn variant="coral" onClick={generateChallenges} loading={generating} disabled={responses.length === 0}>
-                <Rocket className="w-4 h-4" /> Generate challenges
-              </Btn>
-            </div>
-          ) : (
-            <>
-              <div className="grid md:grid-cols-2 gap-3">
-                {challenges.map((c) => (
-                  <div key={c.id} className="bg-gray-50 border border-gray-200 rounded-xl p-4">
-                    <div className="font-bold text-[#0A0E2A]">{c.title}</div>
-                    <p className="text-sm text-gray-500 mt-1">{c.description}</p>
-                    <div className="flex gap-1 mt-2 flex-wrap">
-                      {c.themes?.map((t) => (
-                        <Tag key={t} color="coral">{t}</Tag>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-              {status === "survey" && <Btn variant="coral" onClick={publishChallenges}>Publish challenges to participants</Btn>}
-            </>
-          )}
-        </Section>
-
-        {/* Step 2: Groups */}
-        {challenges.length > 0 && (
-          <Section title="Step 2 · Groups (self-selected, max 4 per group)">
-            {status === "challenges_ready" && <Btn variant="coral" onClick={openGroupSelection}>Open group selection</Btn>}
-            {(status === "groups_open" || status === "challenges_ready") && (
-              <div className="grid md:grid-cols-2 gap-3">
-                {challenges.map((c) => {
-                  const count = signups.filter((s) => s.challengeId === c.id).length;
-                  return (
-                    <div key={c.id} className="bg-gray-50 border border-gray-200 rounded-xl p-3 flex justify-between text-sm">
-                      <span className="font-medium text-[#0A0E2A]">{c.title}</span>
-                      <span className="text-[#E8503A] font-bold">{count} signed up</span>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-            {status === "groups_open" && <Btn variant="coral" onClick={lockGroups}>Lock groups & auto-balance</Btn>}
-            {groups.length > 0 && (
-              <div className="space-y-2 pt-2">
-                {groups.map((g) => (
-                  <div key={g.id} className="bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm">
-                    <div className="font-bold text-[#0A0E2A]">{g.name}</div>
-                    <div className="text-gray-500">
-                      {g.participantIds.map((id) => participants.find((p) => p.id === id)?.name).join(", ")}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </Section>
-        )}
-
-        {/* Step 3: Board challenge */}
         {groups.length > 0 && (
-          <Section title="Step 3 · C-level board challenge">
-            <div className="space-y-3">
-              {groups.map((g) => {
-                const sol = solutions.find((s) => s.groupId === g.id);
-                const board = boards.find((b) => b.groupId === g.id);
-                return (
-                  <div key={g.id} className="bg-gray-50 border border-gray-200 rounded-xl p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="font-bold text-[#0A0E2A]">{g.name}</div>
-                      <Btn variant="outline" onClick={() => generateBoard(g)}>
-                        {board && <RefreshCw className="w-3.5 h-3.5" />}
-                        {board ? "Regenerate board challenge" : "Get board challenge"}
-                      </Btn>
-                    </div>
-                    <p className="text-sm text-gray-500 mt-2 whitespace-pre-wrap">{sol?.solution || "No solution submitted yet."}</p>
-                    {board && (
-                      <div className="mt-3 grid sm:grid-cols-2 gap-2">
-                        {board.personaChallenges.map((pc, i) => (
-                          <div key={i} className="bg-white border border-gray-200 rounded-lg p-3 text-xs">
-                            <div className="text-[#E8503A] font-bold uppercase tracking-widest text-[10px] mb-1">{pc.role}</div>
-                            <div className="text-[#0A0E2A]">{pc.objection}</div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </Section>
-        )}
-
-        {/* Step 4: Presentation */}
-        {groups.length > 0 && (
-          <Section title="Step 4 · Plenary presentation">
+          <Section title="Step 2 · Plenary presentation">
+            {status !== "presentation" && status !== "commitments" && status !== "closed" && (
+              <Btn variant="coral" onClick={() => present(null)}>Open presentation mode</Btn>
+            )}
             <p className="text-sm text-gray-500">
-              Open{" "}
-              <a href={`/present/${workshop.id}`} target="_blank" className="text-[#E8503A] font-bold underline">
-                /present/{workshop.id}
-              </a>{" "}
+              Open <a href={`/present/${workshop.id}`} target="_blank" className="text-[#E8503A] font-bold underline">/present/{workshop.id}</a>{" "}
               on the room screen, then click a group below to bring it up.
             </p>
             <div className="flex flex-wrap gap-2">
               {groups.map((g) => (
-                <Btn key={g.id} variant="outline" onClick={() => present(g.id)}>
-                  {g.name}
-                </Btn>
+                <Btn key={g.id} variant="outline" onClick={() => present(g.id)}>{g.name}</Btn>
               ))}
-              <Btn variant="outline" onClick={() => present(null)}>
-                Clear screen
-              </Btn>
+              <Btn variant="outline" onClick={() => present(null)}>Clear screen</Btn>
             </div>
           </Section>
         )}
 
-        {/* Step 5: Commitments */}
         {groups.length > 0 && (
-          <Section title="Step 5 · Individual 30-day commitments">
+          <Section title="Step 3 · Individual 30-day commitments">
             {status !== "commitments" && status !== "closed" && (
-              <Btn variant="coral" onClick={openCommitments}>Open commitment form to participants</Btn>
+              <Btn variant="coral" onClick={() => setWorkshopStatus("commitments")}>Open commitment form to participants</Btn>
             )}
             <div className="space-y-2">
               {commitments.map((c) => {
@@ -588,9 +837,7 @@ function WorkshopDashboard({ workshop, adminSecret }: { workshop: Workshop; admi
               })}
             </div>
             {commitments.length > 0 && (
-              <Btn variant="outline" onClick={generateReport} loading={genReport}>
-                Generate final workshop report
-              </Btn>
+              <Btn variant="outline" onClick={generateReport} loading={genReport}>Generate final workshop report</Btn>
             )}
           </Section>
         )}
@@ -599,9 +846,7 @@ function WorkshopDashboard({ workshop, adminSecret }: { workshop: Workshop; admi
           <Section title="Workshop report">
             <p className="text-gray-600">{report.executiveSummary}</p>
             <div className="flex flex-wrap gap-2">
-              {report.keyThemes?.map((t: string) => (
-                <Tag key={t} color="coral">{t}</Tag>
-              ))}
+              {report.keyThemes?.map((t: string) => <Tag key={t} color="coral">{t}</Tag>)}
             </div>
             <div className="space-y-2">
               {report.groupHighlights?.map((g: any, i: number) => (

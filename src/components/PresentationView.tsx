@@ -72,8 +72,8 @@ export default function PresentationView({ workshopId }: { workshopId: string })
 
           {solution && (
             <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
-              <p className="text-[#E8503A] text-xs font-bold uppercase tracking-widest mb-2">Their answer</p>
-              <p className="text-lg text-white/90 whitespace-pre-wrap">{solution.solution}</p>
+              <p className="text-[#E8503A] text-xs font-bold uppercase tracking-widest mb-2">Their initial answer</p>
+              <p className="text-lg text-white/90 whitespace-pre-wrap">{solution.initialSolution}</p>
             </div>
           )}
 
@@ -88,6 +88,13 @@ export default function PresentationView({ workshopId }: { workshopId: string })
                   </div>
                 ))}
               </div>
+            </div>
+          )}
+
+          {board && solution?.revisedSolution && (
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+              <p className="text-[#E8503A] text-xs font-bold uppercase tracking-widest mb-2">Their revised answer</p>
+              <p className="text-lg text-white/90 whitespace-pre-wrap">{solution.revisedSolution}</p>
             </div>
           )}
         </div>
