@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import {
   addDoc,
@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { col, docIn } from "../firebase";
 import { buildGroups } from "../groupSplit";
+import { Btn, Card, Eyebrow, Field, ROAILogo, Tag, TextArea } from "../ui";
 import type {
   BoardChallenge,
   Challenge,
@@ -45,38 +46,10 @@ async function api(path: string, adminSecret: string, body?: any) {
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 space-y-4">
-      <h2 className="text-lg font-semibold text-slate-100">{title}</h2>
+    <Card className="space-y-4">
+      <h2 className="text-lg font-black text-[#0A0E2A]">{title}</h2>
       {children}
-    </div>
-  );
-}
-
-function Button({
-  children,
-  onClick,
-  disabled,
-  variant = "primary",
-}: {
-  children: ReactNode;
-  onClick?: () => void;
-  disabled?: boolean;
-  variant?: "primary" | "secondary" | "danger";
-}) {
-  const styles =
-    variant === "primary"
-      ? "bg-sky-500 hover:bg-sky-400 text-slate-950"
-      : variant === "danger"
-      ? "bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/40"
-      : "bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-700";
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      className={`px-4 py-2 rounded-lg text-sm font-medium transition disabled:opacity-40 disabled:cursor-not-allowed ${styles}`}
-    >
-      {children}
-    </button>
+    </Card>
   );
 }
 
@@ -105,24 +78,26 @@ function Login({ onLogin }: { onLogin: (secret: string) => void }) {
   }
 
   return (
-    <div className="min-h-screen bg-[#0b1220] text-slate-100 flex items-center justify-center px-6">
+    <div className="min-h-screen bg-[#F4F6FB] flex items-center justify-center px-6">
       <div className="max-w-sm w-full space-y-6">
-        <div className="text-center space-y-1">
-          <div className="text-sm uppercase tracking-[0.3em] text-sky-400">ROAI Institute</div>
-          <h1 className="text-2xl font-semibold">Facilitator Access</h1>
+        <div className="flex justify-center">
+          <ROAILogo size="lg" />
         </div>
-        <input
-          type="password"
-          value={secret}
-          onChange={(e) => setSecret(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && submit()}
-          placeholder="Admin secret"
-          className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 outline-none focus:border-sky-500"
-        />
-        {error && <p className="text-red-400 text-sm">{error}</p>}
-        <Button onClick={submit} disabled={loading}>
-          {loading ? <Loader2 className="animate-spin inline w-4 h-4" /> : "Enter"}
-        </Button>
+        <Card className="space-y-4">
+          <h1 className="text-xl font-black text-[#0A0E2A] text-center">Facilitator Access</h1>
+          <input
+            type="password"
+            value={secret}
+            onChange={(e) => setSecret(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && submit()}
+            placeholder="Admin secret"
+            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-[#E8503A]"
+          />
+          {error && <p className="text-red-500 text-sm font-medium">{error}</p>}
+          <Btn variant="coral" onClick={submit} loading={loading} className="w-full justify-center">
+            Enter
+          </Btn>
+        </Card>
       </div>
     </div>
   );
@@ -166,36 +141,29 @@ function WorkshopPicker({
   }
 
   return (
-    <div className="min-h-screen bg-[#0b1220] text-slate-100 px-6 py-12">
+    <div className="min-h-screen bg-[#F4F6FB] px-6 py-12">
       <div className="max-w-3xl mx-auto space-y-8">
-        <div>
-          <div className="text-sm uppercase tracking-[0.3em] text-sky-400">ROAI Institute</div>
-          <h1 className="text-2xl font-semibold">Future of Work Action Workshop — Facilitator</h1>
+        <div className="flex items-center justify-between">
+          <ROAILogo size="md" />
+          <span className="text-sm text-gray-400 font-bold">Facilitator</span>
         </div>
+        <h1 className="text-2xl font-black text-[#0A0E2A]">Future of Work Action Workshop</h1>
 
         <Section title="Create a new workshop">
-          <input
-            placeholder="Workshop name (e.g. Acme Leadership Team — July 2026)"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2"
-          />
-          <textarea
-            placeholder="Short description"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2"
-            rows={2}
-          />
-          <input
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2"
-          />
-          <Button onClick={create}>
-            <Plus className="inline w-4 h-4 mr-1" /> Create workshop
-          </Button>
+          <Field label="Workshop name" value={name} onChange={setName} placeholder="e.g. Acme Leadership Team — July 2026" />
+          <TextArea label="Short description" value={description} onChange={setDescription} rows={2} />
+          <div>
+            <label className="block text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1.5">Date</label>
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#E8503A]"
+            />
+          </div>
+          <Btn variant="coral" onClick={create}>
+            <Plus className="w-4 h-4" /> Create workshop
+          </Btn>
         </Section>
 
         <Section title="Existing workshops">
@@ -204,16 +172,16 @@ function WorkshopPicker({
               <button
                 key={w.id}
                 onClick={() => onSelect(w)}
-                className="w-full text-left bg-slate-800/60 hover:bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 flex items-center justify-between"
+                className="w-full text-left bg-gray-50 hover:bg-[#E8503A]/5 border border-gray-200 hover:border-[#E8503A]/40 rounded-xl px-4 py-3 flex items-center justify-between transition-all group"
               >
                 <div>
-                  <div className="font-medium">{w.name}</div>
-                  <div className="text-xs text-slate-400">{w.date} — status: {w.status}</div>
+                  <div className="font-bold text-[#0A0E2A] group-hover:text-[#E8503A] transition-colors">{w.name}</div>
+                  <div className="text-xs text-gray-400">{w.date} — status: {w.status}</div>
                 </div>
-                <span className="text-sky-400 text-sm">Open →</span>
+                <span className="text-[#E8503A] text-sm font-bold">Open →</span>
               </button>
             ))}
-            {workshops.length === 0 && <p className="text-slate-500 text-sm">No workshops yet.</p>}
+            {workshops.length === 0 && <p className="text-gray-400 text-sm">No workshops yet.</p>}
           </div>
         </Section>
       </div>
@@ -405,15 +373,18 @@ function WorkshopDashboard({ workshop, adminSecret }: { workshop: Workshop; admi
   const participantLink = (token: string) => `${window.location.origin}/w/${token}`;
 
   return (
-    <div className="min-h-screen bg-[#0b1220] text-slate-100 px-6 py-10">
+    <div className="min-h-screen bg-[#F4F6FB] px-6 py-10">
       <div className="max-w-5xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
-          <div>
-            <div className="text-sm uppercase tracking-[0.3em] text-sky-400">ROAI Institute</div>
-            <h1 className="text-2xl font-semibold">{workshop.name}</h1>
-            <p className="text-slate-400 text-sm">{workshop.date} · status: {status}</p>
+          <div className="flex items-center gap-4">
+            <ROAILogo size="sm" />
+            <div className="h-8 w-px bg-gray-200" />
+            <div>
+              <h1 className="text-xl font-black text-[#0A0E2A]">{workshop.name}</h1>
+              <p className="text-gray-400 text-xs">{workshop.date} · status: {status}</p>
+            </div>
           </div>
-          <a href="/admin" className="text-sm text-slate-400 hover:text-slate-200">
+          <a href="/admin" className="text-sm text-gray-400 hover:text-[#E8503A] font-bold">
             ← All workshops
           </a>
         </div>
@@ -425,44 +396,44 @@ function WorkshopDashboard({ workshop, adminSecret }: { workshop: Workshop; admi
               placeholder="Full name"
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
-              className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2"
+              className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-[#E8503A]"
             />
             <input
               placeholder="Email"
               value={newEmail}
               onChange={(e) => setNewEmail(e.target.value)}
-              className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2"
+              className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-[#E8503A]"
             />
-            <Button onClick={addParticipant}>
-              <Plus className="inline w-4 h-4" />
-            </Button>
+            <Btn variant="coral" onClick={addParticipant}>
+              <Plus className="w-4 h-4" />
+            </Btn>
           </div>
-          <p className="text-sm text-slate-400">
-            <Users className="inline w-4 h-4 mr-1" />
+          <p className="text-sm text-gray-500 flex items-center gap-1.5">
+            <Users className="w-4 h-4" />
             {surveyCompletionCount}/{participants.length} completed the survey
           </p>
-          <div className="divide-y divide-slate-800">
+          <div className="divide-y divide-gray-100">
             {participants.map((p) => {
               const done = responses.some((r) => r.participantId === p.id);
               return (
-                <div key={p.id} className="flex items-center justify-between py-2 text-sm">
+                <div key={p.id} className="flex items-center justify-between py-2.5 text-sm">
                   <div>
-                    <div className="font-medium">{p.name}</div>
-                    <div className="text-slate-500">{p.email}</div>
+                    <div className="font-bold text-[#0A0E2A]">{p.name}</div>
+                    <div className="text-gray-400 text-xs">{p.email}</div>
                   </div>
                   <div className="flex items-center gap-3">
                     {done ? (
-                      <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                      <CheckCircle2 className="w-4 h-4 text-green-600" />
                     ) : (
-                      <span className="text-slate-600 text-xs">pending</span>
+                      <Tag>pending</Tag>
                     )}
                     <button
                       onClick={() => navigator.clipboard.writeText(participantLink(p.token))}
-                      className="text-sky-400 hover:text-sky-300 flex items-center gap-1"
+                      className="text-[#E8503A] hover:text-[#d4432f] flex items-center gap-1 font-bold"
                     >
                       <Copy className="w-3.5 h-3.5" /> link
                     </button>
-                    <button onClick={() => removeParticipant(p.id)} className="text-red-400 hover:text-red-300">
+                    <button onClick={() => removeParticipant(p.id)} className="text-gray-400 hover:text-red-500 font-bold">
                       remove
                     </button>
                   </div>
@@ -482,32 +453,29 @@ function WorkshopDashboard({ workshop, adminSecret }: { workshop: Workshop; admi
                 max={8}
                 value={numChallenges}
                 onChange={(e) => setNumChallenges(Number(e.target.value))}
-                className="w-20 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2"
+                className="w-20 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-[#E8503A]"
               />
-              <span className="text-sm text-slate-400">number of challenges to generate</span>
-              <Button onClick={generateChallenges} disabled={generating || responses.length === 0}>
-                {generating ? <Loader2 className="animate-spin inline w-4 h-4" /> : <Rocket className="inline w-4 h-4 mr-1" />}
-                Generate challenges
-              </Button>
+              <span className="text-sm text-gray-400">number of challenges to generate</span>
+              <Btn variant="coral" onClick={generateChallenges} loading={generating} disabled={responses.length === 0}>
+                <Rocket className="w-4 h-4" /> Generate challenges
+              </Btn>
             </div>
           ) : (
             <>
               <div className="grid md:grid-cols-2 gap-3">
                 {challenges.map((c) => (
-                  <div key={c.id} className="bg-slate-800/50 border border-slate-700 rounded-xl p-4">
-                    <div className="font-medium">{c.title}</div>
-                    <p className="text-sm text-slate-400 mt-1">{c.description}</p>
+                  <div key={c.id} className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+                    <div className="font-bold text-[#0A0E2A]">{c.title}</div>
+                    <p className="text-sm text-gray-500 mt-1">{c.description}</p>
                     <div className="flex gap-1 mt-2 flex-wrap">
                       {c.themes?.map((t) => (
-                        <span key={t} className="text-xs bg-sky-500/10 text-sky-300 px-2 py-0.5 rounded-full">
-                          {t}
-                        </span>
+                        <Tag key={t} color="coral">{t}</Tag>
                       ))}
                     </div>
                   </div>
                 ))}
               </div>
-              {status === "survey" && <Button onClick={publishChallenges}>Publish challenges to participants</Button>}
+              {status === "survey" && <Btn variant="coral" onClick={publishChallenges}>Publish challenges to participants</Btn>}
             </>
           )}
         </Section>
@@ -515,27 +483,27 @@ function WorkshopDashboard({ workshop, adminSecret }: { workshop: Workshop; admi
         {/* Step 2: Groups */}
         {challenges.length > 0 && (
           <Section title="Step 2 · Groups (self-selected, max 4 per group)">
-            {status === "challenges_ready" && <Button onClick={openGroupSelection}>Open group selection</Button>}
+            {status === "challenges_ready" && <Btn variant="coral" onClick={openGroupSelection}>Open group selection</Btn>}
             {(status === "groups_open" || status === "challenges_ready") && (
               <div className="grid md:grid-cols-2 gap-3">
                 {challenges.map((c) => {
                   const count = signups.filter((s) => s.challengeId === c.id).length;
                   return (
-                    <div key={c.id} className="bg-slate-800/50 border border-slate-700 rounded-xl p-3 flex justify-between">
-                      <span>{c.title}</span>
-                      <span className="text-sky-400">{count} signed up</span>
+                    <div key={c.id} className="bg-gray-50 border border-gray-200 rounded-xl p-3 flex justify-between text-sm">
+                      <span className="font-medium text-[#0A0E2A]">{c.title}</span>
+                      <span className="text-[#E8503A] font-bold">{count} signed up</span>
                     </div>
                   );
                 })}
               </div>
             )}
-            {status === "groups_open" && <Button onClick={lockGroups}>Lock groups & auto-balance</Button>}
+            {status === "groups_open" && <Btn variant="coral" onClick={lockGroups}>Lock groups & auto-balance</Btn>}
             {groups.length > 0 && (
               <div className="space-y-2 pt-2">
                 {groups.map((g) => (
-                  <div key={g.id} className="bg-slate-800/50 border border-slate-700 rounded-xl p-3 text-sm">
-                    <div className="font-medium">{g.name}</div>
-                    <div className="text-slate-400">
+                  <div key={g.id} className="bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm">
+                    <div className="font-bold text-[#0A0E2A]">{g.name}</div>
+                    <div className="text-gray-500">
                       {g.participantIds.map((id) => participants.find((p) => p.id === id)?.name).join(", ")}
                     </div>
                   </div>
@@ -553,21 +521,21 @@ function WorkshopDashboard({ workshop, adminSecret }: { workshop: Workshop; admi
                 const sol = solutions.find((s) => s.groupId === g.id);
                 const board = boards.find((b) => b.groupId === g.id);
                 return (
-                  <div key={g.id} className="bg-slate-800/50 border border-slate-700 rounded-xl p-4">
+                  <div key={g.id} className="bg-gray-50 border border-gray-200 rounded-xl p-4">
                     <div className="flex items-center justify-between">
-                      <div className="font-medium">{g.name}</div>
-                      <Button variant="secondary" onClick={() => generateBoard(g)}>
-                        {board ? <RefreshCw className="inline w-3.5 h-3.5 mr-1" /> : null}
+                      <div className="font-bold text-[#0A0E2A]">{g.name}</div>
+                      <Btn variant="outline" onClick={() => generateBoard(g)}>
+                        {board && <RefreshCw className="w-3.5 h-3.5" />}
                         {board ? "Regenerate board challenge" : "Get board challenge"}
-                      </Button>
+                      </Btn>
                     </div>
-                    <p className="text-sm text-slate-400 mt-2 whitespace-pre-wrap">{sol?.solution || "No solution submitted yet."}</p>
+                    <p className="text-sm text-gray-500 mt-2 whitespace-pre-wrap">{sol?.solution || "No solution submitted yet."}</p>
                     {board && (
                       <div className="mt-3 grid sm:grid-cols-2 gap-2">
                         {board.personaChallenges.map((pc, i) => (
-                          <div key={i} className="bg-slate-900/60 rounded-lg p-2 text-xs">
-                            <div className="text-sky-400 font-semibold">{pc.role}</div>
-                            <div className="text-slate-300">{pc.objection}</div>
+                          <div key={i} className="bg-white border border-gray-200 rounded-lg p-3 text-xs">
+                            <div className="text-[#E8503A] font-bold uppercase tracking-widest text-[10px] mb-1">{pc.role}</div>
+                            <div className="text-[#0A0E2A]">{pc.objection}</div>
                           </div>
                         ))}
                       </div>
@@ -582,22 +550,22 @@ function WorkshopDashboard({ workshop, adminSecret }: { workshop: Workshop; admi
         {/* Step 4: Presentation */}
         {groups.length > 0 && (
           <Section title="Step 4 · Plenary presentation">
-            <p className="text-sm text-slate-400">
+            <p className="text-sm text-gray-500">
               Open{" "}
-              <a href={`/present/${workshop.id}`} target="_blank" className="text-sky-400 underline">
+              <a href={`/present/${workshop.id}`} target="_blank" className="text-[#E8503A] font-bold underline">
                 /present/{workshop.id}
               </a>{" "}
               on the room screen, then click a group below to bring it up.
             </p>
             <div className="flex flex-wrap gap-2">
               {groups.map((g) => (
-                <Button key={g.id} variant="secondary" onClick={() => present(g.id)}>
+                <Btn key={g.id} variant="outline" onClick={() => present(g.id)}>
                   {g.name}
-                </Button>
+                </Btn>
               ))}
-              <Button variant="secondary" onClick={() => present(null)}>
+              <Btn variant="outline" onClick={() => present(null)}>
                 Clear screen
-              </Button>
+              </Btn>
             </div>
           </Section>
         )}
@@ -606,52 +574,49 @@ function WorkshopDashboard({ workshop, adminSecret }: { workshop: Workshop; admi
         {groups.length > 0 && (
           <Section title="Step 5 · Individual 30-day commitments">
             {status !== "commitments" && status !== "closed" && (
-              <Button onClick={openCommitments}>Open commitment form to participants</Button>
+              <Btn variant="coral" onClick={openCommitments}>Open commitment form to participants</Btn>
             )}
             <div className="space-y-2">
               {commitments.map((c) => {
                 const p = participants.find((p) => p.id === c.participantId);
                 return (
-                  <div key={c.id} className="bg-slate-800/50 border border-slate-700 rounded-xl p-3 text-sm">
-                    <div className="font-medium">{p?.name || "Participant"}</div>
-                    <div className="text-slate-400">{c.action}</div>
+                  <div key={c.id} className="bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm">
+                    <div className="font-bold text-[#0A0E2A]">{p?.name || "Participant"}</div>
+                    <div className="text-gray-500">{c.action}</div>
                   </div>
                 );
               })}
             </div>
             {commitments.length > 0 && (
-              <Button variant="secondary" onClick={generateReport}>
-                {genReport ? <Loader2 className="animate-spin inline w-4 h-4 mr-1" /> : null}
+              <Btn variant="outline" onClick={generateReport} loading={genReport}>
                 Generate final workshop report
-              </Button>
+              </Btn>
             )}
           </Section>
         )}
 
         {report && (
           <Section title="Workshop report">
-            <p className="text-slate-300">{report.executiveSummary}</p>
+            <p className="text-gray-600">{report.executiveSummary}</p>
             <div className="flex flex-wrap gap-2">
               {report.keyThemes?.map((t: string) => (
-                <span key={t} className="text-xs bg-sky-500/10 text-sky-300 px-2 py-0.5 rounded-full">
-                  {t}
-                </span>
+                <Tag key={t} color="coral">{t}</Tag>
               ))}
             </div>
             <div className="space-y-2">
               {report.groupHighlights?.map((g: any, i: number) => (
-                <div key={i} className="bg-slate-800/50 border border-slate-700 rounded-xl p-3 text-sm">
-                  <div className="font-medium">{g.groupName} — {g.challenge}</div>
-                  <div className="text-slate-400">{g.coreInsight}</div>
-                  <div className="text-sky-400 text-xs mt-1">Bold move: {g.boldMove}</div>
+                <div key={i} className="bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm">
+                  <div className="font-bold text-[#0A0E2A]">{g.groupName} — {g.challenge}</div>
+                  <div className="text-gray-500">{g.coreInsight}</div>
+                  <div className="text-[#E8503A] text-xs font-bold mt-1">Bold move: {g.boldMove}</div>
                 </div>
               ))}
             </div>
-            <p className="text-slate-300 text-sm">{report.commitmentPatterns}</p>
-            <ul className="list-disc list-inside text-sm text-slate-300">
+            <p className="text-gray-600 text-sm">{report.commitmentPatterns}</p>
+            <ul className="list-disc list-inside text-sm text-gray-600">
               {report.recommendedNextSteps?.map((s: string, i: number) => <li key={i}>{s}</li>)}
             </ul>
-            <p className="text-slate-400 italic text-sm">{report.closingNote}</p>
+            <p className="text-gray-400 italic text-sm">{report.closingNote}</p>
           </Section>
         )}
       </div>
