@@ -34,7 +34,7 @@ npm run dev
 The pre-work survey is run externally (e.g. Google Forms, Typeform). No survey step happens inside the tool.
 
 ### Setup (admin, in `/admin`)
-1. **Import participants + survey answers** — upload a CSV or Excel file with one row per participant (name, email, optional role, and the 8 survey answers). A downloadable template is provided. Participants can also be added one by one, with a Participant/Facilitator toggle.
+1. **Import participants + survey answers** — upload the export from your external survey tool (currently a 3-question form: current AI relationship, future-of-work vision, and opportunities/challenges with AI and the workforce). Works directly with exports that include extra metadata rows (e.g. FormAssembly's "Export... as of..." preamble) — the importer finds the real header row automatically. Email is optional (not collected by the current survey); only name is required. A downloadable template is also available. Participants can also be added one by one, with a Participant/Facilitator toggle.
 2. **Mark facilitators** — a fixed property of the person (not the group). Facilitators are the ones who will write their group's answers; everyone still writes their own 30-day commitment individually.
 3. **Create groups manually** — pick up to 4 participants per group. Groups exist before any challenge does.
 4. **Generate challenge options per group** — for each group, Claude synthesizes 2–5 candidate challenges (default 3) from THAT group's members' survey answers, pitched at C-level/boardroom altitude. Both the admin and the group's facilitator can select which option the group will work on, and both can edit the title/description afterward.

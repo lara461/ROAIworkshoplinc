@@ -101,14 +101,9 @@ async function startServer() {
 
     const responseLines = (responses || []).map((r: any) =>
       "Participant: " + r.participantName +
-      " | Org size: " + r.orgSize +
       " | Current AI relationship: " + r.aiRelationship +
-      " | Biggest concern: " + r.biggestConcern +
-      " | Move timeline: " + r.moveTimeline +
       " | Future-of-work vision: " + r.futureVision +
-      " | Ownership preference: " + r.ownershipPreference +
-      " | Employee freedom stance: " + r.employeeFreedom +
-      " | Open answer on future of work: " + r.futureOfWorkView
+      " | Opportunities/challenges they see: " + r.opportunitiesChallenges
     ).join("\n---\n");
 
     const prompt =
@@ -120,7 +115,7 @@ async function startServer() {
       "RULES:\n" +
       "- Generate EXACTLY " + n + " options, no more no less.\n" +
       "- Pitch these at C-LEVEL / BOARDROOM altitude: strategic, decision-forcing questions about AI, organizational redesign, or the future of work — the kind of question a CEO or CHRO would want a real answer to, not a tactical or how-to question.\n" +
-      "- Ground each option in patterns you actually see across THIS group's responses (their concerns, timelines, ownership preferences, employee-freedom stance).\n" +
+      "- Ground each option in patterns you actually see across THIS group's responses (their AI relationship stage, their vision for how AI changes their work, and the opportunities/challenges they named).\n" +
       "- The " + n + " options must be genuinely distinct from each other, each offering a different strategic angle, so the group has a real choice.\n" +
       "- Do NOT mention any real company or participant names. Use generic framing ('your organisation').\n" +
       "- Return ONLY valid JSON, nothing else.\n\n" +

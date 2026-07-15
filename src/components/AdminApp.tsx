@@ -199,22 +199,14 @@ function ImportSection({ workshop }: { workshop: Workshop }) {
           role: r.role,
           createdAt: new Date().toISOString(),
         });
-        const hasSurveyData = [
-          r.orgSize, r.aiRelationship, r.biggestConcern, r.futureOfWorkView,
-          r.moveTimeline, r.futureVision, r.ownershipPreference, r.employeeFreedom,
-        ].some((v) => v && v.length > 0);
+        const hasSurveyData = [r.aiRelationship, r.futureVision, r.opportunitiesChallenges].some((v) => v && v.length > 0);
         if (hasSurveyData) {
           await addDoc(col.surveyResponses, {
             participantId: pRef.id,
             workshopId: workshop.id,
-            orgSize: r.orgSize,
             aiRelationship: r.aiRelationship,
-            biggestConcern: r.biggestConcern,
-            futureOfWorkView: r.futureOfWorkView,
-            moveTimeline: r.moveTimeline,
             futureVision: r.futureVision,
-            ownershipPreference: r.ownershipPreference,
-            employeeFreedom: r.employeeFreedom,
+            opportunitiesChallenges: r.opportunitiesChallenges,
             createdAt: new Date().toISOString(),
           });
         }
@@ -316,7 +308,7 @@ function ParticipantsSection({
   const [newRole, setNewRole] = useState<"participant" | "facilitator">("participant");
 
   async function addParticipant() {
-    if (!newName || !newEmail) return;
+    if (!newName) return;
     await addDoc(col.participants, {
       workshopId: workshop.id,
       name: newName,
@@ -350,7 +342,7 @@ function ParticipantsSection({
             className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-[#E8503A]" />
         </div>
         <div className="flex-1 min-w-[160px]">
-          <input placeholder="Email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)}
+          <input placeholder="Email (optional)" value={newEmail} onChange={(e) => setNewEmail(e.target.value)}
             className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-[#E8503A]" />
         </div>
         <select value={newRole} onChange={(e) => setNewRole(e.target.value as any)}
@@ -376,7 +368,7 @@ function ParticipantsSection({
                   {p.name}
                   {p.role === "facilitator" && <Tag color="coral">facilitator</Tag>}
                 </div>
-                <div className="text-gray-400 text-xs">{p.email}</div>
+                {p.email && <div className="text-gray-400 text-xs">{p.email}</div>}
               </div>
               <div className="flex items-center gap-3">
                 {done ? <CheckCircle2 className="w-4 h-4 text-green-600" /> : <Tag>no survey</Tag>}
@@ -439,14 +431,9 @@ function GroupCard({
         const r = responses.find((r) => r.participantId === m.id);
         return {
           participantName: m.name,
-          orgSize: r?.orgSize || "",
           aiRelationship: r?.aiRelationship || "",
-          biggestConcern: r?.biggestConcern || "",
-          futureOfWorkView: r?.futureOfWorkView || "",
-          moveTimeline: r?.moveTimeline || "",
           futureVision: r?.futureVision || "",
-          ownershipPreference: r?.ownershipPreference || "",
-          employeeFreedom: r?.employeeFreedom || "",
+          opportunitiesChallenges: r?.opportunitiesChallenges || "",
         };
       });
       const { challenges: generated } = await api("/generate-group-challenges", adminSecret, {

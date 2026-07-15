@@ -1,77 +1,100 @@
 import * as XLSX from "xlsx";
-import { IMPORT_COLUMNS } from "./types";
+import { IGNORED_IMPORT_COLUMNS, IMPORT_COLUMNS } from "./types";
 
 export interface ImportedRow {
   name: string;
   email: string;
   role: "participant" | "facilitator";
-  orgSize: string;
   aiRelationship: string;
-  biggestConcern: string;
-  futureOfWorkView: string;
-  moveTimeline: string;
   futureVision: string;
-  ownershipPreference: string;
-  employeeFreedom: string;
+  opportunitiesChallenges: string;
   _rowNumber: number;
   _error?: string;
 }
 
-function normalizeHeader(h: string): string {
-  return h.toLowerCase().replace(/[\s_-]+/g, "");
+function strip(s: string): string {
+  return s.toLowerCase().replace(/[^a-z0-9]/g, "");
 }
 
+// Matches a raw header cell to one of our internal field keys. Works both
+// with short slug-style headers (old template) and full question text
+// exported verbatim by external survey tools (contained either direction).
 function matchColumn(header: string): string | null {
-  const norm = normalizeHeader(header);
+  const h = strip(header);
+  if (!h) return null;
+  if (IGNORED_IMPORT_COLUMNS.some((ig) => strip(ig) === h)) return "__ignore__";
+  let best: { key: string; len: number } | null = null;
   for (const col of IMPORT_COLUMNS) {
-    if (col.aliases.some((a) => normalizeHeader(a) === norm)) return col.key;
+    for (const alias of col.aliases) {
+      const a = strip(alias);
+      if (!a) continue;
+      if (h.includes(a) || a.includes(h)) {
+        if (!best || a.length > best.len) best = { key: col.key, len: a.length };
+      }
+    }
   }
-  return null;
+  return best?.key ?? null;
+}
+
+// Finds which row in the sheet is the real header row, skipping any
+// preamble/metadata lines some export tools prepend (e.g. FormAssembly's
+// "Export ... as of ..." line). Picks the row with the most recognized
+// column matches (must be at least 2).
+function findHeaderRowIndex(rows: any[][]): number {
+  let bestIndex = 0;
+  let bestScore = -1;
+  for (let i = 0; i < Math.min(rows.length, 10); i++) {
+    const row = rows[i] || [];
+    const score = row.filter((cell) => cell && matchColumn(String(cell))).length;
+    if (score > bestScore) {
+      bestScore = score;
+      bestIndex = i;
+    }
+  }
+  return bestScore >= 2 ? bestIndex : 0;
 }
 
 export async function parseParticipantsFile(file: File): Promise<{ rows: ImportedRow[]; unmatchedHeaders: string[] }> {
   const buffer = await file.arrayBuffer();
   const workbook = XLSX.read(buffer, { type: "array" });
   const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-  const raw: Record<string, any>[] = XLSX.utils.sheet_to_json(firstSheet, { defval: "" });
+  const allRows: any[][] = XLSX.utils.sheet_to_json(firstSheet, { header: 1, defval: "", blankrows: false });
 
-  if (raw.length === 0) return { rows: [], unmatchedHeaders: [] };
+  if (allRows.length === 0) return { rows: [], unmatchedHeaders: [] };
 
-  const headers = Object.keys(raw[0]);
-  const headerMap: Record<string, string> = {};
+  const headerRowIndex = findHeaderRowIndex(allRows);
+  const headerRow = allRows[headerRowIndex].map((h) => String(h));
+  const dataRows = allRows.slice(headerRowIndex + 1);
+
+  const headerMap: Record<number, string> = {};
   const unmatchedHeaders: string[] = [];
-  for (const h of headers) {
+  headerRow.forEach((h, i) => {
+    if (!h) return;
     const key = matchColumn(h);
-    if (key) headerMap[h] = key;
-    else unmatchedHeaders.push(h);
-  }
+    if (key && key !== "__ignore__") headerMap[i] = key;
+    else if (key !== "__ignore__") unmatchedHeaders.push(h);
+  });
 
-  const rows: ImportedRow[] = raw.map((r, i) => {
+  const rows: ImportedRow[] = dataRows.map((r, i) => {
     const mapped: any = {
       name: "",
       email: "",
       role: "participant",
-      orgSize: "",
       aiRelationship: "",
-      biggestConcern: "",
-      futureOfWorkView: "",
-      moveTimeline: "",
       futureVision: "",
-      ownershipPreference: "",
-      employeeFreedom: "",
+      opportunitiesChallenges: "",
     };
-    for (const [header, key] of Object.entries(headerMap)) {
-      const value = String(r[header] ?? "").trim();
+    for (const [idxStr, key] of Object.entries(headerMap)) {
+      const idx = Number(idxStr);
+      const value = String(r[idx] ?? "").trim();
       if (key === "role") {
         mapped.role = /facilitator/i.test(value) ? "facilitator" : "participant";
       } else {
         mapped[key] = value;
       }
     }
-    let error: string | undefined;
-    if (!mapped.name) error = "Missing name";
-    else if (!mapped.email) error = "Missing email";
-    return { ...mapped, _rowNumber: i + 2, _error: error } as ImportedRow;
+    const error = !mapped.name ? "Missing name" : undefined;
+    return { ...mapped, _rowNumber: headerRowIndex + i + 2, _error: error } as ImportedRow;
   });
 
   return { rows, unmatchedHeaders };
@@ -82,27 +105,17 @@ export function downloadTemplate() {
     "Name",
     "Email",
     "Role",
-    "Org Size",
-    "AI Relationship",
-    "Biggest Concern",
-    "Future of Work View",
-    "Move Timeline",
-    "Future Vision",
-    "Ownership Preference",
-    "Employee Freedom",
+    "How would you describe your organization's current relationship with AI?",
+    "How do you think AI is going to change the future of work for your organization?",
+    "What opportunities or challenges do you see with AI and your workforce?",
   ];
   const sampleRow = [
     "Jane Doe",
     "jane@example.com",
     "facilitator",
-    "51–200",
     "We've started exploring",
-    "How it will affect my people",
-    "We think AI will reshape how our ops team works over the next 2 years...",
-    "Within the next 6 months",
-    "It'll be a mix — some processes AI-driven, others fully human",
-    "I want to lead it internally but work with partners on execution",
-    "Guided freedom — they can explore, but within clear boundaries we set",
+    "AI will support, accelerate, and amplify humans' work",
+    "Opportunities: faster analysis and drafting. Challenges: making sure the team trusts the outputs and knows when to double-check them.",
   ];
   const ws = XLSX.utils.aoa_to_sheet([headers, sampleRow]);
   const wb = XLSX.utils.book_new();

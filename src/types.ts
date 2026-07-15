@@ -22,26 +22,21 @@ export interface Participant {
   id: string;
   workshopId: string;
   name: string;
-  email: string;
+  email: string; // optional in practice — the external survey doesn't collect it
   token: string;
   role: ParticipantRole;
   createdAt: string;
 }
 
-// Survey is completed OUTSIDE the tool; these are imported (CSV/XLSX) or,
-// occasionally, entered by hand for a participant added manually.
+// Survey is completed OUTSIDE the tool (currently a FormAssembly form) and
+// imported (CSV/XLSX export), or occasionally entered by hand.
 export interface SurveyResponse {
   id: string;
   participantId: string;
   workshopId: string;
-  orgSize: string;
-  aiRelationship: string;
-  biggestConcern: string;
-  futureOfWorkView: string;
-  moveTimeline: string;
-  futureVision: string;
-  ownershipPreference: string;
-  employeeFreedom: string;
+  aiRelationship: string; // "How would you describe your organization's current relationship with AI?"
+  futureVision: string; // "How do you think AI is going to change the future of work for your organization?"
+  opportunitiesChallenges: string; // "What opportunities or challenges do you see with AI and your workforce?"
   createdAt: string;
 }
 
@@ -101,32 +96,37 @@ export interface Commitment {
 
 // Reference only — labels shown when reviewing imported survey answers.
 // The actual survey is run externally; the tool never presents these as a form.
+// Current version has 3 questions (simplified from an earlier 8-question version).
 export const SURVEY_QUESTIONS = {
-  orgSize: { label: "How many people work in your organization?" },
   aiRelationship: { label: "How would you describe your organization's current relationship with AI?" },
-  biggestConcern: { label: "What's your biggest concern/fear about AI right now?" },
-  futureOfWorkView: {
-    label:
-      "How are you currently thinking about the future of work, organizational redesign, and AI? What opportunities or challenges do you see?",
-  },
-  moveTimeline: { label: "When do you feel you need to make a serious move on AI?" },
-  futureVision: { label: "How do you think AI is gonna change the future of work for your organisation?" },
-  ownershipPreference: { label: "When it comes to AI in your organization, what feels right to you?" },
-  employeeFreedom: { label: "How much freedom do you want to give your employees when it comes to using AI at work?" },
+  futureVision: { label: "How do you think AI is going to change the future of work for your organization?" },
+  opportunitiesChallenges: { label: "What opportunities or challenges do you see with AI and your workforce?" },
 } as const;
 
-// Column headers accepted in the participants+survey import file (CSV or XLSX).
-// Matching is case-insensitive and ignores spaces/underscores/dashes.
+// Column headers recognized in the participants+survey import file (CSV or XLSX).
+// Matching strips all spaces/punctuation and checks for containment either way,
+// so this works both with short slug-style headers AND with the full question
+// text exported verbatim by external survey tools (e.g. FormAssembly, Typeform).
 export const IMPORT_COLUMNS: { key: string; aliases: string[]; required: boolean }[] = [
   { key: "name", aliases: ["name", "fullname", "full name"], required: true },
-  { key: "email", aliases: ["email", "e-mail"], required: true },
+  { key: "email", aliases: ["email", "e-mail"], required: false },
   { key: "role", aliases: ["role"], required: false },
-  { key: "orgSize", aliases: ["orgsize", "org size", "q1", "organization size"], required: false },
-  { key: "aiRelationship", aliases: ["airelationship", "ai relationship", "q2"], required: false },
-  { key: "biggestConcern", aliases: ["biggestconcern", "biggest concern", "q3"], required: false },
-  { key: "futureOfWorkView", aliases: ["futureofworkview", "future of work view", "q4"], required: false },
-  { key: "moveTimeline", aliases: ["movetimeline", "move timeline", "q5"], required: false },
-  { key: "futureVision", aliases: ["futurevision", "future vision", "q6"], required: false },
-  { key: "ownershipPreference", aliases: ["ownershippreference", "ownership preference", "q7"], required: false },
-  { key: "employeeFreedom", aliases: ["employeefreedom", "employee freedom", "q8"], required: false },
+  {
+    key: "aiRelationship",
+    aliases: ["ai relationship", "relationship with ai", "current relationship with ai"],
+    required: false,
+  },
+  {
+    key: "futureVision",
+    aliases: ["future vision", "change the future of work", "future of work for your organization"],
+    required: false,
+  },
+  {
+    key: "opportunitiesChallenges",
+    aliases: ["opportunities or challenges", "opportunities and challenges", "opportunities challenges"],
+    required: false,
+  },
 ];
+
+// Headers we recognize but deliberately ignore (not shown as "unmatched").
+export const IGNORED_IMPORT_COLUMNS = ["submitted date", "ip address", "response id", "submission id"];
