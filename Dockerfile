@@ -5,16 +5,16 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 
-# Copy source
+# Copy source and build the frontend ONCE, at image-build time.
+# The Firebase config is NOT needed at build time anymore — it's served by
+# the backend at runtime from env vars (see /api/firebase-config in
+# server.ts), so no secret has to be baked into the JS bundle. This keeps
+# cold starts fast and avoids Cloud Run startup-timeout issues.
 COPY . .
+RUN npm run build
 
 ENV NODE_ENV=production
 ENV PORT=8080
 EXPOSE 8080
 
-# The frontend is built at container START, not at image build time.
-# This is on purpose: the Firebase config (VITE_FIREBASE_*) is only
-# available as an env var once Cloud Run starts the container, so Vite
-# needs to run then in order to bake those values into the JS bundle.
-# Adds a few seconds to cold start; fine for a workshop-scale tool.
-CMD ["sh", "-c", "npm run build && npx tsx server.ts"]
+CMD ["npx", "tsx", "server.ts"]

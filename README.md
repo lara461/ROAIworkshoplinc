@@ -21,7 +21,7 @@ Then fill in:
 `.env` is git-ignored — no secret ever gets committed.
 
 ### 3. Firebase
-Reads its Firebase web config from the `VITE_FIREBASE_*` env vars, and writes to its own prefixed Firestore collections (`fow_*`) so it can safely coexist with other ROAI Institute tools in the same project. Publish `firestore.rules`.
+Reads its Firebase web config at **runtime** from the `VITE_FIREBASE_*` env vars (served to the browser via a small `/api/firebase-config` endpoint — no secret is baked into the build, so the frontend can be built once at image-build time instead of on every container start). Writes to its own prefixed Firestore collections (`fow_*`) so it can safely coexist with other ROAI Institute tools in the same project. Publish `firestore.rules`.
 
 ### 4. Run
 ```bash
@@ -72,4 +72,4 @@ firebase-blueprint.json             — Data model reference
 3. In the service's **Variables & Secrets**, set: `ANTHROPIC_API_KEY`, `ADMIN_SECRET`, `VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_AUTH_DOMAIN`, `VITE_FIREBASE_PROJECT_ID`, `VITE_FIREBASE_STORAGE_BUCKET`, `VITE_FIREBASE_MESSAGING_SENDER_ID`, `VITE_FIREBASE_APP_ID`.
 4. Every push to the connected branch triggers a new build & deploy automatically.
 
-Note: the frontend is built at **container startup** (see `Dockerfile`), so the Cloud Run env vars — only available once the container starts — get baked into the JS bundle. Adds a few seconds to cold start.
+Note: the frontend is built **once, at image-build time** — the Firebase config is fetched by the browser at runtime from `/api/firebase-config` instead of being embedded in the JS bundle, so no rebuild is needed on container start and cold starts stay fast.

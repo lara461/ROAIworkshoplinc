@@ -3,6 +3,7 @@ import AdminApp from "./components/AdminApp";
 import ParticipantApp from "./components/ParticipantApp";
 import PresentationView from "./components/PresentationView";
 import { ROAILogo } from "./ui";
+import { initFirebase } from "./firebase";
 
 function Home() {
   return (
@@ -26,12 +27,25 @@ function Home() {
 
 export default function App() {
   const [path, setPath] = useState(window.location.pathname);
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    initFirebase().then(() => setReady(true));
+  }, []);
 
   useEffect(() => {
     const onPop = () => setPath(window.location.pathname);
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, []);
+
+  if (!ready) {
+    return (
+      <div className="min-h-screen bg-[#F4F6FB] flex items-center justify-center">
+        <div className="text-gray-400 text-sm">Loading…</div>
+      </div>
+    );
+  }
 
   if (path === "/admin") return <AdminApp />;
   if (path.startsWith("/w/")) return <ParticipantApp token={path.replace("/w/", "")} />;

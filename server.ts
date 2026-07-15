@@ -223,6 +223,22 @@ async function startServer() {
     }
   });
 
+  // Firebase web config, read at runtime from env vars and handed to the
+  // client via fetch. This is what lets the frontend be built ONCE at image
+  // build time (fast, normal cold starts) instead of rebuilding on every
+  // container start just to bake in these values. These are Firebase's
+  // public web-app config values — safe to serve unauthenticated.
+  app.get("/api/firebase-config", (_req, res) => {
+    res.json({
+      apiKey: process.env.VITE_FIREBASE_API_KEY,
+      authDomain: process.env.VITE_FIREBASE_AUTH_DOMAIN,
+      projectId: process.env.VITE_FIREBASE_PROJECT_ID,
+      storageBucket: process.env.VITE_FIREBASE_STORAGE_BUCKET,
+      messagingSenderId: process.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+      appId: process.env.VITE_FIREBASE_APP_ID,
+    });
+  });
+
   // Vite dev / Static prod
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
