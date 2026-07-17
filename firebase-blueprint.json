@@ -28,10 +28,9 @@
             "setup",
             "working",
             "presentation",
-            "commitments",
             "closed"
           ],
-          "description": "Coarse global phase. Per-group progress (challenge picked, solutions written) lives on Group/Challenge/GroupSolution docs instead."
+          "description": "setup (prep) -> working (launched, groups running their 3 timed activities) -> presentation (plenary) -> closed"
         },
         "presentationGroupId": {
           "type": "string"
@@ -113,7 +112,7 @@
     },
     "Group": {
       "title": "Group",
-      "description": "Created manually by the admin BEFORE challenges exist (max 4 participantIds).",
+      "description": "Created manually by the admin BEFORE challenges exist (max 4 participantIds, max 1 facilitator). Once the workshop launches, each group runs its own 3 timed activities via currentStep/stepStartedAt.",
       "type": "object",
       "properties": {
         "workshopId": {
@@ -138,6 +137,21 @@
         "createdAt": {
           "type": "string",
           "format": "date-time"
+        },
+        "currentStep": {
+          "type": "string",
+          "enum": [
+            "initial",
+            "board",
+            "actions",
+            "done"
+          ],
+          "description": "Drives the facilitator's 3-activity stepper"
+        },
+        "stepStartedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Start of the current 15-minute activity, for the countdown timer"
         }
       },
       "required": [
@@ -229,6 +243,23 @@
         "revisedSubmittedAt": {
           "type": "string",
           "format": "date-time"
+        },
+        "action30": {
+          "type": "string",
+          "description": "30-day actions \u2014 group activity, written by the facilitator, right after the revised answer"
+        },
+        "action60": {
+          "type": "string"
+        },
+        "action90": {
+          "type": "string"
+        },
+        "actionsSubmitted": {
+          "type": "boolean"
+        },
+        "actionsSubmittedAt": {
+          "type": "string",
+          "format": "date-time"
         }
       },
       "required": [
@@ -278,69 +309,6 @@
         "personaChallenges",
         "createdAt"
       ]
-    },
-    "Commitment": {
-      "title": "Commitment",
-      "description": "Individual 30-day action commitment \u2014 written by EVERY participant themselves, including facilitators. Not a group answer.",
-      "type": "object",
-      "properties": {
-        "participantId": {
-          "type": "string"
-        },
-        "workshopId": {
-          "type": "string"
-        },
-        "action": {
-          "type": "string"
-        },
-        "createdAt": {
-          "type": "string",
-          "format": "date-time"
-        }
-      },
-      "required": [
-        "participantId",
-        "workshopId",
-        "action",
-        "createdAt"
-      ]
-    },
-    "GroupReport": {
-      "title": "GroupReport",
-      "description": "Doc id == groupId. One report PER GROUP, generated in the Report tab: executive summary, key insight, how the group's thinking evolved from initial to revised answer, and next steps.",
-      "type": "object",
-      "properties": {
-        "groupId": {
-          "type": "string"
-        },
-        "workshopId": {
-          "type": "string"
-        },
-        "executiveSummary": {
-          "type": "string"
-        },
-        "keyInsight": {
-          "type": "string"
-        },
-        "evolution": {
-          "type": "string"
-        },
-        "recommendedNextSteps": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "createdAt": {
-          "type": "string",
-          "format": "date-time"
-        }
-      },
-      "required": [
-        "groupId",
-        "workshopId",
-        "createdAt"
-      ]
     }
   },
   "firestore": {
@@ -364,12 +332,6 @@
     },
     "fow_board_challenges": {
       "schema": "BoardChallenge"
-    },
-    "fow_commitments": {
-      "schema": "Commitment"
-    },
-    "fow_group_reports": {
-      "schema": "GroupReport"
     }
   }
 }

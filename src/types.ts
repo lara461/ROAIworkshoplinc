@@ -1,8 +1,7 @@
 export type WorkshopStatus =
   | "setup"        // importing participants, forming groups, picking challenges
-  | "working"      // groups writing initial solution -> board challenge -> revised solution
+  | "working"      // launched — groups are moving through their 3 timed activities
   | "presentation" // plenary
-  | "commitments"  // individual 30-day commitments open
   | "closed";
 
 export interface Workshop {
@@ -52,12 +51,25 @@ export interface Challenge {
   createdAt: string;
 }
 
+export type GroupStep = "initial" | "board" | "actions" | "done";
+
+export const ACTIVITY_DURATION_SECONDS = 15 * 60;
+
+export const GROUP_STEP_LABELS: Record<GroupStep, string> = {
+  initial: "Question 1",
+  board: "C-Level Board Challenge & Revised Answer",
+  actions: "30 / 60 / 90-Day Actions",
+  done: "Complete",
+};
+
 export interface Group {
   id: string;
   workshopId: string;
   name: string;
   participantIds: string[]; // max 4
   challengeId?: string | null; // selected Challenge id, once chosen
+  currentStep?: GroupStep; // drives the facilitator's 3-activity stepper, set when the workshop is launched
+  stepStartedAt?: string; // ISO timestamp — start of the current 15-minute activity
   createdAt: string;
 }
 
@@ -73,6 +85,13 @@ export interface GroupSolution {
   revisedUpdatedAt?: string;
   revisedSubmitted?: boolean;
   revisedSubmittedAt?: string;
+  // Turning the discussion into action, right after the revised answer —
+  // a group activity (written by the facilitator), not an individual one.
+  action30: string;
+  action60: string;
+  action90: string;
+  actionsSubmitted?: boolean;
+  actionsSubmittedAt?: string;
 }
 
 export interface PersonaChallenge {
@@ -86,25 +105,6 @@ export interface BoardChallenge {
   groupId: string;
   workshopId: string;
   personaChallenges: PersonaChallenge[];
-  createdAt: string;
-}
-
-export interface Commitment {
-  id: string;
-  participantId: string;
-  workshopId: string;
-  action: string;
-  createdAt: string;
-}
-
-export interface GroupReport {
-  id: string; // == groupId
-  groupId: string;
-  workshopId: string;
-  executiveSummary: string;
-  keyInsight: string;
-  evolution: string; // how the group's thinking changed from initial to revised answer
-  recommendedNextSteps: string[];
   createdAt: string;
 }
 

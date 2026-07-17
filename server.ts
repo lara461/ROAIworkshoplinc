@@ -140,69 +140,38 @@ async function startServer() {
   });
 
   // Step 3 — Simulated C-level Board Challenge on a group's solution
-  app.post("/api/generate-board-challenge", requireAdmin, async (req, res) => {
+  // No requireAdmin here on purpose: this is triggered automatically by the
+  // group's facilitator when their timed activity moves from "initial" to
+  // "board", so the workshop can run without the admin manually stepping in
+  // for every group.
+  app.post("/api/generate-board-challenge", async (req, res) => {
     if (!ANTHROPIC_API_KEY) { res.status(500).json({ error: "ANTHROPIC_API_KEY not configured" }); return; }
     const { challenge, solution, groupName } = req.body;
     if (!solution) { res.status(400).json({ error: "No solution provided" }); return; }
 
     const prompt =
-      "You are simulating a panel of C-suite executives on an advisory board challenging a proposed answer from a workshop group.\n" +
+      "You are simulating a panel of 4 governance committee members challenging a proposed answer from a workshop group at a C-level executive workshop.\n" +
       "Use ONLY the ROAI Institute class framework tools F1-F6 below. Do not reference research findings.\n\n" +
       ROAI_FRAMEWORK + "\n\n" +
       "CHALLENGE: " + challenge.title + "\n" +
       challenge.description + "\n\n" +
       "GROUP ANSWER by " + groupName + ":\n" +
       solution + "\n\n" +
-      "Write ONE short punchy challenge per persona — maximum 1-2 sentences. Be blunt and direct, the way a real executive would push back in a room.\n" +
+      "The four committee perspectives to simulate:\n" +
+      "- Board Committee Member: overall strategy, growth, competitive positioning, and accountability to shareholders/stakeholders.\n" +
+      "- Finance Committee Member: cost, ROI, budget discipline, measurable value.\n" +
+      "- Technology Committee Member: feasibility, data readiness, technical risk, architecture.\n" +
+      "- Talent Committee Member: people impact — both the workforce/frontline experience AND the HR/people-strategy implications (hiring, training, culture, change management).\n\n" +
+      "Write ONE short punchy challenge per committee member — maximum 1-2 sentences. Be blunt and direct, the way a real executive would push back in a room.\n" +
       "Each roaiTools entry must be an exact name from F1-F6 only.\n\n" +
       "Return ONLY valid JSON:\n" +
       "{\n" +
       '  "personaChallenges": [\n' +
-      '    { "role": "CEO", "objection": "One sharp sentence.", "roaiTools": ["Value Creation Matrix"] },\n' +
-      '    { "role": "CFO", "objection": "One sharp sentence.", "roaiTools": ["AI Money Map"] },\n' +
-      '    { "role": "CIO", "objection": "One sharp sentence.", "roaiTools": ["Three AI Paradigms"] },\n' +
-      '    { "role": "CHRO", "objection": "One sharp sentence.", "roaiTools": ["AI-Native Workforce"] },\n' +
-      '    { "role": "Legal", "objection": "One sharp sentence.", "roaiTools": ["Governance & Ethics"] },\n' +
-      '    { "role": "Frontline Employee", "objection": "One sharp sentence.", "roaiTools": ["Workflow Automation Pattern"] }\n' +
+      '    { "role": "Board Committee Member", "objection": "One sharp sentence.", "roaiTools": ["Value Creation Matrix"] },\n' +
+      '    { "role": "Finance Committee Member", "objection": "One sharp sentence.", "roaiTools": ["AI Money Map"] },\n' +
+      '    { "role": "Technology Committee Member", "objection": "One sharp sentence.", "roaiTools": ["Three AI Paradigms"] },\n' +
+      '    { "role": "Talent Committee Member", "objection": "One sharp sentence.", "roaiTools": ["AI-Native Workforce"] }\n' +
       "  ]\n" +
-      "}";
-
-    try {
-      const raw = await callClaude(prompt);
-      const parsed = JSON.parse(raw.replace(/```json|```/g, "").trim());
-      res.json(parsed);
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  // Report tab — one report PER GROUP: how their thinking evolved from the
-  // initial answer through the board's challenge to their revised answer,
-  // plus the 30-day commitments of that group's (non-facilitator) members.
-  app.post("/api/generate-group-report", requireAdmin, async (req, res) => {
-    if (!ANTHROPIC_API_KEY) { res.status(500).json({ error: "ANTHROPIC_API_KEY not configured" }); return; }
-    const { workshop, group, challenge, initialSolution, revisedSolution, personaChallenges, commitments } = req.body;
-    if (!group || !challenge) { res.status(400).json({ error: "Missing group or challenge data" }); return; }
-
-    const boardBlock = (personaChallenges || []).map((pc: any) => "- " + pc.role + ": " + pc.objection).join("\n");
-    const commitmentBlock = (commitments || []).map((c: any) => "- " + c.action).join("\n");
-
-    const prompt =
-      "You are a senior AI strategy advisor writing a short report on ONE group's work during a C-level executive workshop on AI and the future of work, for the ROAI Institute.\n\n" +
-      "WORKSHOP: " + workshop.name + "\n" +
-      "GROUP: " + group.name + "\n" +
-      "CHALLENGE: " + challenge.title + " — " + challenge.description + "\n\n" +
-      "INITIAL ANSWER:\n" + (initialSolution || "Not submitted") + "\n\n" +
-      "C-LEVEL BOARD CHALLENGE:\n" + (boardBlock || "Not generated") + "\n\n" +
-      "REVISED ANSWER (after the board's pushback):\n" + (revisedSolution || "Not submitted") + "\n\n" +
-      "INDIVIDUAL 30-DAY COMMITMENTS FROM THIS GROUP'S MEMBERS:\n" + (commitmentBlock || "None submitted") + "\n\n" +
-      "Write a short, specific report on this group's work. Reference actual content, don't be generic.\n\n" +
-      "Return ONLY valid JSON:\n" +
-      "{\n" +
-      '  "executiveSummary": "2-3 sentence summary of this group\'s challenge and answer",\n' +
-      '  "keyInsight": "1-2 sentence core strategic takeaway from this group\'s work",\n' +
-      '  "evolution": "2-3 sentences on how their thinking changed (or didn\'t) between the initial and revised answer, in response to the board\'s challenge",\n' +
-      '  "recommendedNextSteps": ["step 1", "step 2", "step 3"]\n' +
       "}";
 
     try {

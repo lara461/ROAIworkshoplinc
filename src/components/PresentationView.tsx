@@ -97,6 +97,26 @@ export default function PresentationView({ workshopId }: { workshopId: string })
               <p className="text-lg text-white/90 whitespace-pre-wrap">{solution.revisedSolution}</p>
             </div>
           )}
+
+          {solution?.actionsSubmitted && (
+            <div>
+              <p className="text-[#E8503A] text-xs font-bold uppercase tracking-widest mb-3 text-center">Their 30 / 60 / 90-day actions</p>
+              <div className="grid sm:grid-cols-3 gap-4">
+                <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+                  <div className="text-[#E8503A] font-bold text-xs uppercase tracking-widest mb-1">30 days</div>
+                  <div className="text-white whitespace-pre-wrap">{solution.action30}</div>
+                </div>
+                <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+                  <div className="text-[#E8503A] font-bold text-xs uppercase tracking-widest mb-1">60 days</div>
+                  <div className="text-white whitespace-pre-wrap">{solution.action60}</div>
+                </div>
+                <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+                  <div className="text-[#E8503A] font-bold text-xs uppercase tracking-widest mb-1">90 days</div>
+                  <div className="text-white whitespace-pre-wrap">{solution.action90}</div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

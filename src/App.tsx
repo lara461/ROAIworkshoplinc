@@ -18,11 +18,15 @@ function Home() {
           <a href="/admin" className="text-[#E8503A] font-bold underline">
             /admin
           </a>
-          . Participants should use the unique link sent to them by email.
+          . Participants use the single shared workshop link and pick their name once there.
         </p>
       </div>
     </div>
   );
+}
+
+function extractId(path: string, prefix: string): string {
+  return path.replace(prefix, "").split(/[/?#]/)[0];
 }
 
 export default function App() {
@@ -48,7 +52,7 @@ export default function App() {
   }
 
   if (path === "/admin") return <AdminApp />;
-  if (path.startsWith("/w/")) return <ParticipantApp workshopId={path.replace("/w/", "")} />;
-  if (path.startsWith("/present/")) return <PresentationView workshopId={path.replace("/present/", "")} />;
+  if (path.startsWith("/w/")) return <ParticipantApp workshopId={extractId(path, "/w/")} />;
+  if (path.startsWith("/present/")) return <PresentationView workshopId={extractId(path, "/present/")} />;
   return <Home />;
 }

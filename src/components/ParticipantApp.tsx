@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { addDoc, onSnapshot, query, setDoc, updateDoc, where } from "firebase/firestore";
-import { CheckCircle2, Loader2 } from "lucide-react";
+import { onSnapshot, query, setDoc, updateDoc, where } from "firebase/firestore";
+import { LogOut, Loader2 } from "lucide-react";
 import { col, docIn } from "../firebase";
 import { Btn, Card, ROAILogo, Tag } from "../ui";
+import { ACTIVITY_DURATION_SECONDS, GROUP_STEP_LABELS } from "../types";
 import type {
   BoardChallenge,
   Challenge,
-  Commitment,
   Group,
   GroupSolution,
   Participant,
@@ -15,6 +15,20 @@ import type {
 
 function sessionKey(workshopId: string) {
   return `fow_session_${workshopId}`;
+}
+
+async function generateBoardChallenge(challenge: Challenge, solution: string, groupName: string) {
+  const res = await fetch("/api/generate-board-challenge", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      challenge: { title: challenge.title, description: challenge.description },
+      solution,
+      groupName,
+    }),
+  });
+  if (!res.ok) throw new Error((await res.json()).error || "Request failed");
+  return res.json();
 }
 
 function Waiting({ message }: { message: string }) {
@@ -153,6 +167,29 @@ function ChallengePicker({
   );
 }
 
+function Timer({ startedAt }: { startedAt?: string }) {
+  const [now, setNow] = useState(Date.now());
+
+  useEffect(() => {
+    const interval = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  if (!startedAt) return null;
+  const elapsed = Math.floor((now - new Date(startedAt).getTime()) / 1000);
+  const remaining = ACTIVITY_DURATION_SECONDS - elapsed;
+  const timeUp = remaining <= 0;
+  const mm = Math.floor(Math.abs(remaining) / 60);
+  const ss = Math.abs(remaining) % 60;
+  const display = `${mm}:${ss.toString().padStart(2, "0")}`;
+
+  return (
+    <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${timeUp ? "bg-red-50 text-red-500" : "bg-gray-100 text-gray-500"}`}>
+      {timeUp ? `Time's up (+${display})` : `⏱ ${display}`}
+    </span>
+  );
+}
+
 function GroupWorkspace({
   group,
   challenge,
@@ -166,10 +203,15 @@ function GroupWorkspace({
 }) {
   const [initialSolution, setInitialSolution] = useState("");
   const [revisedSolution, setRevisedSolution] = useState("");
+  const [action30, setAction30] = useState("");
+  const [action60, setAction60] = useState("");
+  const [action90, setAction90] = useState("");
   const [solutionDoc, setSolutionDoc] = useState<GroupSolution | null>(null);
   const [board, setBoard] = useState<BoardChallenge | null>(null);
-  const [savingInitial, setSavingInitial] = useState(false);
-  const [savingRevised, setSavingRevised] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [generatingBoard, setGeneratingBoard] = useState(false);
+
+  const step = group.currentStep || "initial";
 
   useEffect(() => {
     return onSnapshot(docIn("groupSolutions", group.id), (s) => {
@@ -177,6 +219,9 @@ function GroupWorkspace({
       setSolutionDoc(data || null);
       if (document.activeElement?.id !== "initial-box") setInitialSolution(data?.initialSolution || "");
       if (document.activeElement?.id !== "revised-box") setRevisedSolution(data?.revisedSolution || "");
+      if (document.activeElement?.id !== "action30-box") setAction30(data?.action30 || "");
+      if (document.activeElement?.id !== "action60-box") setAction60(data?.action60 || "");
+      if (document.activeElement?.id !== "action90-box") setAction90(data?.action90 || "");
     });
   }, [group.id]);
 
@@ -186,18 +231,36 @@ function GroupWorkspace({
     });
   }, [group.id]);
 
-  async function saveInitial(text: string) {
-    setInitialSolution(text);
+  // Auto-generate the board challenge once the group enters the "board"
+  // step, so the facilitator doesn't need the admin to trigger it.
+  useEffect(() => {
+    if (step !== "board" || !isFacilitator || board || generatingBoard || !challenge) return;
+    if (!solutionDoc?.initialSolution) return;
+    setGeneratingBoard(true);
+    generateBoardChallenge(challenge, solutionDoc.initialSolution, group.name)
+      .then(({ personaChallenges }) =>
+        setDoc(docIn("boardChallenges", group.id), {
+          groupId: group.id,
+          workshopId: workshop.id,
+          personaChallenges,
+          createdAt: new Date().toISOString(),
+        })
+      )
+      .catch((e) => alert(e.message))
+      .finally(() => setGeneratingBoard(false));
+  }, [step, isFacilitator, board, challenge, solutionDoc?.initialSolution]);
+
+  async function saveField(field: string, value: string, setter: (v: string) => void) {
+    setter(value);
     await setDoc(docIn("groupSolutions", group.id), {
       groupId: group.id,
       workshopId: workshop.id,
-      initialSolution: text,
-      initialUpdatedAt: new Date().toISOString(),
+      [field]: value,
     }, { merge: true });
   }
 
   async function submitInitial() {
-    setSavingInitial(true);
+    setSaving(true);
     try {
       await setDoc(docIn("groupSolutions", group.id), {
         groupId: group.id,
@@ -206,23 +269,14 @@ function GroupWorkspace({
         initialSubmitted: true,
         initialSubmittedAt: new Date().toISOString(),
       }, { merge: true });
+      await updateDoc(docIn("groups", group.id), { currentStep: "board", stepStartedAt: new Date().toISOString() });
     } finally {
-      setSavingInitial(false);
+      setSaving(false);
     }
   }
 
-  async function saveRevised(text: string) {
-    setRevisedSolution(text);
-    await setDoc(docIn("groupSolutions", group.id), {
-      groupId: group.id,
-      workshopId: workshop.id,
-      revisedSolution: text,
-      revisedUpdatedAt: new Date().toISOString(),
-    }, { merge: true });
-  }
-
   async function submitRevised() {
-    setSavingRevised(true);
+    setSaving(true);
     try {
       await setDoc(docIn("groupSolutions", group.id), {
         groupId: group.id,
@@ -231,143 +285,174 @@ function GroupWorkspace({
         revisedSubmitted: true,
         revisedSubmittedAt: new Date().toISOString(),
       }, { merge: true });
+      await updateDoc(docIn("groups", group.id), { currentStep: "actions", stepStartedAt: new Date().toISOString() });
     } finally {
-      setSavingRevised(false);
+      setSaving(false);
+    }
+  }
+
+  async function submitActions() {
+    setSaving(true);
+    try {
+      await setDoc(docIn("groupSolutions", group.id), {
+        groupId: group.id,
+        workshopId: workshop.id,
+        action30,
+        action60,
+        action90,
+        actionsSubmitted: true,
+        actionsSubmittedAt: new Date().toISOString(),
+      }, { merge: true });
+      await updateDoc(docIn("groups", group.id), { currentStep: "done" });
+    } finally {
+      setSaving(false);
     }
   }
 
   return (
     <Card className="space-y-4">
-      <div>
-        <Tag color="coral">Your group</Tag>
-        <h2 className="text-xl font-black text-[#0A0E2A] mt-2">{group.name}</h2>
-        {challenge && <p className="text-gray-500 text-sm mt-1">{challenge.description}</p>}
-      </div>
-
-      <div>
-        <div className="flex items-center justify-between mb-1.5">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Question 1 — Initial answer</p>
-          {solutionDoc?.initialSubmitted && <Tag color="green">submitted</Tag>}
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div>
+          <Tag color="coral">Your group</Tag>
+          <h2 className="text-xl font-black text-[#0A0E2A] mt-2">{group.name}</h2>
+          {challenge && <p className="text-gray-500 text-sm mt-1">{challenge.description}</p>}
         </div>
-        {isFacilitator ? (
-          <div className="space-y-2">
-            <textarea
-              id="initial-box"
-              value={initialSolution}
-              onChange={(e) => saveInitial(e.target.value)}
-              rows={7}
-              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#E8503A] resize-none"
-              placeholder="Write your group's answer here..."
-            />
-            <Btn variant="coral" onClick={submitInitial} loading={savingInitial} disabled={!initialSolution.trim()}>
-              Submit
-            </Btn>
+        {step !== "done" && (
+          <div className="text-right space-y-1">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">{GROUP_STEP_LABELS[step]}</p>
+            <Timer startedAt={group.stepStartedAt} />
           </div>
-        ) : (
-          <p className="text-sm text-[#0A0E2A] bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 whitespace-pre-wrap min-h-[3rem]">
-            {initialSolution || "Your facilitator hasn't written an answer yet."}
-          </p>
         )}
       </div>
 
-      {board && (
-        <div>
-          <p className="text-[10px] font-bold uppercase tracking-widest text-[#E8503A] mb-2">The C-level board is challenging your answer</p>
-          <div className="grid sm:grid-cols-2 gap-2">
-            {board.personaChallenges.map((pc, i) => (
-              <div key={i} className="bg-[#0A0E2A] rounded-xl p-3 text-sm">
-                <div className="text-[#E8503A] font-bold text-xs uppercase tracking-widest mb-1">{pc.role}</div>
-                <div className="text-white/90">{pc.objection}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {board && (
+      {/* Step 1: Initial answer */}
+      {step === "initial" && (
         <div>
           <div className="flex items-center justify-between mb-1.5">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Revised answer (after the board's challenge)</p>
-            {solutionDoc?.revisedSubmitted && <Tag color="green">submitted</Tag>}
+            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Question 1 — Initial answer</p>
           </div>
           {isFacilitator ? (
             <div className="space-y-2">
               <textarea
-                id="revised-box"
-                value={revisedSolution}
-                onChange={(e) => saveRevised(e.target.value)}
-                rows={6}
+                id="initial-box"
+                value={initialSolution}
+                onChange={(e) => saveField("initialSolution", e.target.value, setInitialSolution)}
+                rows={7}
                 className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#E8503A] resize-none"
-                placeholder="How does your group respond to the board's pushback?"
+                placeholder="Write your group's answer here..."
               />
-              <Btn variant="coral" onClick={submitRevised} loading={savingRevised} disabled={!revisedSolution.trim()}>
-                Submit
+              <Btn variant="coral" onClick={submitInitial} loading={saving} disabled={!initialSolution.trim()}>
+                Submit & continue
               </Btn>
             </div>
           ) : (
             <p className="text-sm text-[#0A0E2A] bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 whitespace-pre-wrap min-h-[3rem]">
-              {revisedSolution || "Your facilitator hasn't written a revised answer yet."}
+              {initialSolution || "Your facilitator hasn't written an answer yet."}
             </p>
           )}
         </div>
       )}
-    </Card>
-  );
-}
 
-function CommitmentForm({ participant, workshop }: { participant: Participant; workshop: Workshop }) {
-  const [action, setAction] = useState("");
-  const [existing, setExisting] = useState<Commitment | null>(null);
-  const [submitting, setSubmitting] = useState(false);
+      {/* Step 2: Board challenge + revised answer */}
+      {step === "board" && (
+        <>
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1.5">Your initial answer</p>
+            <p className="text-sm text-[#0A0E2A] bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 whitespace-pre-wrap">{initialSolution}</p>
+          </div>
 
-  useEffect(() => {
-    return onSnapshot(query(col.commitments, where("participantId", "==", participant.id)), (snap) => {
-      const d = snap.docs[0];
-      if (d) {
-        const data = { id: d.id, ...d.data() } as Commitment;
-        setExisting(data);
-        setAction(data.action);
-      }
-    });
-  }, [participant.id]);
+          {!board ? (
+            <p className="text-sm text-gray-400 flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> The board is reviewing your answer...</p>
+          ) : (
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-[#E8503A] mb-2">The C-level board is challenging your answer</p>
+              <div className="grid sm:grid-cols-2 gap-2">
+                {board.personaChallenges.map((pc, i) => (
+                  <div key={i} className="bg-[#0A0E2A] rounded-xl p-3 text-sm">
+                    <div className="text-[#E8503A] font-bold text-xs uppercase tracking-widest mb-1">{pc.role}</div>
+                    <div className="text-white/90">{pc.objection}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
-  async function submit() {
-    if (!action.trim()) return;
-    setSubmitting(true);
-    try {
-      if (existing) {
-        await updateDoc(docIn("commitments", existing.id), { action });
-      } else {
-        await addDoc(col.commitments, {
-          participantId: participant.id,
-          workshopId: workshop.id,
-          action,
-          createdAt: new Date().toISOString(),
-        });
-      }
-    } finally {
-      setSubmitting(false);
-    }
-  }
+          {board && (
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1.5">Revised answer</p>
+              {isFacilitator ? (
+                <div className="space-y-2">
+                  <textarea
+                    id="revised-box"
+                    value={revisedSolution}
+                    onChange={(e) => saveField("revisedSolution", e.target.value, setRevisedSolution)}
+                    rows={6}
+                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#E8503A] resize-none"
+                    placeholder="How does your group respond to the board's pushback?"
+                  />
+                  <Btn variant="coral" onClick={submitRevised} loading={saving} disabled={!revisedSolution.trim()}>
+                    Submit & continue
+                  </Btn>
+                </div>
+              ) : (
+                <p className="text-sm text-[#0A0E2A] bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 whitespace-pre-wrap min-h-[3rem]">
+                  {revisedSolution || "Your facilitator hasn't written a revised answer yet."}
+                </p>
+              )}
+            </div>
+          )}
+        </>
+      )}
 
-  return (
-    <Card className="space-y-4">
-      <Tag color="coral">Your commitment</Tag>
-      <h2 className="text-xl font-black text-[#0A0E2A]">What will you do in the next 30 days?</h2>
-      <p className="text-gray-500 text-sm">
-        This one is personal, not a group answer — write down ONE concrete action you personally commit to taking in the next 30 days.
-      </p>
-      <textarea
-        value={action}
-        onChange={(e) => setAction(e.target.value)}
-        rows={4}
-        className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#E8503A] resize-none"
-        placeholder="In the next 30 days, I will..."
-      />
-      <Btn variant="coral" onClick={submit} disabled={!action.trim()} loading={submitting}>
-        Submit
-      </Btn>
-      {existing && <p className="text-green-600 text-xs font-medium flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5" /> Saved</p>}
+      {/* Step 3: 30/60/90-day actions */}
+      {step === "actions" && (
+        <div className="space-y-4">
+          <p className="text-sm text-gray-500">
+            Turn the discussion into action: what will your organization actually do next? Split it across three horizons.
+          </p>
+          {[
+            { id: "action30", label: "Next 30 days — immediate, low-effort moves you can start right away", value: action30, setter: setAction30 },
+            { id: "action60", label: "Next 60 days — actions that need some planning or buy-in", value: action60, setter: setAction60 },
+            { id: "action90", label: "Next 90 days — structural or strategic changes that take longer to land", value: action90, setter: setAction90 },
+          ].map((f) => (
+            <div key={f.id}>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1.5">{f.label}</p>
+              {isFacilitator ? (
+                <textarea
+                  id={`${f.id}-box`}
+                  value={f.value}
+                  onChange={(e) => saveField(f.id, e.target.value, f.setter)}
+                  rows={3}
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#E8503A] resize-none"
+                />
+              ) : (
+                <p className="text-sm text-[#0A0E2A] bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 whitespace-pre-wrap min-h-[2.5rem]">
+                  {f.value || "Not written yet."}
+                </p>
+              )}
+            </div>
+          ))}
+          {isFacilitator && (
+            <Btn variant="coral" onClick={submitActions} loading={saving} disabled={!action30.trim() && !action60.trim() && !action90.trim()}>
+              Submit & finish
+            </Btn>
+          )}
+        </div>
+      )}
+
+      {/* Done */}
+      {step === "done" && (
+        <div className="space-y-4">
+          <p className="text-green-600 text-sm font-medium">Your group has completed all the activities. Nice work!</p>
+          <div className="space-y-3 text-sm">
+            <div><p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">Initial answer</p><p className="text-gray-600 whitespace-pre-wrap">{initialSolution}</p></div>
+            <div><p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">Revised answer</p><p className="text-gray-600 whitespace-pre-wrap">{revisedSolution}</p></div>
+            <div><p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">30 days</p><p className="text-gray-600 whitespace-pre-wrap">{action30}</p></div>
+            <div><p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">60 days</p><p className="text-gray-600 whitespace-pre-wrap">{action60}</p></div>
+            <div><p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">90 days</p><p className="text-gray-600 whitespace-pre-wrap">{action90}</p></div>
+          </div>
+        </div>
+      )}
     </Card>
   );
 }
@@ -393,7 +478,6 @@ export default function ParticipantApp({ workshopId }: { workshopId: string }) {
     });
   }, [workshopId]);
 
-  // Restore session from localStorage once participants are loaded
   useEffect(() => {
     if (participant || participants.length === 0) return;
     const savedId = localStorage.getItem(sessionKey(workshopId));
@@ -403,7 +487,6 @@ export default function ParticipantApp({ workshopId }: { workshopId: string }) {
     }
   }, [participants, workshopId, participant]);
 
-  // Keep participant record fresh (role changes, etc.)
   useEffect(() => {
     if (!participant) return;
     const updated = participants.find((p) => p.id === participant.id);
@@ -441,7 +524,7 @@ export default function ParticipantApp({ workshopId }: { workshopId: string }) {
     return <Login workshop={workshop} participants={participants} onLogin={setParticipant} />;
   }
 
-  function switchProfile() {
+  function logOut() {
     localStorage.removeItem(sessionKey(workshopId));
     setParticipant(null);
   }
@@ -460,6 +543,10 @@ export default function ParticipantApp({ workshopId }: { workshopId: string }) {
     return <ChallengePicker group={myGroup} challenges={groupChallenges} canSelect={isFacilitator} />;
   }
 
+  if (workshop.status === "setup") {
+    return <Waiting message="Your challenge is set — the workshop hasn't started yet. Sit tight." />;
+  }
+
   const challenge = groupChallenges.find((c) => c.id === myGroup.challengeId);
 
   return (
@@ -468,22 +555,15 @@ export default function ParticipantApp({ workshopId }: { workshopId: string }) {
         <div className="text-center space-y-2">
           <div className="flex justify-center"><ROAILogo size="md" /></div>
           <h1 className="text-2xl font-black text-[#0A0E2A]">{workshop.name}</h1>
-          <p className="text-gray-400 text-sm">
-            Welcome back, {participant.name}.{" "}
-            <button onClick={switchProfile} className="text-[#E8503A] font-bold underline">Not you?</button>
+          <p className="text-gray-400 text-sm flex items-center justify-center gap-2">
+            Welcome back, {participant.name}.
+            <button onClick={logOut} className="text-[#E8503A] font-bold inline-flex items-center gap-1">
+              <LogOut className="w-3.5 h-3.5" /> Log out
+            </button>
           </p>
         </div>
 
         <GroupWorkspace group={myGroup} challenge={challenge} workshop={workshop} isFacilitator={isFacilitator} />
-
-        {workshop.status === "commitments" && !isFacilitator && (
-          <CommitmentForm participant={participant} workshop={workshop} />
-        )}
-        {workshop.status === "closed" && (
-          <Card>
-            <p className="text-green-600 text-sm font-medium">Thank you for participating in the workshop!</p>
-          </Card>
-        )}
       </div>
     </div>
   );

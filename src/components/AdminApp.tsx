@@ -27,12 +27,11 @@ import { col, docIn } from "../firebase";
 import { downloadTemplate, parseParticipantsFile } from "../csvImport";
 import type { ImportedRow } from "../csvImport";
 import { Btn, Card, Field, ROAILogo, Tag, TextArea } from "../ui";
+import { GROUP_STEP_LABELS } from "../types";
 import type {
   BoardChallenge,
   Challenge,
-  Commitment,
   Group,
-  GroupReport,
   GroupSolution,
   Participant,
   SurveyResponse,
@@ -649,38 +648,40 @@ function GroupsSection({
   );
 }
 
-// ── Workshop tab: solutions, board challenge, presentation, commitments ─
+
+// ── Workshop tab: each group's 3-activity progress ───────────────────────
 function WorkshopTab({
   workshop,
-  adminSecret,
   participants,
   groups,
   challenges,
   solutions,
   boards,
-  commitments,
 }: {
   workshop: Workshop;
-  adminSecret: string;
   participants: Participant[];
   groups: Group[];
   challenges: Challenge[];
   solutions: GroupSolution[];
   boards: BoardChallenge[];
-  commitments: Commitment[];
 }) {
-  async function present(groupId: string | null) {
-    await updateDoc(docIn("workshops", workshop.id), { presentationGroupId: groupId, status: "presentation" });
-  }
+  const [regenerating, setRegenerating] = useState<string | null>(null);
 
-  async function generateBoard(group: Group, challenge: Challenge | undefined, solution: GroupSolution | undefined) {
+  async function regenerateBoard(group: Group, challenge: Challenge | undefined, solution: GroupSolution | undefined) {
     if (!challenge || !solution?.initialSolution) return alert("This group hasn't submitted an initial answer yet.");
+    setRegenerating(group.id);
     try {
-      const { personaChallenges } = await api("/generate-board-challenge", adminSecret, {
-        challenge: { title: challenge.title, description: challenge.description },
-        solution: solution.initialSolution,
-        groupName: group.name,
+      const res = await fetch("/api/generate-board-challenge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          challenge: { title: challenge.title, description: challenge.description },
+          solution: solution.initialSolution,
+          groupName: group.name,
+        }),
       });
+      if (!res.ok) throw new Error((await res.json()).error || "Request failed");
+      const { personaChallenges } = await res.json();
       await setDoc(docIn("boardChallenges", group.id), {
         groupId: group.id,
         workshopId: workshop.id,
@@ -689,228 +690,146 @@ function WorkshopTab({
       });
     } catch (e: any) {
       alert(e.message);
+    } finally {
+      setRegenerating(null);
     }
   }
 
-  async function setWorkshopStatus(next: Workshop["status"]) {
-    await updateDoc(docIn("workshops", workshop.id), { status: next });
-  }
-
-  const nonFacilitatorParticipants = participants.filter((p) => p.role !== "facilitator");
-
   return (
-    <div className="space-y-6">
-      <Section title="Question 1 → C-level board → revised answer">
-        <div className="space-y-3">
-          {groups.map((g) => {
-            const challenge = challenges.find((c) => c.id === g.challengeId);
-            const sol = solutions.find((s) => s.groupId === g.id);
-            const board = boards.find((b) => b.groupId === g.id);
-            if (!challenge) {
-              return (
-                <div key={g.id} className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm text-gray-400">
-                  {g.name} — no challenge selected yet (see Pre-workshop tab)
-                </div>
-              );
-            }
+    <Section title="Question 1 → C-level board → revised answer → 30/60/90 actions">
+      <p className="text-xs text-gray-400">
+        Facilitators drive each group's 3 timed activities themselves (15 min each) — nothing to do here unless something
+        needs a manual nudge.
+      </p>
+      <div className="space-y-3">
+        {groups.map((g) => {
+          const challenge = challenges.find((c) => c.id === g.challengeId);
+          const sol = solutions.find((s) => s.groupId === g.id);
+          const board = boards.find((b) => b.groupId === g.id);
+          if (!challenge) {
             return (
-              <div key={g.id} className="bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="font-black text-[#0A0E2A]">{g.name}</div>
+              <div key={g.id} className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm text-gray-400">
+                {g.name} — no challenge selected yet (see Pre-workshop tab)
+              </div>
+            );
+          }
+          return (
+            <div key={g.id} className="bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-3">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div className="font-black text-[#0A0E2A]">{g.name}</div>
+                <div className="flex items-center gap-2">
                   <Tag color="navy">{challenge.title}</Tag>
+                  <Tag color={g.currentStep === "done" ? "green" : "coral"}>{GROUP_STEP_LABELS[g.currentStep || "initial"]}</Tag>
                 </div>
+              </div>
 
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Initial answer</p>
+                  {sol?.initialSubmitted && <Tag color="green">submitted</Tag>}
+                </div>
+                <p className="text-sm text-gray-600 whitespace-pre-wrap">{sol?.initialSolution || "Not submitted yet."}</p>
+              </div>
+
+              {board && (
+                <div className="grid sm:grid-cols-2 gap-2">
+                  {board.personaChallenges.map((pc, i) => (
+                    <div key={i} className="bg-white border border-gray-200 rounded-lg p-3 text-xs">
+                      <div className="text-[#E8503A] font-bold uppercase tracking-widest text-[10px] mb-1">{pc.role}</div>
+                      <div className="text-[#0A0E2A]">{pc.objection}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {(g.currentStep === "board" || g.currentStep === "actions" || g.currentStep === "done") && sol?.initialSubmitted && (
+                <Btn variant="outline" onClick={() => regenerateBoard(g, challenge, sol)} loading={regenerating === g.id}>
+                  <RefreshCw className="w-3.5 h-3.5" /> {board ? "Regenerate" : "Generate"} board challenge
+                </Btn>
+              )}
+
+              {board && (
                 <div>
                   <div className="flex items-center justify-between mb-1">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Initial answer</p>
-                    {sol?.initialSubmitted && <Tag color="green">submitted</Tag>}
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Revised answer</p>
+                    {sol?.revisedSubmitted && <Tag color="green">submitted</Tag>}
                   </div>
-                  <p className="text-sm text-gray-600 whitespace-pre-wrap">{sol?.initialSolution || "Not submitted yet."}</p>
+                  <p className="text-sm text-gray-600 whitespace-pre-wrap">{sol?.revisedSolution || "Not submitted yet."}</p>
                 </div>
+              )}
 
-                <Btn variant="outline" onClick={() => generateBoard(g, challenge, sol)}>
-                  {board && <RefreshCw className="w-3.5 h-3.5" />}
-                  {board ? "Regenerate board challenge" : "Get board challenge"}
-                </Btn>
-
-                {board && (
-                  <div className="grid sm:grid-cols-2 gap-2">
-                    {board.personaChallenges.map((pc, i) => (
-                      <div key={i} className="bg-white border border-gray-200 rounded-lg p-3 text-xs">
-                        <div className="text-[#E8503A] font-bold uppercase tracking-widest text-[10px] mb-1">{pc.role}</div>
-                        <div className="text-[#0A0E2A]">{pc.objection}</div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {board && (
+              {sol?.actionsSubmitted && (
+                <div className="grid sm:grid-cols-3 gap-2 pt-2 border-t border-gray-200">
                   <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Revised answer</p>
-                      {sol?.revisedSubmitted && <Tag color="green">submitted</Tag>}
-                    </div>
-                    <p className="text-sm text-gray-600 whitespace-pre-wrap">{sol?.revisedSolution || "Not submitted yet."}</p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">30 days</p>
+                    <p className="text-xs text-gray-600 whitespace-pre-wrap">{sol.action30}</p>
                   </div>
-                )}
-              </div>
-            );
-          })}
-          {groups.length === 0 && <p className="text-gray-400 text-sm">No groups yet.</p>}
-        </div>
-      </Section>
-
-      <Section title="Plenary presentation">
-        <p className="text-sm text-gray-500">
-          Open <a href={`/present/${workshop.id}`} target="_blank" className="text-[#E8503A] font-bold underline">/present/{workshop.id}</a>{" "}
-          on the room screen, then click a group below to bring it up.
-        </p>
-        <div className="flex flex-wrap gap-2">
-          {groups.map((g) => (
-            <Btn key={g.id} variant="outline" onClick={() => present(g.id)}>{g.name}</Btn>
-          ))}
-          <Btn variant="outline" onClick={() => present(null)}>Clear screen</Btn>
-        </div>
-      </Section>
-
-      <Section title="Individual 30-day commitments (facilitators don't answer this one)">
-        {workshop.status !== "commitments" && workshop.status !== "closed" && (
-          <Btn variant="coral" onClick={() => setWorkshopStatus("commitments")}>Open commitment form to participants</Btn>
-        )}
-        <p className="text-xs text-gray-400">{commitments.length}/{nonFacilitatorParticipants.length} participants have submitted</p>
-        <div className="space-y-2">
-          {commitments.map((c) => {
-            const p = participants.find((p) => p.id === c.participantId);
-            return (
-              <div key={c.id} className="bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm">
-                <div className="font-bold text-[#0A0E2A]">{p?.name || "Participant"}</div>
-                <div className="text-gray-500">{c.action}</div>
-              </div>
-            );
-          })}
-        </div>
-      </Section>
-    </div>
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">60 days</p>
+                    <p className="text-xs text-gray-600 whitespace-pre-wrap">{sol.action60}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">90 days</p>
+                    <p className="text-xs text-gray-600 whitespace-pre-wrap">{sol.action90}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+        {groups.length === 0 && <p className="text-gray-400 text-sm">No groups yet.</p>}
+      </div>
+    </Section>
   );
 }
 
-// ── Report tab: one report per group ────────────────────────────────────
-function ReportTab({
-  workshop,
-  adminSecret,
-  participants,
-  groups,
-  challenges,
-  solutions,
-  boards,
-  commitments,
-}: {
-  workshop: Workshop;
-  adminSecret: string;
-  participants: Participant[];
-  groups: Group[];
-  challenges: Challenge[];
-  solutions: GroupSolution[];
-  boards: BoardChallenge[];
-  commitments: Commitment[];
-}) {
-  const [reports, setReports] = useState<GroupReport[]>([]);
-  const [generating, setGenerating] = useState<string | null>(null);
-
-  useEffect(() => onSnapshot(query(col.groupReports, where("workshopId", "==", workshop.id)), (s) =>
-    setReports(s.docs.map((d) => ({ id: d.id, ...d.data() } as GroupReport)))
-  ), [workshop.id]);
-
-  async function generateReport(g: Group) {
-    const challenge = challenges.find((c) => c.id === g.challengeId);
-    if (!challenge) return alert("This group hasn't selected a challenge yet.");
-    const sol = solutions.find((s) => s.groupId === g.id);
-    const board = boards.find((b) => b.groupId === g.id);
-    const memberCommitments = commitments.filter((c) => g.participantIds.includes(c.participantId));
-    setGenerating(g.id);
-    try {
-      const result = await api("/generate-group-report", adminSecret, {
-        workshop: { name: workshop.name },
-        group: { name: g.name },
-        challenge: { title: challenge.title, description: challenge.description },
-        initialSolution: sol?.initialSolution,
-        revisedSolution: sol?.revisedSolution,
-        personaChallenges: board?.personaChallenges,
-        commitments: memberCommitments,
-      });
-      await setDoc(docIn("groupReports", g.id), {
-        groupId: g.id,
-        workshopId: workshop.id,
-        ...result,
-        createdAt: new Date().toISOString(),
-      });
-    } catch (e: any) {
-      alert(e.message);
-    } finally {
-      setGenerating(null);
-    }
-  }
-
-  async function closeWorkshop() {
-    await updateDoc(docIn("workshops", workshop.id), { status: "closed" });
+// ── Presentation tab: plenary big-screen control ─────────────────────────
+function PresentationTab({ workshop, groups }: { workshop: Workshop; groups: Group[] }) {
+  async function present(groupId: string | null) {
+    await updateDoc(docIn("workshops", workshop.id), { presentationGroupId: groupId, status: "presentation" });
   }
 
   return (
-    <div className="space-y-4">
-      {groups.map((g) => {
-        const challenge = challenges.find((c) => c.id === g.challengeId);
-        const report = reports.find((r) => r.groupId === g.id);
-        const members = g.participantIds.map((id) => participants.find((p) => p.id === id)).filter(Boolean) as Participant[];
-        return (
-          <Section key={g.id} title={g.name}>
-            <p className="text-xs text-gray-400">{members.map((m) => m.name).join(", ")}</p>
-            <Btn variant="outline" onClick={() => generateReport(g)} loading={generating === g.id} disabled={!challenge}>
-              {report && <RefreshCw className="w-3.5 h-3.5" />}
-              {report ? "Regenerate report" : "Generate report"}
-            </Btn>
-            {report && (
-              <div className="space-y-3 pt-2">
-                <p className="text-gray-600 text-sm">{report.executiveSummary}</p>
-                <div className="bg-gray-50 border border-gray-200 rounded-xl p-3">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-[#E8503A] mb-1">Key insight</p>
-                  <p className="text-sm text-[#0A0E2A]">{report.keyInsight}</p>
-                </div>
-                <div className="bg-gray-50 border border-gray-200 rounded-xl p-3">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">How their thinking evolved</p>
-                  <p className="text-sm text-gray-600">{report.evolution}</p>
-                </div>
-                <ul className="list-disc list-inside text-sm text-gray-600">
-                  {report.recommendedNextSteps?.map((s, i) => <li key={i}>{s}</li>)}
-                </ul>
-              </div>
-            )}
-          </Section>
-        );
-      })}
-      {groups.length === 0 && <Section title="Report"><p className="text-gray-400 text-sm">No groups yet.</p></Section>}
-
-      <Section title="Wrap up">
-        {workshop.status !== "closed" ? (
-          <Btn variant="coral" onClick={closeWorkshop}>Mark workshop as closed</Btn>
-        ) : (
-          <p className="text-green-600 text-sm font-medium flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4" /> Workshop closed.</p>
-        )}
-      </Section>
-    </div>
+    <Section title="Plenary presentation">
+      <p className="text-sm text-gray-500">
+        Open <a href={`/present/${workshop.id}`} target="_blank" className="text-[#E8503A] font-bold underline">/present/{workshop.id}</a>{" "}
+        on the room screen, then click a group below to bring it up.
+      </p>
+      <div className="flex flex-wrap gap-2">
+        {groups.map((g) => (
+          <Btn key={g.id} variant="outline" onClick={() => present(g.id)}>{g.name}</Btn>
+        ))}
+        <Btn variant="outline" onClick={() => present(null)}>Clear screen</Btn>
+      </div>
+      {workshop.status !== "closed" && (
+        <div className="pt-4 border-t border-gray-200">
+          <Btn variant="coral" onClick={async () => updateDoc(docIn("workshops", workshop.id), { status: "closed" })}>
+            Mark workshop as closed
+          </Btn>
+        </div>
+      )}
+      {workshop.status === "closed" && (
+        <p className="text-green-600 text-sm font-medium flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4" /> Workshop closed.</p>
+      )}
+    </Section>
   );
 }
 
 // ── Workshop Dashboard ───────────────────────────────────────────────────
-function WorkshopDashboard({ workshop, adminSecret }: { workshop: Workshop; adminSecret: string }) {
-  const [tab, setTab] = useState<"pre" | "workshop" | "report">("pre");
+function WorkshopDashboard({ workshop: initialWorkshop, adminSecret }: { workshop: Workshop; adminSecret: string }) {
+  const [tab, setTab] = useState<"pre" | "workshop" | "presentation">("pre");
+  const [workshop, setWorkshop] = useState<Workshop>(initialWorkshop);
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [responses, setResponses] = useState<SurveyResponse[]>([]);
   const [challenges, setChallenges] = useState<Challenge[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
   const [solutions, setSolutions] = useState<GroupSolution[]>([]);
   const [boards, setBoards] = useState<BoardChallenge[]>([]);
-  const [commitments, setCommitments] = useState<Commitment[]>([]);
 
+  useEffect(() => onSnapshot(docIn("workshops", initialWorkshop.id), (s) => {
+    const data = s.data() as Workshop | undefined;
+    if (data) setWorkshop({ id: initialWorkshop.id, ...data });
+  }), [initialWorkshop.id]);
   useEffect(() => onSnapshot(query(col.participants, where("workshopId", "==", workshop.id)), (s) =>
     setParticipants(s.docs.map((d) => ({ id: d.id, ...d.data() } as Participant)))
   ), [workshop.id]);
@@ -929,11 +848,17 @@ function WorkshopDashboard({ workshop, adminSecret }: { workshop: Workshop; admi
   useEffect(() => onSnapshot(query(col.boardChallenges, where("workshopId", "==", workshop.id)), (s) =>
     setBoards(s.docs.map((d) => ({ id: d.id, ...d.data() } as BoardChallenge)))
   ), [workshop.id]);
-  useEffect(() => onSnapshot(query(col.commitments, where("workshopId", "==", workshop.id)), (s) =>
-    setCommitments(s.docs.map((d) => ({ id: d.id, ...d.data() } as Commitment)))
-  ), [workshop.id]);
 
   const workshopLink = `${window.location.origin}/w/${workshop.id}`;
+
+  async function launchWorkshop() {
+    await updateDoc(docIn("workshops", workshop.id), { status: "working" });
+    const now = new Date().toISOString();
+    for (const g of groups) {
+      await updateDoc(docIn("groups", g.id), { currentStep: "initial", stepStartedAt: now });
+    }
+    setTab("workshop");
+  }
 
   return (
     <div className="min-h-screen bg-[#F4F6FB] px-6 py-10">
@@ -948,10 +873,13 @@ function WorkshopDashboard({ workshop, adminSecret }: { workshop: Workshop; admi
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <button onClick={() => navigator.clipboard.writeText(workshopLink)}
-              className="text-[#E8503A] hover:text-[#d4432f] flex items-center gap-1.5 font-bold text-sm bg-[#E8503A]/5 border border-[#E8503A]/20 rounded-lg px-3 py-1.5">
-              <Copy className="w-3.5 h-3.5" /> Copy participant link
-            </button>
+            <div className="text-right">
+              <button onClick={() => navigator.clipboard.writeText(workshopLink)}
+                className="text-[#E8503A] hover:text-[#d4432f] flex items-center gap-1.5 font-bold text-sm bg-[#E8503A]/5 border border-[#E8503A]/20 rounded-lg px-3 py-1.5">
+                <Copy className="w-3.5 h-3.5" /> Copy workshop link
+              </button>
+              <p className="text-[10px] text-gray-400 mt-1 max-w-[220px]">Same link for everyone — participants and facilitators pick their name after opening it.</p>
+            </div>
             <a href="/admin" className="text-sm text-gray-400 hover:text-[#E8503A] font-bold">← All workshops</a>
           </div>
         </div>
@@ -960,7 +888,7 @@ function WorkshopDashboard({ workshop, adminSecret }: { workshop: Workshop; admi
           {[
             { key: "pre", label: "Pre-workshop" },
             { key: "workshop", label: "Workshop" },
-            { key: "report", label: "Report" },
+            { key: "presentation", label: "Presentation" },
           ].map((t) => (
             <button key={t.key} onClick={() => setTab(t.key as any)}
               className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
@@ -983,34 +911,47 @@ function WorkshopDashboard({ workshop, adminSecret }: { workshop: Workshop; admi
               groups={groups}
               challenges={challenges}
             />
+
+            <Section title="Ready?">
+              {workshop.status === "setup" ? (
+                <>
+                  <p className="text-sm text-gray-500">
+                    Once your groups have a challenge selected, launch the workshop — this starts each group's first
+                    15-minute activity (Question 1) and switches you to the Workshop tab. From there, facilitators drive
+                    their own group through all 3 activities; you'll mainly need the Presentation tab at the end.
+                  </p>
+                  <Btn
+                    variant="coral"
+                    onClick={launchWorkshop}
+                    disabled={groups.length === 0 || !groups.some((g) => g.challengeId)}
+                  >
+                    Launch workshop
+                  </Btn>
+                  {groups.length > 0 && !groups.some((g) => g.challengeId) && (
+                    <p className="text-xs text-gray-400">At least one group needs a selected challenge before you can launch.</p>
+                  )}
+                </>
+              ) : (
+                <p className="text-green-600 text-sm font-medium flex items-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4" /> Workshop launched — participants are working through their activities.
+                </p>
+              )}
+            </Section>
           </div>
         )}
 
         {tab === "workshop" && (
           <WorkshopTab
             workshop={workshop}
-            adminSecret={adminSecret}
             participants={participants}
             groups={groups}
             challenges={challenges}
             solutions={solutions}
             boards={boards}
-            commitments={commitments}
           />
         )}
 
-        {tab === "report" && (
-          <ReportTab
-            workshop={workshop}
-            adminSecret={adminSecret}
-            participants={participants}
-            groups={groups}
-            challenges={challenges}
-            solutions={solutions}
-            boards={boards}
-            commitments={commitments}
-          />
-        )}
+        {tab === "presentation" && <PresentationTab workshop={workshop} groups={groups} />}
       </div>
     </div>
   );
