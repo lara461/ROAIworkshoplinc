@@ -13,6 +13,7 @@ export interface Workshop {
   createdAt: string;
   status: WorkshopStatus;
   presentationGroupId?: string | null;
+  presentationSections?: string[]; // which parts of the group's work are shown on /present — admin picks live
 }
 
 export type ParticipantRole = "participant" | "facilitator";
@@ -59,6 +60,19 @@ export const GROUP_STEP_LABELS: Record<GroupStep, string> = {
   actions: "30 / 60 / 90-Day Actions",
   done: "Complete",
 };
+
+// The pieces of a group's work that the admin can choose to reveal, one or
+// more at a time, on the plenary /present screen — reused by both AdminApp's
+// Presentation tab (as toggles) and PresentationView (to decide what renders).
+export type PresentationSectionKey = "challenge" | "solution" | "board" | "reviewed" | "actions";
+
+export const PRESENTATION_SECTIONS: { key: PresentationSectionKey; label: string }[] = [
+  { key: "challenge", label: "Challenge" },
+  { key: "solution", label: "Their solution" },
+  { key: "board", label: "Board feedback" },
+  { key: "reviewed", label: "Reviewed solution" },
+  { key: "actions", label: "30/60/90 actions" },
+];
 
 export interface Group {
   id: string;

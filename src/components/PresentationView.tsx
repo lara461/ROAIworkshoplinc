@@ -43,6 +43,7 @@ export default function PresentationView({ workshopId }: { workshopId: string })
   const challenge = activeGroup ? challenges.find((c) => c.id === activeGroup.challengeId) : undefined;
   const solution = activeGroup ? solutions.find((s) => s.groupId === activeGroup.id) : undefined;
   const board = activeGroup ? boards.find((b) => b.groupId === activeGroup.id) : undefined;
+  const shown = workshop.presentationSections || [];
 
   return (
     <div className="min-h-screen bg-[#14121F] px-10 py-10">
@@ -63,23 +64,27 @@ export default function PresentationView({ workshopId }: { workshopId: string })
             </p>
           </div>
 
-          {challenge && (
+          {shown.length === 0 && (
+            <p className="text-center text-white/20 text-xl">Waiting for the facilitator to reveal something...</p>
+          )}
+
+          {shown.includes("challenge") && challenge && (
             <div className="bg-white/5 border border-white/10 rounded-md p-6">
-              <p className="text-[#DD4B4E] text-xs font-bold uppercase tracking-widest mb-2">The challenge</p>
+              <p className="text-[#DD4B4E] text-xs font-bold uppercase tracking-widest mb-2">Challenge</p>
               <p className="text-xl text-white">{challenge.description}</p>
             </div>
           )}
 
-          {solution && (
+          {shown.includes("solution") && solution && (
             <div className="bg-white/5 border border-white/10 rounded-md p-6">
-              <p className="text-[#DD4B4E] text-xs font-bold uppercase tracking-widest mb-2">Their initial answer</p>
+              <p className="text-[#DD4B4E] text-xs font-bold uppercase tracking-widest mb-2">Their solution</p>
               <p className="text-lg text-white/90 whitespace-pre-wrap">{solution.initialSolution}</p>
             </div>
           )}
 
-          {board && (
+          {shown.includes("board") && board && (
             <div>
-              <p className="text-[#DD4B4E] text-xs font-bold uppercase tracking-widest mb-3 text-center">The board challenges them</p>
+              <p className="text-[#DD4B4E] text-xs font-bold uppercase tracking-widest mb-3 text-center">Board feedback</p>
               <div className="grid sm:grid-cols-2 gap-4">
                 {board.personaChallenges.map((pc, i) => (
                   <div key={i} className="bg-white/5 border border-white/10 rounded-md p-4">
@@ -91,16 +96,16 @@ export default function PresentationView({ workshopId }: { workshopId: string })
             </div>
           )}
 
-          {board && solution?.revisedSolution && (
+          {shown.includes("reviewed") && solution?.revisedSolution && (
             <div className="bg-white/5 border border-white/10 rounded-md p-6">
-              <p className="text-[#DD4B4E] text-xs font-bold uppercase tracking-widest mb-2">Their revised answer</p>
+              <p className="text-[#DD4B4E] text-xs font-bold uppercase tracking-widest mb-2">Reviewed solution</p>
               <p className="text-lg text-white/90 whitespace-pre-wrap">{solution.revisedSolution}</p>
             </div>
           )}
 
-          {solution?.actionsSubmitted && (
+          {shown.includes("actions") && solution?.actionsSubmitted && (
             <div>
-              <p className="text-[#DD4B4E] text-xs font-bold uppercase tracking-widest mb-3 text-center">Their 30 / 60 / 90-day actions</p>
+              <p className="text-[#DD4B4E] text-xs font-bold uppercase tracking-widest mb-3 text-center">30 / 60 / 90-day actions</p>
               <div className="grid sm:grid-cols-3 gap-4">
                 <div className="bg-white/5 border border-white/10 rounded-md p-4">
                   <div className="text-[#DD4B4E] font-bold text-xs uppercase tracking-widest mb-1">30 days</div>

@@ -50,10 +50,10 @@ Each group moves through this sequence on its own, at its own pace — the facil
    The facilitator then writes and submits a revised answer in response.
 3. **30 / 60 / 90-day actions** — immediately after the revised answer, still a group activity written by the facilitator: three fields — what the organization will do in the next 30 days (immediate moves), 60 days (needs some planning/buy-in), and 90 days (structural/strategic change). Submitting marks the group as done.
 
-The admin's Workshop tab is a live 3-column board (Question 1 / Board & revised answer / 30/60/90 actions) — every group appears as a card in whichever column matches its current activity, so you can see at a glance who's ahead and who's behind. Tap a group's card to open a popup with everything it's done so far, plus a manual "regenerate board challenge" fallback button in case the automatic one needs a redo.
+The admin's Workshop tab is a live 3-column board (Question 1 / Board & revised answer / 30/60/90 actions) — every group appears as a card in whichever column matches its current activity, so you can see at a glance who's ahead and who's behind. Tap a group's card to open a popup with everything it's done so far — **Challenge**, **Their solution**, **Board feedback**, **Reviewed solution**, **30/60/90-day actions** — plus a manual "regenerate board challenge" fallback button in case the automatic one needs a redo.
 
 ### Presentation tab
-Open `/present/:workshopId` on the room screen, click through groups to bring each one up (challenge, initial answer, board challenge, revised answer, and the 30/60/90 actions). "Mark workshop as closed" when done.
+Open `/present/:workshopId` on the room screen. Pick which group is presenting, then reveal only the part(s) they're actually talking about (Challenge / Their solution / Board feedback / Reviewed solution / 30/60/90 actions) — no group ever covers everything in their readout, so show just what's relevant as they go, one or more sections at a time. "Mark workshop as closed" when done.
 
 ## Access — two separate links
 

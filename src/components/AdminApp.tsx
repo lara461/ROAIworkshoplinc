@@ -15,13 +15,17 @@ import {
   CheckCircle2,
   ClipboardList,
   Copy,
+  FileText,
   Loader2,
+  ListChecks,
+  MessageSquareWarning,
   Pencil,
   Plus,
   PlayCircle,
   Presentation as PresentationIcon,
   RefreshCw,
   Rocket,
+  Target,
   Trash2,
   Upload,
   Users,
@@ -32,6 +36,7 @@ import { cn } from "../utils";
 import { downloadTemplate, parseParticipantsFile } from "../csvImport";
 import type { ImportedRow } from "../csvImport";
 import { Accordion, Btn, Card, FacilitatorBadge, Field, Modal, PageHeader, ROAILogo, StepTabs, Tag, TextArea } from "../ui";
+import { PRESENTATION_SECTIONS } from "../types";
 import type {
   BoardChallenge,
   Challenge,
@@ -956,25 +961,41 @@ function WorkshopTab({
           {!openChallenge ? (
             <p className="text-sm text-gray-400">No challenge selected yet — waiting on the facilitator.</p>
           ) : (
-            <div className="space-y-4">
-              <p className="text-sm text-gray-500">{openChallenge.title}</p>
+            <div className="space-y-3">
+              <div className="border-l-4 border-[#3545A3] bg-[#3545A3]/5 rounded-r-lg p-4">
+                <div className="flex items-center gap-2 mb-1.5">
+                  <Target className="w-4 h-4 text-[#3545A3]" />
+                  <p className="text-xs font-bold uppercase tracking-wide text-[#3545A3]">Challenge</p>
+                </div>
+                <p className="text-sm text-[#14121F]">{openChallenge.title}</p>
+                <p className="text-xs text-gray-500 mt-1">{openChallenge.description}</p>
+              </div>
 
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Initial answer</p>
+              <div className="border-l-4 border-[#DD4B4E] bg-[#DD4B4E]/5 rounded-r-lg p-4">
+                <div className="flex items-center justify-between mb-1.5">
+                  <div className="flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-[#DD4B4E]" />
+                    <p className="text-xs font-bold uppercase tracking-wide text-[#DD4B4E]">Their solution</p>
+                  </div>
                   {openSolution?.initialSubmitted && <Tag color="green">submitted</Tag>}
                 </div>
-                <p className="text-sm text-gray-600 whitespace-pre-wrap">{openSolution?.initialSolution || "Not submitted yet."}</p>
+                <p className="text-sm text-gray-700 whitespace-pre-wrap">{openSolution?.initialSolution || "Not submitted yet."}</p>
               </div>
 
               {openBoard && (
-                <div className="grid sm:grid-cols-2 gap-2">
-                  {openBoard.personaChallenges.map((pc, i) => (
-                    <div key={i} className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs">
-                      <div className="text-[#DD4B4E] font-bold uppercase tracking-widest text-[10px] mb-1">{pc.role}</div>
-                      <div className="text-[#14121F]">{pc.objection}</div>
-                    </div>
-                  ))}
+                <div className="bg-[#14121F] rounded-lg p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <MessageSquareWarning className="w-4 h-4 text-[#DD4B4E]" />
+                    <p className="text-xs font-bold uppercase tracking-wide text-[#DD4B4E]">Board feedback</p>
+                  </div>
+                  <div className="grid sm:grid-cols-2 gap-2">
+                    {openBoard.personaChallenges.map((pc, i) => (
+                      <div key={i} className="bg-white/5 rounded-md p-2.5 text-xs">
+                        <div className="text-[#DD4B4E] font-bold uppercase tracking-widest text-[10px] mb-1">{pc.role}</div>
+                        <div className="text-white">{pc.objection}</div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
 
@@ -985,30 +1006,36 @@ function WorkshopTab({
               )}
 
               {openBoard && (
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Revised answer</p>
+                <div className="border-l-4 border-[#1FA398] bg-[#1FA398]/5 rounded-r-lg p-4">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <div className="flex items-center gap-2">
+                      <RefreshCw className="w-4 h-4 text-[#1FA398]" />
+                      <p className="text-xs font-bold uppercase tracking-wide text-[#1FA398]">Reviewed solution</p>
+                    </div>
                     {openSolution?.revisedSubmitted && <Tag color="green">submitted</Tag>}
                   </div>
-                  <p className="text-sm text-gray-600 whitespace-pre-wrap">{openSolution?.revisedSolution || "Not submitted yet."}</p>
+                  <p className="text-sm text-gray-700 whitespace-pre-wrap">{openSolution?.revisedSolution || "Not submitted yet."}</p>
                 </div>
               )}
 
               {openSolution?.actionsSubmitted && (
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2">30 / 60 / 90-day actions</p>
+                  <div className="flex items-center gap-2 mb-2 px-1">
+                    <ListChecks className="w-4 h-4 text-gray-500" />
+                    <p className="text-xs font-bold uppercase tracking-wide text-gray-500">30 / 60 / 90-day actions</p>
+                  </div>
                   <div className="grid sm:grid-cols-3 gap-2">
-                    <div>
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">30 days</p>
-                      <p className="text-xs text-gray-600 whitespace-pre-wrap">{openSolution.action30}</p>
+                    <div className="border-l-4 border-[#3545A3] bg-[#3545A3]/5 rounded-r-lg p-3">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-[#3545A3] mb-1">30 days</p>
+                      <p className="text-xs text-gray-700 whitespace-pre-wrap">{openSolution.action30}</p>
                     </div>
-                    <div>
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">60 days</p>
-                      <p className="text-xs text-gray-600 whitespace-pre-wrap">{openSolution.action60}</p>
+                    <div className="border-l-4 border-[#DD4B4E] bg-[#DD4B4E]/5 rounded-r-lg p-3">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-[#DD4B4E] mb-1">60 days</p>
+                      <p className="text-xs text-gray-700 whitespace-pre-wrap">{openSolution.action60}</p>
                     </div>
-                    <div>
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">90 days</p>
-                      <p className="text-xs text-gray-600 whitespace-pre-wrap">{openSolution.action90}</p>
+                    <div className="border-l-4 border-[#1FA398] bg-[#1FA398]/5 rounded-r-lg p-3">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-[#1FA398] mb-1">90 days</p>
+                      <p className="text-xs text-gray-700 whitespace-pre-wrap">{openSolution.action90}</p>
                     </div>
                   </div>
                 </div>
@@ -1024,21 +1051,76 @@ function WorkshopTab({
 // ── Presentation tab: plenary big-screen control ─────────────────────────
 function PresentationTab({ workshop, groups }: { workshop: Workshop; groups: Group[] }) {
   async function present(groupId: string | null) {
-    await updateDoc(docIn("workshops", workshop.id), { presentationGroupId: groupId, status: "presentation" });
+    await updateDoc(docIn("workshops", workshop.id), {
+      presentationGroupId: groupId,
+      presentationSections: [],
+      status: "presentation",
+    });
   }
+
+  async function toggleSection(key: string) {
+    const current = workshop.presentationSections || [];
+    const next = current.includes(key) ? current.filter((k) => k !== key) : [...current, key];
+    await updateDoc(docIn("workshops", workshop.id), { presentationSections: next });
+  }
+
+  const activeGroup = groups.find((g) => g.id === workshop.presentationGroupId);
+  const activeSections = workshop.presentationSections || [];
 
   return (
     <Section title="Plenary presentation">
       <p className="text-sm text-gray-500">
         Open <a href={`/present/${workshop.id}`} target="_blank" className="text-[#DD4B4E] font-bold underline">/present/{workshop.id}</a>{" "}
-        on the room screen, then click a group below to bring it up.
+        on the room screen. Pick which group is presenting, then reveal only the part(s) they're actually talking about —
+        no group ever covers everything, so show just what's relevant as they go.
       </p>
-      <div className="flex flex-wrap gap-2">
-        {groups.map((g) => (
-          <Btn key={g.id} variant="outline" onClick={() => present(g.id)}>{g.name}</Btn>
-        ))}
-        <Btn variant="outline" onClick={() => present(null)}>Clear screen</Btn>
+
+      <div>
+        <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1.5">Who's presenting</p>
+        <div className="flex flex-wrap gap-2">
+          {groups.map((g) => (
+            <button
+              key={g.id}
+              onClick={() => present(g.id)}
+              className={`text-xs px-3 py-1.5 rounded-md border font-medium transition-all ${
+                workshop.presentationGroupId === g.id
+                  ? "bg-[#DD4B4E]/10 border-[#DD4B4E] text-[#DD4B4E]"
+                  : "bg-white border-gray-200 text-gray-600 hover:border-[#DD4B4E]/40"
+              }`}
+            >
+              {g.name}
+            </button>
+          ))}
+          <button
+            onClick={() => present(null)}
+            className="text-xs px-3 py-1.5 rounded-md border border-dashed border-gray-300 text-gray-400 hover:border-gray-400 transition-all"
+          >
+            Clear screen
+          </button>
+        </div>
       </div>
+
+      {activeGroup && (
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1.5">What to reveal on screen</p>
+          <div className="flex flex-wrap gap-2">
+            {PRESENTATION_SECTIONS.map((s) => (
+              <button
+                key={s.key}
+                onClick={() => toggleSection(s.key)}
+                className={`text-xs px-3 py-1.5 rounded-md border font-medium transition-all ${
+                  activeSections.includes(s.key)
+                    ? "bg-[#DD4B4E]/10 border-[#DD4B4E] text-[#DD4B4E]"
+                    : "bg-white border-gray-200 text-gray-600 hover:border-[#DD4B4E]/40"
+                }`}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {workshop.status !== "closed" && (
         <div className="pt-4 border-t border-gray-200">
           <Btn variant="coral" onClick={async () => updateDoc(docIn("workshops", workshop.id), { status: "closed" })}>
@@ -1090,6 +1172,7 @@ function WorkshopDashboard({ workshop: initialWorkshop, adminSecret }: { worksho
 
   const facilitatorLink = `${window.location.origin}/w/${workshop.id}`;
   const publicLink = `${window.location.origin}/groups/${workshop.id}`;
+  const presentationLink = `${window.location.origin}/present/${workshop.id}`;
 
   const [editingDetails, setEditingDetails] = useState(false);
   const [editName, setEditName] = useState(workshop.name);
@@ -1180,10 +1263,10 @@ function WorkshopDashboard({ workshop: initialWorkshop, adminSecret }: { worksho
             eyebrow={`${workshop.date} · status: ${workshop.status}`}
             title={workshop.name}
             right={
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap justify-end">
                 <button onClick={openEditDetails}
                   className="text-gray-500 hover:bg-gray-50 flex items-center gap-1.5 font-semibold text-xs bg-white border border-gray-200 rounded-lg px-3 py-1.5">
-                  <Pencil className="w-3.5 h-3.5" /> Edit details
+                  <Pencil className="w-3.5 h-3.5" /> Edit workshop details
                 </button>
                 <button onClick={() => navigator.clipboard.writeText(facilitatorLink)}
                   className="text-[#DD4B4E] hover:bg-[#DD4B4E]/5 flex items-center gap-1.5 font-semibold text-xs bg-white border border-[#DD4B4E]/20 rounded-lg px-3 py-1.5">
@@ -1192,6 +1275,10 @@ function WorkshopDashboard({ workshop: initialWorkshop, adminSecret }: { worksho
                 <button onClick={() => navigator.clipboard.writeText(publicLink)}
                   className="text-[#14121F] hover:bg-gray-50 flex items-center gap-1.5 font-semibold text-xs bg-white border border-gray-200 rounded-lg px-3 py-1.5">
                   <Copy className="w-3.5 h-3.5" /> Public groups link
+                </button>
+                <button onClick={() => navigator.clipboard.writeText(presentationLink)}
+                  className="text-[#14121F] hover:bg-gray-50 flex items-center gap-1.5 font-semibold text-xs bg-white border border-gray-200 rounded-lg px-3 py-1.5">
+                  <Copy className="w-3.5 h-3.5" /> Presentation link
                 </button>
               </div>
             }
