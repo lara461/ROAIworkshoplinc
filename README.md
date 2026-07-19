@@ -33,7 +33,7 @@ npm run dev
 1. **Import participants + survey answers** — upload the export from your external survey tool. Email is optional; add an "Email" column yourself if your export doesn't include one. A downloadable template is available.
 2. **See each participant's survey answers** inline (expand "survey" next to their name).
 3. **Mark facilitators** — a fixed property of the person.
-4. **Create groups manually** — max 4 participants, **max 1 facilitator per group**.
+4. **Create groups manually** — max 6 participants, **max 1 facilitator per group**.
 5. **Generate challenges for all groups at once** — one button, C-level/boardroom framing, editable after generation. Either the admin or the group's facilitator can select which option the group works on.
 6. **Launch workshop** — once at least one group has a challenge selected. This unlocks every group's first activity and switches you to the Workshop tab. From here on, each group runs itself — you generally won't need to intervene until the Presentation tab.
 
