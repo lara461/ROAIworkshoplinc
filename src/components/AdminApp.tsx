@@ -14,9 +14,12 @@ import {
   CheckCircle2,
   ChevronDown,
   ChevronUp,
+  ClipboardList,
   Copy,
   Loader2,
   Plus,
+  PlayCircle,
+  Presentation as PresentationIcon,
   RefreshCw,
   Rocket,
   Upload,
@@ -24,9 +27,10 @@ import {
   X,
 } from "lucide-react";
 import { col, docIn } from "../firebase";
+import { cn } from "../utils";
 import { downloadTemplate, parseParticipantsFile } from "../csvImport";
 import type { ImportedRow } from "../csvImport";
-import { Btn, Card, Field, GradientHero, ROAILogo, Tag, TextArea } from "../ui";
+import { Btn, Card, Field, PageHeader, ROAILogo, Tag, TextArea } from "../ui";
 import { GROUP_STEP_LABELS } from "../types";
 import type {
   BoardChallenge,
@@ -51,7 +55,7 @@ async function api(path: string, adminSecret: string, body?: any) {
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <Card className="space-y-4">
-      <h2 className="text-lg font-black text-[#191534]">{title}</h2>
+      <h2 className="text-base font-bold text-[#14121F]">{title}</h2>
       {children}
     </Card>
   );
@@ -82,24 +86,22 @@ function Login({ onLogin }: { onLogin: (secret: string) => void }) {
   }
 
   return (
-    <div className="min-h-screen bg-[#F7F5FB] flex flex-col">
-      <GradientHero />
-      <div className="flex-1 flex items-center justify-center px-6 -mt-10">
-        <div className="max-w-sm w-full">
-          <Card className="space-y-4">
-            <h1 className="text-xl font-black text-[#191534] text-center">Admin Access</h1>
-            <input
-              type="password"
-              value={secret}
-              onChange={(e) => setSecret(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && submit()}
-              placeholder="Admin secret"
-              className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm outline-none focus:border-[#DD4B4E]"
-            />
-            {error && <p className="text-red-500 text-sm font-medium">{error}</p>}
-            <Btn variant="coral" onClick={submit} loading={loading} className="w-full justify-center">Enter</Btn>
-          </Card>
-        </div>
+    <div className="min-h-screen bg-white flex items-center justify-center px-6">
+      <div className="max-w-sm w-full space-y-6">
+        <div className="flex justify-center"><ROAILogo size="md" /></div>
+        <Card className="space-y-4">
+          <h1 className="text-base font-bold text-[#14121F] text-center">Admin Access</h1>
+          <input
+            type="password"
+            value={secret}
+            onChange={(e) => setSecret(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && submit()}
+            placeholder="Admin secret"
+            className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2.5 text-sm outline-none focus:border-[#DD4B4E]"
+          />
+          {error && <p className="text-red-500 text-sm font-medium">{error}</p>}
+          <Btn variant="coral" onClick={submit} loading={loading} className="w-full justify-center">Enter</Btn>
+        </Card>
       </div>
     </div>
   );
@@ -135,20 +137,24 @@ function WorkshopPicker({ adminSecret, onSelect }: { adminSecret: string; onSele
   }
 
   return (
-    <div className="min-h-screen bg-[#F7F5FB]">
-      <GradientHero
-        eyebrow="Admin dashboard"
-        title="Future of Work Action Workshop"
-        subtitle="Create a new workshop below, or open one you've already started."
-      />
-      <div className="max-w-3xl mx-auto px-6 md:px-14 py-10 space-y-8">
+    <div className="min-h-screen bg-white">
+      <div className="max-w-3xl mx-auto px-6 py-10 space-y-8">
+        <div className="flex items-center justify-between mb-2">
+          <ROAILogo size="md" />
+          <span className="text-xs font-semibold text-gray-400">Admin</span>
+        </div>
+        <PageHeader
+          title="Future of Work Action Workshop"
+          subtitle="Create a new workshop below, or open one you've already started."
+        />
+
         <Section title="Create a new workshop">
           <Field label="Workshop name" value={name} onChange={setName} placeholder="e.g. Acme Leadership Team — July 2026" />
           <TextArea label="Short description" value={description} onChange={setDescription} rows={2} />
           <div>
-            <label className="block text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1.5">Date</label>
+            <label className="block text-xs font-semibold text-gray-500 mb-1.5">Date</label>
             <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
-              className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm outline-none focus:border-[#DD4B4E]" />
+              className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#DD4B4E]" />
           </div>
           <Btn variant="coral" onClick={create}><Plus className="w-4 h-4" /> Create workshop</Btn>
         </Section>
@@ -157,9 +163,9 @@ function WorkshopPicker({ adminSecret, onSelect }: { adminSecret: string; onSele
           <div className="space-y-2">
             {workshops.map((w) => (
               <button key={w.id} onClick={() => onSelect(w)}
-                className="w-full text-left bg-gray-50 hover:bg-[#DD4B4E]/5 border border-gray-200 hover:border-[#DD4B4E]/40 rounded-2xl px-4 py-3 flex items-center justify-between transition-all group">
+                className="w-full text-left bg-white hover:bg-gray-50 border border-gray-200 hover:border-gray-300 rounded-lg px-4 py-3 flex items-center justify-between transition-colors group">
                 <div>
-                  <div className="font-bold text-[#191534] group-hover:text-[#DD4B4E] transition-colors">{w.name}</div>
+                  <div className="font-bold text-[#14121F]">{w.name}</div>
                   <div className="text-xs text-gray-400">{w.date} — status: {w.status}</div>
                 </div>
                 <span className="text-[#DD4B4E] text-sm font-bold">Open →</span>
@@ -232,7 +238,7 @@ function ImportSection({ workshop }: { workshop: Workshop }) {
       </p>
       <div className="flex gap-2 flex-wrap">
         <Btn variant="outline" onClick={() => downloadTemplate()}>Download template</Btn>
-        <label className="inline-flex items-center gap-2 font-bold text-sm rounded-xl px-4 py-2.5 bg-gray-50 border border-gray-200 hover:border-[#DD4B4E] cursor-pointer text-[#191534]">
+        <label className="inline-flex items-center gap-2 font-bold text-sm rounded-md px-4 py-2.5 bg-gray-50 border border-gray-200 hover:border-[#DD4B4E] cursor-pointer text-[#14121F]">
           <Upload className="w-4 h-4" /> Choose file
           <input
             ref={fileInput}
@@ -256,7 +262,7 @@ function ImportSection({ workshop }: { workshop: Workshop }) {
             <span className="font-bold text-green-600">{validCount} ready to import</span>
             {errorCount > 0 && <span className="text-red-500 font-bold"> · {errorCount} with errors (skipped)</span>}
           </p>
-          <div className="max-h-72 overflow-auto border border-gray-200 rounded-xl">
+          <div className="max-h-72 overflow-auto border border-gray-200 rounded-md">
             <table className="w-full text-xs">
               <thead className="bg-gray-50 sticky top-0">
                 <tr>
@@ -271,7 +277,7 @@ function ImportSection({ workshop }: { workshop: Workshop }) {
                 {rows.map((r) => (
                   <tr key={r._rowNumber} className="border-t border-gray-100">
                     <td className="p-2 text-gray-400">{r._rowNumber}</td>
-                    <td className="p-2 font-medium text-[#191534]">{r.name}</td>
+                    <td className="p-2 font-medium text-[#14121F]">{r.name}</td>
                     <td className="p-2 text-gray-500">{r.email}</td>
                     <td className="p-2">{r.role === "facilitator" ? <Tag color="coral">facilitator</Tag> : <Tag>participant</Tag>}</td>
                     <td className="p-2">{r._error ? <span className="text-red-500 font-bold">{r._error}</span> : <span className="text-green-600 font-bold">OK</span>}</td>
@@ -339,14 +345,14 @@ function ParticipantsSection({
       <div className="flex gap-2 flex-wrap items-end">
         <div className="flex-1 min-w-[160px]">
           <input placeholder="Full name" value={newName} onChange={(e) => setNewName(e.target.value)}
-            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-[#DD4B4E]" />
+            className="w-full bg-gray-50 border border-gray-200 rounded-md px-3 py-2 text-sm outline-none focus:border-[#DD4B4E]" />
         </div>
         <div className="flex-1 min-w-[160px]">
           <input placeholder="Email (optional)" value={newEmail} onChange={(e) => setNewEmail(e.target.value)}
-            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-[#DD4B4E]" />
+            className="w-full bg-gray-50 border border-gray-200 rounded-md px-3 py-2 text-sm outline-none focus:border-[#DD4B4E]" />
         </div>
         <select value={newRole} onChange={(e) => setNewRole(e.target.value as any)}
-          className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-[#DD4B4E]">
+          className="bg-gray-50 border border-gray-200 rounded-md px-3 py-2 text-sm outline-none focus:border-[#DD4B4E]">
           <option value="participant">Participant</option>
           <option value="facilitator">Facilitator</option>
         </select>
@@ -366,7 +372,7 @@ function ParticipantsSection({
             <div key={p.id} className="py-2.5 text-sm">
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="font-bold text-[#191534] flex items-center gap-2">
+                  <div className="font-bold text-[#14121F] flex items-center gap-2">
                     {p.name}
                     {p.role === "facilitator" && <Tag color="coral">facilitator</Tag>}
                   </div>
@@ -538,7 +544,7 @@ function GroupsSection({
   return (
     <>
       <Section title="Create groups (max 4 per group, max 1 facilitator per group)">
-        <div className="space-y-2 bg-gray-50 border border-gray-200 rounded-xl p-4">
+        <div className="space-y-2 bg-gray-50 border border-gray-200 rounded-md p-4">
           <Field label="Group name" value={groupName} onChange={setGroupName} placeholder="e.g. Group 1 — Ops Leaders" />
           <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1.5">
             Pick up to 4 unassigned participants ({selectedIds.length}/4)
@@ -546,7 +552,7 @@ function GroupsSection({
           <div className="flex flex-wrap gap-2">
             {unassigned.map((p) => (
               <button key={p.id} onClick={() => toggle(p.id)}
-                className={`text-xs px-3 py-1.5 rounded-full border font-medium transition-all ${
+                className={`text-xs px-3 py-1.5 rounded-md border font-medium transition-all ${
                   selectedIds.includes(p.id) ? "bg-[#DD4B4E]/10 border-[#DD4B4E] text-[#DD4B4E]" : "bg-white border-gray-200 text-gray-600 hover:border-[#DD4B4E]/40"
                 }`}>
                 {p.name}{p.role === "facilitator" ? " ★" : ""}
@@ -563,12 +569,12 @@ function GroupsSection({
           {groups.map((g) => {
             const members = g.participantIds.map((id) => participants.find((p) => p.id === id)).filter(Boolean) as Participant[];
             return (
-              <div key={g.id} className="relative bg-gray-50 border border-gray-200 rounded-xl p-3 flex items-center justify-between">
+              <div key={g.id} className="relative bg-gray-50 border border-gray-200 rounded-md p-3 flex items-center justify-between">
                 <div>
-                  <div className="font-bold text-[#191534] text-sm">{g.name}</div>
+                  <div className="font-bold text-[#14121F] text-sm">{g.name}</div>
                   <div className="flex flex-wrap gap-1.5 mt-1">
                     {members.map((m) => (
-                      <span key={m.id} className="inline-flex items-center gap-1 text-xs bg-white border border-gray-200 rounded-full pl-2 pr-1 py-0.5">
+                      <span key={m.id} className="inline-flex items-center gap-1 text-xs bg-white border border-gray-200 rounded-md pl-2 pr-1 py-0.5">
                         {m.name}{m.role === "facilitator" && <span className="text-[#DD4B4E] font-bold">★</span>}
                         <button onClick={() => removeMember(g.id, m.id, g.participantIds)} className="text-gray-300 hover:text-red-500">
                           <X className="w-3 h-3" />
@@ -606,8 +612,8 @@ function GroupsSection({
               const groupChallenges = challenges.filter((c) => c.groupId === g.id);
               if (groupChallenges.length === 0) return null;
               return (
-                <div key={g.id} className="bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-2">
-                  <div className="font-bold text-[#191534] text-sm">{g.name}</div>
+                <div key={g.id} className="bg-gray-50 border border-gray-200 rounded-md p-4 space-y-2">
+                  <div className="font-bold text-[#14121F] text-sm">{g.name}</div>
                   {groupChallenges.map((c) => {
                     const isEditing = !!editing[c.id];
                     return (
@@ -624,7 +630,7 @@ function GroupsSection({
                         ) : (
                           <>
                             <div className="flex items-center justify-between">
-                              <div className="font-bold text-sm text-[#191534]">{c.title}</div>
+                              <div className="font-bold text-sm text-[#14121F]">{c.title}</div>
                               {c.status === "selected" && <Tag color="coral">selected</Tag>}
                             </div>
                             <p className="text-xs text-gray-500 mt-1">{c.description}</p>
@@ -709,15 +715,15 @@ function WorkshopTab({
           const board = boards.find((b) => b.groupId === g.id);
           if (!challenge) {
             return (
-              <div key={g.id} className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm text-gray-400">
+              <div key={g.id} className="bg-gray-50 border border-gray-200 rounded-md p-4 text-sm text-gray-400">
                 {g.name} — no challenge selected yet (see Pre-workshop tab)
               </div>
             );
           }
           return (
-            <div key={g.id} className="bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-3">
+            <div key={g.id} className="bg-gray-50 border border-gray-200 rounded-md p-4 space-y-3">
               <div className="flex items-center justify-between flex-wrap gap-2">
-                <div className="font-black text-[#191534]">{g.name}</div>
+                <div className="font-black text-[#14121F]">{g.name}</div>
                 <div className="flex items-center gap-2">
                   <Tag color="navy">{challenge.title}</Tag>
                   <Tag color={g.currentStep === "done" ? "green" : "coral"}>{GROUP_STEP_LABELS[g.currentStep || "initial"]}</Tag>
@@ -737,7 +743,7 @@ function WorkshopTab({
                   {board.personaChallenges.map((pc, i) => (
                     <div key={i} className="bg-white border border-gray-200 rounded-lg p-3 text-xs">
                       <div className="text-[#DD4B4E] font-bold uppercase tracking-widest text-[10px] mb-1">{pc.role}</div>
-                      <div className="text-[#191534]">{pc.objection}</div>
+                      <div className="text-[#14121F]">{pc.objection}</div>
                     </div>
                   ))}
                 </div>
@@ -862,106 +868,120 @@ function WorkshopDashboard({ workshop: initialWorkshop, adminSecret }: { worksho
     setTab("workshop");
   }
 
+  const navItems = [
+    { key: "pre" as const, label: "Pre-workshop", icon: ClipboardList },
+    { key: "workshop" as const, label: "Workshop", icon: PlayCircle },
+    { key: "presentation" as const, label: "Presentation", icon: PresentationIcon },
+  ];
+
   return (
-    <div className="min-h-screen bg-[#F7F5FB] px-6 md:px-14 py-10">
-      <div className="max-w-5xl mx-auto space-y-6">
-        <div className="flex items-center justify-between flex-wrap gap-3">
-          <div className="flex items-center gap-4">
-            <ROAILogo size="sm" />
-            <div className="h-8 w-px bg-gray-200" />
-            <div>
-              <h1 className="text-xl font-black text-[#191534]">{workshop.name}</h1>
-              <p className="text-gray-400 text-xs">{workshop.date} · status: {workshop.status}</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="text-right">
-              <button onClick={() => navigator.clipboard.writeText(facilitatorLink)}
-                className="text-[#DD4B4E] hover:text-[#c23e42] flex items-center gap-1.5 font-bold text-sm bg-[#DD4B4E]/5 border border-[#DD4B4E]/20 rounded-lg px-3 py-1.5">
-                <Copy className="w-3.5 h-3.5" /> Copy facilitator link
-              </button>
-              <p className="text-[10px] text-gray-400 mt-1 max-w-[220px]">Send only to assigned facilitators — they pick their name to edit their group.</p>
-            </div>
-            <div className="text-right">
-              <button onClick={() => navigator.clipboard.writeText(publicLink)}
-                className="text-[#191534] hover:text-gray-600 flex items-center gap-1.5 font-bold text-sm bg-gray-100 border border-gray-200 rounded-lg px-3 py-1.5">
-                <Copy className="w-3.5 h-3.5" /> Copy public groups link
-              </button>
-              <p className="text-[10px] text-gray-400 mt-1 max-w-[220px]">Share with everyone — no login, browse groups and live progress.</p>
-            </div>
-            <a href="/admin" className="text-sm text-gray-400 hover:text-[#DD4B4E] font-bold">← All workshops</a>
-          </div>
+    <div className="min-h-screen bg-white flex">
+      {/* Sidebar */}
+      <aside className="w-60 shrink-0 border-r border-gray-200 flex flex-col h-screen sticky top-0">
+        <div className="p-5 border-b border-gray-200">
+          <ROAILogo size="sm" />
         </div>
-
-        <div className="flex gap-1 bg-gray-100 rounded-xl p-1 w-fit">
-          {[
-            { key: "pre", label: "Pre-workshop" },
-            { key: "workshop", label: "Workshop" },
-            { key: "presentation", label: "Presentation" },
-          ].map((t) => (
-            <button key={t.key} onClick={() => setTab(t.key as any)}
-              className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
-                tab === t.key ? "bg-white text-[#191534] shadow-sm" : "text-gray-400 hover:text-gray-600"
-              }`}>
-              {t.label}
-            </button>
-          ))}
+        <nav className="flex-1 p-3 space-y-1">
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            const active = tab === item.key;
+            return (
+              <button
+                key={item.key}
+                onClick={() => setTab(item.key)}
+                className={cn(
+                  "w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-semibold transition-colors",
+                  active ? "roai-mark text-white" : "text-gray-500 hover:bg-gray-50 hover:text-[#14121F]"
+                )}
+              >
+                <Icon className="w-4 h-4" />
+                {item.label}
+              </button>
+            );
+          })}
+        </nav>
+        <div className="p-3 border-t border-gray-200 space-y-1">
+          <a href="/admin" className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-semibold text-gray-500 hover:bg-gray-50 hover:text-[#14121F]">
+            ← All workshops
+          </a>
         </div>
+      </aside>
 
-        {tab === "pre" && (
-          <div className="space-y-6">
-            <ImportSection workshop={workshop} />
-            <ParticipantsSection workshop={workshop} participants={participants} responses={responses} />
-            <GroupsSection
+      {/* Main content */}
+      <main className="flex-1 min-w-0 px-8 py-8">
+        <div className="max-w-4xl">
+          <PageHeader
+            eyebrow={`${workshop.date} · status: ${workshop.status}`}
+            title={workshop.name}
+            right={
+              <div className="flex items-center gap-2">
+                <button onClick={() => navigator.clipboard.writeText(facilitatorLink)}
+                  className="text-[#DD4B4E] hover:bg-[#DD4B4E]/5 flex items-center gap-1.5 font-semibold text-xs bg-white border border-[#DD4B4E]/20 rounded-lg px-3 py-1.5">
+                  <Copy className="w-3.5 h-3.5" /> Facilitator link
+                </button>
+                <button onClick={() => navigator.clipboard.writeText(publicLink)}
+                  className="text-[#14121F] hover:bg-gray-50 flex items-center gap-1.5 font-semibold text-xs bg-white border border-gray-200 rounded-lg px-3 py-1.5">
+                  <Copy className="w-3.5 h-3.5" /> Public groups link
+                </button>
+              </div>
+            }
+          />
+
+          {tab === "pre" && (
+            <div className="space-y-6">
+              <ImportSection workshop={workshop} />
+              <ParticipantsSection workshop={workshop} participants={participants} responses={responses} />
+              <GroupsSection
+                workshop={workshop}
+                adminSecret={adminSecret}
+                participants={participants}
+                responses={responses}
+                groups={groups}
+                challenges={challenges}
+              />
+
+              <Section title="Ready?">
+                {workshop.status === "setup" ? (
+                  <>
+                    <p className="text-sm text-gray-500">
+                      Once your groups have a challenge selected, launch the workshop — this unlocks each group's first
+                      activity (Question 1) and switches you to the Workshop tab. From there, facilitators drive
+                      their own group through all 3 activities; you'll mainly need the Presentation tab at the end.
+                    </p>
+                    <Btn
+                      variant="coral"
+                      onClick={launchWorkshop}
+                      disabled={groups.length === 0 || !groups.some((g) => g.challengeId)}
+                    >
+                      Launch workshop
+                    </Btn>
+                    {groups.length > 0 && !groups.some((g) => g.challengeId) && (
+                      <p className="text-xs text-gray-400">At least one group needs a selected challenge before you can launch.</p>
+                    )}
+                  </>
+                ) : (
+                  <p className="text-emerald-600 text-sm font-medium flex items-center gap-1.5">
+                    <CheckCircle2 className="w-4 h-4" /> Workshop launched — participants are working through their activities.
+                  </p>
+                )}
+              </Section>
+            </div>
+          )}
+
+          {tab === "workshop" && (
+            <WorkshopTab
               workshop={workshop}
-              adminSecret={adminSecret}
               participants={participants}
-              responses={responses}
               groups={groups}
               challenges={challenges}
+              solutions={solutions}
+              boards={boards}
             />
+          )}
 
-            <Section title="Ready?">
-              {workshop.status === "setup" ? (
-                <>
-                  <p className="text-sm text-gray-500">
-                    Once your groups have a challenge selected, launch the workshop — this unlocks each group's first
-                    activity (Question 1) and switches you to the Workshop tab. From there, facilitators drive
-                    their own group through all 3 activities; you'll mainly need the Presentation tab at the end.
-                  </p>
-                  <Btn
-                    variant="coral"
-                    onClick={launchWorkshop}
-                    disabled={groups.length === 0 || !groups.some((g) => g.challengeId)}
-                  >
-                    Launch workshop
-                  </Btn>
-                  {groups.length > 0 && !groups.some((g) => g.challengeId) && (
-                    <p className="text-xs text-gray-400">At least one group needs a selected challenge before you can launch.</p>
-                  )}
-                </>
-              ) : (
-                <p className="text-green-600 text-sm font-medium flex items-center gap-1.5">
-                  <CheckCircle2 className="w-4 h-4" /> Workshop launched — participants are working through their activities.
-                </p>
-              )}
-            </Section>
-          </div>
-        )}
-
-        {tab === "workshop" && (
-          <WorkshopTab
-            workshop={workshop}
-            participants={participants}
-            groups={groups}
-            challenges={challenges}
-            solutions={solutions}
-            boards={boards}
-          />
-        )}
-
-        {tab === "presentation" && <PresentationTab workshop={workshop} groups={groups} />}
-      </div>
+          {tab === "presentation" && <PresentationTab workshop={workshop} groups={groups} />}
+        </div>
+      </main>
     </div>
   );
 }

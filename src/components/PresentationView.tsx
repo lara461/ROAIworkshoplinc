@@ -33,7 +33,7 @@ export default function PresentationView({ workshopId }: { workshopId: string })
 
   if (!workshop) {
     return (
-      <div className="min-h-screen bg-[#191534] flex items-center justify-center">
+      <div className="min-h-screen bg-[#14121F] flex items-center justify-center">
         <p className="text-white/40">Waiting for workshop...</p>
       </div>
     );
@@ -45,7 +45,7 @@ export default function PresentationView({ workshopId }: { workshopId: string })
   const board = activeGroup ? boards.find((b) => b.groupId === activeGroup.id) : undefined;
 
   return (
-    <div className="min-h-screen roai-mesh px-10 py-10">
+    <div className="min-h-screen bg-[#14121F] px-10 py-10">
       <div className="flex justify-center mb-10">
         <ROAILogo dark size="md" />
       </div>
@@ -64,14 +64,14 @@ export default function PresentationView({ workshopId }: { workshopId: string })
           </div>
 
           {challenge && (
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+            <div className="bg-white/5 border border-white/10 rounded-md p-6">
               <p className="text-[#DD4B4E] text-xs font-bold uppercase tracking-widest mb-2">The challenge</p>
               <p className="text-xl text-white">{challenge.description}</p>
             </div>
           )}
 
           {solution && (
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+            <div className="bg-white/5 border border-white/10 rounded-md p-6">
               <p className="text-[#DD4B4E] text-xs font-bold uppercase tracking-widest mb-2">Their initial answer</p>
               <p className="text-lg text-white/90 whitespace-pre-wrap">{solution.initialSolution}</p>
             </div>
@@ -82,7 +82,7 @@ export default function PresentationView({ workshopId }: { workshopId: string })
               <p className="text-[#DD4B4E] text-xs font-bold uppercase tracking-widest mb-3 text-center">The board challenges them</p>
               <div className="grid sm:grid-cols-2 gap-4">
                 {board.personaChallenges.map((pc, i) => (
-                  <div key={i} className="bg-white/5 border border-white/10 rounded-xl p-4">
+                  <div key={i} className="bg-white/5 border border-white/10 rounded-md p-4">
                     <div className="text-[#DD4B4E] font-bold text-xs uppercase tracking-widest mb-1">{pc.role}</div>
                     <div className="text-white text-lg">{pc.objection}</div>
                   </div>
@@ -92,7 +92,7 @@ export default function PresentationView({ workshopId }: { workshopId: string })
           )}
 
           {board && solution?.revisedSolution && (
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+            <div className="bg-white/5 border border-white/10 rounded-md p-6">
               <p className="text-[#DD4B4E] text-xs font-bold uppercase tracking-widest mb-2">Their revised answer</p>
               <p className="text-lg text-white/90 whitespace-pre-wrap">{solution.revisedSolution}</p>
             </div>
@@ -102,15 +102,15 @@ export default function PresentationView({ workshopId }: { workshopId: string })
             <div>
               <p className="text-[#DD4B4E] text-xs font-bold uppercase tracking-widest mb-3 text-center">Their 30 / 60 / 90-day actions</p>
               <div className="grid sm:grid-cols-3 gap-4">
-                <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+                <div className="bg-white/5 border border-white/10 rounded-md p-4">
                   <div className="text-[#DD4B4E] font-bold text-xs uppercase tracking-widest mb-1">30 days</div>
                   <div className="text-white whitespace-pre-wrap">{solution.action30}</div>
                 </div>
-                <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+                <div className="bg-white/5 border border-white/10 rounded-md p-4">
                   <div className="text-[#DD4B4E] font-bold text-xs uppercase tracking-widest mb-1">60 days</div>
                   <div className="text-white whitespace-pre-wrap">{solution.action60}</div>
                 </div>
-                <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+                <div className="bg-white/5 border border-white/10 rounded-md p-4">
                   <div className="text-[#DD4B4E] font-bold text-xs uppercase tracking-widest mb-1">90 days</div>
                   <div className="text-white whitespace-pre-wrap">{solution.action90}</div>
                 </div>

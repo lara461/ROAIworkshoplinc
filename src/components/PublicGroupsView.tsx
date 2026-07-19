@@ -3,12 +3,12 @@ import { onSnapshot, query, where } from "firebase/firestore";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { col, docIn } from "../firebase";
 import { GROUP_STEP_LABELS } from "../types";
-import { Card, GradientHero, ROAILogo, Tag } from "../ui";
+import { Card, PageHeader, ROAILogo, Tag } from "../ui";
 import type { BoardChallenge, Challenge, Group, GroupSolution, Participant, Workshop } from "../types";
 
 function Waiting({ message }: { message: string }) {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#F7F5FB] px-6">
+    <div className="min-h-screen flex items-center justify-center bg-[#FAFAFA] px-6">
       <div className="max-w-md text-center space-y-4">
         <Loader2 className="animate-spin w-6 h-6 mx-auto text-[#DD4B4E]" />
         <p className="text-gray-500">{message}</p>
@@ -39,7 +39,7 @@ function GroupDetail({
       </button>
 
       <div>
-        <h1 className="text-2xl font-black text-[#191534]">{group.name}</h1>
+        <h1 className="text-2xl font-black text-[#14121F]">{group.name}</h1>
         <p className="text-gray-400 text-sm">{members.map((m) => m.name + (m.role === "facilitator" ? " ★" : "")).join(" · ")}</p>
         <div className="mt-2">
           <Tag color={group.currentStep === "done" ? "green" : "coral"}>{GROUP_STEP_LABELS[group.currentStep || "initial"]}</Tag>
@@ -51,7 +51,7 @@ function GroupDetail({
       {challenge && (
         <Card>
           <p className="text-[10px] font-bold uppercase tracking-widest text-[#DD4B4E] mb-1">Challenge</p>
-          <p className="font-bold text-[#191534]">{challenge.title}</p>
+          <p className="font-bold text-[#14121F]">{challenge.title}</p>
           <p className="text-sm text-gray-500 mt-1">{challenge.description}</p>
         </Card>
       )}
@@ -62,7 +62,7 @@ function GroupDetail({
             <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Initial answer</p>
             {solution.initialSubmitted && <Tag color="green">submitted</Tag>}
           </div>
-          <p className="text-sm text-[#191534] whitespace-pre-wrap">{solution.initialSolution}</p>
+          <p className="text-sm text-[#14121F] whitespace-pre-wrap">{solution.initialSolution}</p>
         </Card>
       )}
 
@@ -71,7 +71,7 @@ function GroupDetail({
           <p className="text-[10px] font-bold uppercase tracking-widest text-[#DD4B4E] mb-2">The C-level board's challenge</p>
           <div className="grid sm:grid-cols-2 gap-2">
             {board.personaChallenges.map((pc, i) => (
-              <div key={i} className="bg-[#191534] rounded-xl p-3 text-sm">
+              <div key={i} className="bg-[#14121F] rounded-md p-3 text-sm">
                 <div className="text-[#DD4B4E] font-bold text-xs uppercase tracking-widest mb-1">{pc.role}</div>
                 <div className="text-white/90">{pc.objection}</div>
               </div>
@@ -86,7 +86,7 @@ function GroupDetail({
             <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Revised answer</p>
             {solution.revisedSubmitted && <Tag color="green">submitted</Tag>}
           </div>
-          <p className="text-sm text-[#191534] whitespace-pre-wrap">{solution.revisedSolution}</p>
+          <p className="text-sm text-[#14121F] whitespace-pre-wrap">{solution.revisedSolution}</p>
         </Card>
       )}
 
@@ -137,7 +137,7 @@ export default function PublicGroupsView({ workshopId }: { workshopId: string })
   if (loading) return <Waiting message="Loading..." />;
   if (!workshop) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#F7F5FB] px-6">
+      <div className="min-h-screen flex items-center justify-center bg-[#FAFAFA] px-6">
         <p className="text-gray-500">This link isn't valid.</p>
       </div>
     );
@@ -148,7 +148,7 @@ export default function PublicGroupsView({ workshopId }: { workshopId: string })
   if (selectedGroup) {
     const members = selectedGroup.participantIds.map((id) => participants.find((p) => p.id === id)).filter(Boolean) as Participant[];
     return (
-      <div className="min-h-screen bg-[#F7F5FB]">
+      <div className="min-h-screen bg-[#FAFAFA]">
         <GroupDetail
           group={selectedGroup}
           members={members}
@@ -162,25 +162,28 @@ export default function PublicGroupsView({ workshopId }: { workshopId: string })
   }
 
   return (
-    <div className="min-h-screen bg-[#F7F5FB]">
-      <GradientHero
-        eyebrow={workshop.date}
-        title={workshop.name}
-        subtitle="Tap a group below to see their live progress."
-      />
+    <div className="min-h-screen bg-white">
+      <div className="max-w-5xl mx-auto px-4 md:px-8 py-8">
+        <div className="flex items-center justify-between mb-6">
+          <ROAILogo size="md" />
+        </div>
+        <PageHeader
+          eyebrow={workshop.date}
+          title={workshop.name}
+          subtitle="Tap a group below to see their live progress."
+        />
 
-      <div className="max-w-5xl mx-auto px-4 md:px-14 py-8 md:py-12">
-        <div className="grid md:grid-cols-2 gap-3 md:gap-4">
+        <div className="grid md:grid-cols-2 gap-3">
           {groups.map((g) => {
             const members = g.participantIds.map((id) => participants.find((p) => p.id === id)).filter(Boolean) as Participant[];
             return (
               <button
                 key={g.id}
                 onClick={() => setSelectedGroupId(g.id)}
-                className="w-full text-left bg-white border border-gray-200 hover:border-[#DD4B4E]/40 rounded-[28px] p-5 transition-all"
+                className="w-full text-left bg-white border border-gray-200 hover:border-[#DD4B4E]/40 rounded-md p-5 transition-all"
               >
                 <div className="flex items-center justify-between">
-                  <div className="font-bold text-[#191534]">{g.name}</div>
+                  <div className="font-bold text-[#14121F]">{g.name}</div>
                   <Tag color={g.currentStep === "done" ? "green" : "coral"}>{GROUP_STEP_LABELS[g.currentStep || "initial"]}</Tag>
                 </div>
                 <p className="text-sm text-gray-500 mt-1">

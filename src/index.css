@@ -1,26 +1,24 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Fraunces:ital,opsz,wght@0,9..144,400..900;1,9..144,400..900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
 @import "tailwindcss";
 
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Fraunces", ui-serif, Georgia, serif;
 
-  /* ROAI Brand — exact logo colors: indigo to coral-red, horizontal */
-  --color-roai-ink: #191534;
-  --color-roai-ink-light: #262052;
+  /* ROAI Brand — exact logo colors: indigo to coral-red */
+  --color-roai-ink: #14121F;
   --color-roai-indigo: #3545A3;
   --color-roai-coral: #DD4B4E;
   --color-roai-teal: #1FA398;
   --color-roai-white: #FFFFFF;
 
-  /* UI surfaces */
-  --color-premium-bg: #F7F6F9;
-  --color-premium-ink: #191534;
+  /* UI surfaces — clean, mostly neutral; color is used sparingly on accents */
+  --color-premium-bg: #FAFAFA;
+  --color-premium-ink: #14121F;
   --color-premium-surface: #FFFFFF;
   --color-premium-accent: #DD4B4E;
   --color-premium-accent-light: #FCECEC;
   --color-premium-muted: #6B7280;
-  --color-premium-border: #E7E4EF;
+  --color-premium-border: #E5E5E5;
 }
 
 @layer base {
@@ -28,36 +26,15 @@
     @apply bg-premium-bg text-premium-ink font-sans antialiased;
     font-feature-settings: "cv02","cv03","cv04","cv11";
   }
-  h1,h2,h3,h4,h5,h6 { font-family: var(--font-display); font-weight: 600; letter-spacing: -0.01em; }
+  h1,h2,h3,h4,h5,h6 { font-weight: 700; letter-spacing: -0.015em; }
   html { scroll-behavior: smooth; }
 }
 
-/* ── Signature band: the logo's own indigo→coral gradient, kept crisp   ──
-   (no soft AI-blob blur — a plain diagonal duotone with a fine line
-   texture for texture, closer to the mark itself than generic gen-art) */
-.roai-mesh {
-  position: relative;
-  overflow: hidden;
-  background: linear-gradient(115deg, var(--color-roai-indigo) 0%, #7A3E86 52%, var(--color-roai-coral) 100%);
-  isolation: isolate;
-}
-.roai-mesh::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background-image: repeating-linear-gradient(
-    -35deg,
-    rgba(255, 255, 255, 0.07) 0px,
-    rgba(255, 255, 255, 0.07) 1px,
-    transparent 1px,
-    transparent 12px
-  );
-  z-index: 0;
-}
-.roai-mesh > * {
-  position: relative;
-  z-index: 1;
+/* Small gradient mark only — used on the logo icon and active nav state,
+   never as a full-bleed background. */
+.roai-mark {
+  background: linear-gradient(135deg, var(--color-roai-indigo) 0%, var(--color-roai-coral) 100%);
 }
 
 ::-webkit-scrollbar { width: 8px; }
-::-webkit-scrollbar-thumb { background: #D6D0E8; border-radius: 8px; }
+::-webkit-scrollbar-thumb { background: #D9D9D9; border-radius: 8px; }

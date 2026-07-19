@@ -24,13 +24,13 @@ export const Btn = ({
     onClick={onClick}
     disabled={disabled || loading}
     className={cn(
-      "inline-flex items-center gap-2 font-bold text-sm rounded-full px-5 py-2.5 transition-all border-0 cursor-pointer tracking-tight",
-      variant === "primary" && "bg-[#191534] text-white hover:bg-[#262052]",
-      variant === "coral" && "bg-gradient-to-r from-[#3545A3] to-[#DD4B4E] text-white hover:brightness-105 shadow-sm shadow-[#DD4B4E]/20",
-      variant === "outline" && "bg-white text-[#191534] border border-gray-200 hover:border-[#DD4B4E] hover:text-[#DD4B4E]",
-      variant === "success" && "bg-[#1FA398] text-white hover:brightness-95",
-      variant === "ghost" && "bg-transparent text-[#DD4B4E] hover:bg-[#DD4B4E]/10",
-      variant === "danger" && "bg-red-50 text-red-600 border border-red-200 hover:bg-red-100",
+      "inline-flex items-center gap-2 font-semibold text-sm rounded-lg px-4 py-2 transition-colors border cursor-pointer",
+      variant === "primary" && "bg-[#14121F] text-white border-[#14121F] hover:bg-[#262238]",
+      variant === "coral" && "bg-[#DD4B4E] text-white border-[#DD4B4E] hover:bg-[#C7383B]",
+      variant === "outline" && "bg-white text-[#14121F] border-gray-200 hover:border-gray-300",
+      variant === "success" && "bg-[#1FA398] text-white border-[#1FA398] hover:brightness-95",
+      variant === "ghost" && "bg-transparent text-[#DD4B4E] border-transparent hover:bg-[#DD4B4E]/5",
+      variant === "danger" && "bg-red-50 text-red-600 border-red-200 hover:bg-red-100",
       (disabled || loading) && "opacity-50 cursor-not-allowed",
       className
     )}
@@ -53,13 +53,13 @@ export const Field = ({
   type?: string;
 }) => (
   <div>
-    {label && <label className="block text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1.5">{label}</label>}
+    {label && <label className="block text-xs font-semibold text-gray-500 mb-1.5">{label}</label>}
     <input
       type={type}
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
-      className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm outline-none focus:border-[#DD4B4E] font-sans transition-colors"
+      className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#DD4B4E] font-sans transition-colors"
     />
   </div>
 );
@@ -80,7 +80,7 @@ export const TextArea = ({
   disabled?: boolean;
 }) => (
   <div>
-    {label && <label className="block text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1.5">{label}</label>}
+    {label && <label className="block text-xs font-semibold text-gray-500 mb-1.5">{label}</label>}
     <textarea
       value={value}
       onChange={(e) => onChange(e.target.value)}
@@ -88,14 +88,14 @@ export const TextArea = ({
       placeholder={placeholder}
       disabled={disabled}
       className={cn(
-        "w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm outline-none font-sans resize-none transition-colors",
+        "w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none font-sans resize-none transition-colors",
         disabled ? "opacity-60 cursor-not-allowed" : "focus:border-[#DD4B4E]"
       )}
     />
   </div>
 );
 
-// White pill, bold colored text — the "60 Best Website Design" reference look.
+// Small, quiet pill — matching the muted tool-badges look (asana / slack / notion)
 export const Tag = ({
   children,
   color = "default",
@@ -105,14 +105,14 @@ export const Tag = ({
 }) => (
   <span
     className={cn(
-      "inline-flex items-center text-xs font-bold px-3 py-1 rounded-full bg-white border",
-      color === "navy" && "text-[#191534] border-[#191534]/15",
-      color === "coral" && "text-[#DD4B4E] border-[#DD4B4E]/20",
-      color === "green" && "text-emerald-600 border-emerald-200",
-      color === "amber" && "text-amber-600 border-amber-200",
-      color === "indigo" && "text-[#3545A3] border-[#3545A3]/20",
-      color === "teal" && "text-[#1FA398] border-[#1FA398]/25",
-      color === "default" && "text-gray-500 border-gray-200"
+      "inline-flex items-center text-[11px] font-semibold px-2 py-0.5 rounded-md border",
+      color === "navy" && "bg-gray-50 text-[#14121F] border-gray-200",
+      color === "coral" && "bg-[#DD4B4E]/8 text-[#DD4B4E] border-[#DD4B4E]/15",
+      color === "green" && "bg-emerald-50 text-emerald-600 border-emerald-200",
+      color === "amber" && "bg-amber-50 text-amber-600 border-amber-200",
+      color === "indigo" && "bg-[#3545A3]/8 text-[#3545A3] border-[#3545A3]/15",
+      color === "teal" && "bg-[#1FA398]/8 text-[#1FA398] border-[#1FA398]/20",
+      color === "default" && "bg-gray-50 text-gray-500 border-gray-200"
     )}
   >
     {children}
@@ -120,32 +120,32 @@ export const Tag = ({
 );
 
 export const Card = ({ children, className = "" }: { children: ReactNode; className?: string }) => (
-  <div className={cn("bg-white rounded-[28px] border border-gray-200 p-6", className)}>{children}</div>
+  <div className={cn("bg-white rounded-xl border border-gray-200 p-6", className)}>{children}</div>
 );
 
 export const Eyebrow = ({ children, coral = false }: { children: ReactNode; coral?: boolean }) => (
-  <p className={cn("text-[10px] font-bold uppercase tracking-widest mb-1", coral ? "text-[#DD4B4E]" : "text-gray-400")}>
+  <p className={cn("text-[11px] font-semibold uppercase tracking-wide mb-1", coral ? "text-[#DD4B4E]" : "text-gray-400")}>
     {children}
   </p>
 );
 
 export const ROAILogo = ({ dark = false, size = "md" }: { dark?: boolean; size?: "sm" | "md" | "lg" }) => {
-  const s: any = { sm: "text-lg", md: "text-2xl", lg: "text-3xl" };
+  const s: any = { sm: "text-base", md: "text-lg", lg: "text-xl" };
   return (
     <div className="flex items-center gap-2.5">
       <div
         className={cn(
-          "rounded-2xl flex items-center justify-center font-black bg-gradient-to-br from-[#3545A3] to-[#DD4B4E]",
-          size === "sm" ? "w-8 h-8 text-sm" : size === "md" ? "w-10 h-10 text-base" : "w-[3.25rem] h-[3.25rem] text-xl"
+          "roai-mark rounded-lg flex items-center justify-center font-black shrink-0",
+          size === "sm" ? "w-7 h-7 text-xs" : size === "md" ? "w-8 h-8 text-sm" : "w-10 h-10 text-base"
         )}
       >
-        <span className="text-white font-semibold" style={{ fontFamily: "var(--font-display)" }}>R</span>
+        <span className="text-white font-black">R</span>
       </div>
       <div>
-        <div className={cn("font-semibold leading-none font-display", s[size], dark ? "text-white" : "text-[#191534]")}>
+        <div className={cn("font-black leading-none", s[size], dark ? "text-white" : "text-[#14121F]")}>
           RoAI<span className="text-[#DD4B4E]">.</span>
         </div>
-        <div className={cn("text-[10px] uppercase tracking-widest font-semibold leading-none mt-0.5", dark ? "text-white/40" : "text-gray-400")}>
+        <div className={cn("text-[9px] uppercase tracking-wider font-semibold leading-none mt-0.5", dark ? "text-white/40" : "text-gray-400")}>
           Future of Work
         </div>
       </div>
@@ -153,49 +153,26 @@ export const ROAILogo = ({ dark = false, size = "md" }: { dark?: boolean; size?:
   );
 };
 
-// Signature band — the logo's own indigo→coral gradient, kept slim.
-// Two real breakpoints: mobile stacks tight and centered when there's no
-// title; desktop opens up into a wide, generously-spaced left-aligned
-// block (logo + nav row, then a big headline), never just a scaled-down
-// copy of the same layout.
-export const GradientHero = ({
+// Plain page header — small breadcrumb-style row, then a bold title.
+// No color band; the reference direction is quiet, product-like, and lets
+// color show up only on small accents (icons, active nav states, tags).
+export const PageHeader = ({
   eyebrow,
   title,
   subtitle,
-  topRight,
-  align = "left",
-  children,
+  right,
 }: {
   eyebrow?: ReactNode;
-  title?: ReactNode;
+  title: ReactNode;
   subtitle?: ReactNode;
-  topRight?: ReactNode;
-  align?: "left" | "center";
-  children?: ReactNode;
+  right?: ReactNode;
 }) => (
-  <div className={cn("roai-mesh rounded-b-[28px] md:rounded-b-[36px] px-6 md:px-14", title ? "py-10 md:py-16" : "py-8")}>
-    <div className="max-w-5xl mx-auto">
-      <div className={cn("flex items-center", title ? "justify-between" : "justify-center")}>
-        <ROAILogo dark size={title ? "sm" : "lg"} />
-        {topRight}
-      </div>
-      {title && (
-        <div
-          className={cn(
-            "mt-8 md:mt-16",
-            align === "center" ? "text-center mx-auto max-w-sm" : "text-left max-w-xl md:max-w-2xl"
-          )}
-        >
-          {eyebrow && (
-            <p className="text-[10px] md:text-xs uppercase tracking-widest text-white/50 font-bold mb-2 md:mb-3">
-              {eyebrow}
-            </p>
-          )}
-          <h1 className="text-3xl md:text-6xl font-semibold text-white leading-[1.05]">{title}</h1>
-          {subtitle && <p className="text-white/60 text-sm md:text-base mt-3 md:mt-5 max-w-md">{subtitle}</p>}
-          {children && <div className="mt-6 md:mt-8">{children}</div>}
-        </div>
-      )}
+  <div className="flex items-start justify-between gap-4 flex-wrap mb-6">
+    <div>
+      {eyebrow && <p className="text-xs font-semibold text-gray-400 mb-1">{eyebrow}</p>}
+      <h1 className="text-2xl font-black text-[#14121F]">{title}</h1>
+      {subtitle && <p className="text-sm text-gray-500 mt-1 max-w-md">{subtitle}</p>}
     </div>
+    {right}
   </div>
 );

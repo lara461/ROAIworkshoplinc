@@ -3,24 +3,25 @@ import AdminApp from "./components/AdminApp";
 import ParticipantApp from "./components/ParticipantApp";
 import PresentationView from "./components/PresentationView";
 import PublicGroupsView from "./components/PublicGroupsView";
-import { GradientHero } from "./ui";
+import { PageHeader, ROAILogo } from "./ui";
 import { initFirebase } from "./firebase";
 
 function Home() {
   return (
-    <div className="min-h-screen bg-[#F7F6F9]">
-      <GradientHero
-        eyebrow="ROAI Institute"
-        title="Future of Work Action Workshop"
-        subtitle="Assigned facilitators use their workshop link to work on their group's activities; everyone else follows along on the public groups link, shared by the admin."
-      >
+    <div className="min-h-screen bg-white flex items-center justify-center px-6">
+      <div className="max-w-md w-full space-y-6">
+        <ROAILogo size="md" />
+        <PageHeader
+          title="Future of Work Action Workshop"
+          subtitle="Assigned facilitators use their workshop link to work on their group's activities; everyone else follows along on the public groups link, shared by the admin."
+        />
         <a
           href="/admin"
-          className="inline-flex items-center gap-2 bg-white text-[#191534] font-bold text-sm rounded-full px-6 py-3 hover:bg-white/90 transition-colors"
+          className="inline-flex items-center gap-2 bg-[#14121F] text-white font-semibold text-sm rounded-lg px-4 py-2 hover:bg-[#262238] transition-colors"
         >
           Go to admin
         </a>
-      </GradientHero>
+      </div>
     </div>
   );
 }
@@ -45,7 +46,7 @@ export default function App() {
 
   if (!ready) {
     return (
-      <div className="min-h-screen bg-[#F7F5FB] flex items-center justify-center">
+      <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-gray-400 text-sm">Loading…</div>
       </div>
     );
