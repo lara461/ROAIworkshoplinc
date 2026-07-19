@@ -1,6 +1,6 @@
 # ROAI Institute — AI-Native Workshop Tool
 
-Customized variant of the ROAI Institute workshop facilitation tool, for a workshop about **AI and the future of work**. Same backend/frontend architecture as the base tool (Express + Vite server, Firestore for real-time state, Claude for content generation), organized into five admin tabs — **Knowledge Base**, **Setup Groups and Challenges**, **Workshop**, **Presentation**, **Report**.
+Customized variant of the ROAI Institute workshop facilitation tool, for a workshop about **AI and the future of work**. Same backend/frontend architecture as the base tool (Express + Vite server, Firestore for real-time state, Claude for content generation), organized into five admin tabs — **Knowledge Base**, **Group & Challenge**, **Workshop**, **Presentation**, **Report**.
 
 ## Setup
 
@@ -32,7 +32,7 @@ npm run dev
 ### Knowledge Base tab (do this first)
 Upload or paste the material this workshop is actually about — briefs, prior reports, slide notes, anything specific to it (`.pdf`, `.txt`, `.md` files, or just paste text — PDF text is extracted right in the browser, no server round-trip). This is optional but recommended: both the generated challenges and the C-level board's feedback are grounded in it instead of generic AI-strategy content. No knowledge base uploaded means challenges are grounded in survey answers only, and the board falls back to general executive judgment. Note: scanned/image-only PDFs won't yield extractable text — paste the content manually in that case.
 
-### Setup Groups and Challenges tab
+### Group & Challenge tab
 1. **Import participants + survey answers** — upload the export from your external survey tool. Email is optional; add an "Email" column yourself if your export doesn't include one. A downloadable template is available.
 2. **See each participant's survey answers** inline (expand "survey" next to their name).
 3. **Mark facilitators** — a fixed property of the person.
@@ -73,7 +73,7 @@ Both links are shown (and copyable) at the top of the admin dashboard once a wor
 ```
 server.ts                          — Backend Express + Claude API endpoints
 src/App.tsx                        — Path-based router (/admin, /w/:workshopId, /groups/:workshopId, /present/:id)
-src/components/AdminApp.tsx         — Knowledge Base / Setup Groups and Challenges / Workshop / Presentation / Report tabs
+src/components/AdminApp.tsx         — Knowledge Base / Group & Challenge / Workshop / Presentation / Report tabs
 src/components/ParticipantApp.tsx   — Facilitator-only login, challenge picker, 3-activity group stepper
 src/components/PublicGroupsView.tsx — Public, no-login: browse groups and their live progress
 src/components/PresentationView.tsx — Admin-driven single-screen plenary view

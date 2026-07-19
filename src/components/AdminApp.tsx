@@ -1017,7 +1017,7 @@ function WorkshopTab({
       <Section title="Workshop">
         <p className="text-sm text-gray-500">
           The workshop hasn't launched yet. Use the <span className="font-semibold text-[#DD4B4E]">Launch workshop</span> button
-          in Setup Groups and Challenges (next to the step tabs) once your groups have challenge options generated — facilitators pick
+          in Group & Challenge (next to the step tabs) once your groups have challenge options generated — facilitators pick
           theirs as their first step, right after you launch.
         </p>
       </Section>
@@ -1027,7 +1027,7 @@ function WorkshopTab({
   if (groups.length === 0) {
     return (
       <Section title="Workshop">
-        <p className="text-gray-400 text-sm">No groups yet — set them up in Setup Groups and Challenges.</p>
+        <p className="text-gray-400 text-sm">No groups yet — set them up in Group & Challenge.</p>
       </Section>
     );
   }
@@ -1508,7 +1508,7 @@ function WorkshopDashboard({ workshop: initialWorkshop, adminSecret, onBackToLis
 
   const navItems = [
     { key: "knowledge" as const, label: "Knowledge Base", icon: BookOpen },
-    { key: "pre" as const, label: "Setup Groups and Challenges", icon: ClipboardList },
+    { key: "pre" as const, label: "Group & Challenge", icon: ClipboardList },
     { key: "workshop" as const, label: "Workshop", icon: PlayCircle },
     { key: "presentation" as const, label: "Presentation", icon: PresentationIcon },
     { key: "report" as const, label: "Report", icon: FileBarChart },
@@ -1561,7 +1561,7 @@ function WorkshopDashboard({ workshop: initialWorkshop, adminSecret, onBackToLis
           const Icon = item.icon;
           const active = tab === item.key;
           const shortLabels: Record<string, string> = {
-            "Setup Groups and Challenges": "Setup",
+            "Group & Challenge": "Groups",
             "Presentation": "Present",
           };
           return (
