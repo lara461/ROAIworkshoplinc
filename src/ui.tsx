@@ -266,7 +266,7 @@ export const ROAILogo = ({ dark = false, size = "md" }: { dark?: boolean; size?:
           RoAI<span className="text-[#DD4B4E]">.</span>
         </div>
         <div className={cn("text-[9px] uppercase tracking-wider font-semibold leading-none mt-0.5", dark ? "text-white/40" : "text-gray-400")}>
-          Future of Work
+          AI-Native Workshop
         </div>
       </div>
     </div>

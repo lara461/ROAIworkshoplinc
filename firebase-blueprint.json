@@ -1,5 +1,5 @@
 {
-  "note": "All collections are prefixed with fow_ (Future of Work) so this workshop's data can safely share a Firebase project with the base Executive AI Workshop tool without colliding.",
+  "note": "All collections are prefixed with fow_ (from this tool's original 'Future of Work' working title — kept as-is since renaming would mean migrating existing Firestore data; the tool itself is now called 'AI-Native Workshop Tool') so this workshop's data can safely share a Firebase project with other ROAI Institute tools without colliding.",
   "entities": {
     "Workshop": {
       "title": "Workshop",

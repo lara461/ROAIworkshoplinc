@@ -1,6 +1,6 @@
-# ROAI Institute — Future of Work Action Workshop
+# ROAI Institute — AI-Native Workshop Tool
 
-Customized variant of the ROAI Institute workshop facilitation tool, for a workshop about **AI and the future of work**. Same backend/frontend architecture as the base tool (Express + Vite server, Firestore for real-time state, Claude for content generation), organized into three admin tabs — **Pre-workshop**, **Workshop**, **Presentation**.
+Customized variant of the ROAI Institute workshop facilitation tool, for a workshop about **AI and the future of work**. Same backend/frontend architecture as the base tool (Express + Vite server, Firestore for real-time state, Claude for content generation), organized into five admin tabs — **Knowledge Base**, **Pre-workshop**, **Workshop**, **Presentation**, **Report**.
 
 ## Setup
 
@@ -30,7 +30,7 @@ npm run dev
 ## Workshop flow
 
 ### Knowledge Base tab (do this first)
-Upload or paste the material this workshop is actually about — briefs, prior reports, slide notes, anything specific to it (`.txt`/`.md` files, or just paste text). This is optional but recommended: both the generated challenges and the C-level board's feedback are grounded in it instead of generic AI-strategy content. No knowledge base uploaded means challenges are grounded in survey answers only, and the board falls back to general executive judgment.
+Upload or paste the material this workshop is actually about — briefs, prior reports, slide notes, anything specific to it (`.pdf`, `.txt`, `.md` files, or just paste text — PDF text is extracted right in the browser, no server round-trip). This is optional but recommended: both the generated challenges and the C-level board's feedback are grounded in it instead of generic AI-strategy content. No knowledge base uploaded means challenges are grounded in survey answers only, and the board falls back to general executive judgment. Note: scanned/image-only PDFs won't yield extractable text — paste the content manually in that case.
 
 ### Pre-workshop tab
 1. **Import participants + survey answers** — upload the export from your external survey tool. Email is optional; add an "Email" column yourself if your export doesn't include one. A downloadable template is available.
@@ -80,6 +80,7 @@ src/components/PresentationView.tsx — Admin-driven single-screen plenary view
 src/firebase.ts                     — Lazy Firestore init (fow_* collections)
 src/types.ts                        — Shared types, step labels, presentation section keys
 src/csvImport.ts                    — CSV/XLSX parsing (tolerant of export preamble rows)
+src/pdfExtract.ts                   — Client-side PDF text extraction (pdfjs-dist) for the Knowledge Base
 src/ui.tsx                          — Shared UI primitives matching ROAI brand
 firestore.rules                     — Firestore security rules
 firebase-blueprint.json             — Data model reference

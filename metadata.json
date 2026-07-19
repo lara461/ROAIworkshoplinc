@@ -1,13 +1,14 @@
 {
-  "name": "ROAI Future of Work Action Workshop",
-  "description": "Executive workshop tool: pre-work survey on AI & the future of work, challenge-based small groups, simulated C-level board challenge, plenary presentation, and individual 30-day commitments.",
+  "name": "ROAI AI-Native Workshop Tool",
+  "description": "Executive workshop tool: a knowledge base grounds AI-generated, boardroom-level challenges per group and simulated C-level board feedback; facilitators run their group through an initial answer, board challenge, revised answer, and 30/60/90-day actions; admin gets a live progress board, a selective plenary presentation view, and a closing report per group.",
   "requestFramePermissions": [],
   "majorCapabilities": [
-    "Pre-work AI Survey",
-    "AI-Generated Challenges from Survey Data",
-    "Self-Selected Groups with Automatic Balancing (max 4)",
-    "Simulated C-level Board Challenge",
-    "Plenary Presentation View",
-    "Individual 30-Day Commitments"
+    "Workshop-Specific Knowledge Base (PDF/text)",
+    "AI-Generated Challenges Grounded in Survey Data + Knowledge Base",
+    "Manually-Formed Groups (max 7, 1 facilitator each)",
+    "Simulated C-level Board Feedback Grounded in the Knowledge Base",
+    "Live Group Progress Board for Admins",
+    "Selective Plenary Presentation View",
+    "Per-Group Closing Reports"
   ]
 }

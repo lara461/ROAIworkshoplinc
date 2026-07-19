@@ -36,6 +36,7 @@ import {
 import { col, docIn } from "../firebase";
 import { cn } from "../utils";
 import { downloadTemplate, parseParticipantsFile } from "../csvImport";
+import { extractPdfText } from "../pdfExtract";
 import type { ImportedRow } from "../csvImport";
 import { Accordion, Btn, Card, FacilitatorBadge, Field, Modal, PageHeader, ROAILogo, StepTabs, Tag, TextArea } from "../ui";
 import { PRESENTATION_SECTIONS } from "../types";
@@ -186,7 +187,7 @@ function WorkshopPicker({ adminSecret, onSelect }: { adminSecret: string; onSele
           <span className="text-xs font-semibold text-gray-400">Admin</span>
         </div>
         <PageHeader
-          title="Future of Work Action Workshop"
+          title="AI-Native Workshop Tool"
           subtitle="Pick a workshop to open, or create a new one."
         />
 
@@ -248,12 +249,30 @@ function WorkshopPicker({ adminSecret, onSelect }: { adminSecret: string; onSele
 function KnowledgeBaseTab({ workshop, docs }: { workshop: Workshop; docs: KnowledgeDoc[] }) {
   const [name, setName] = useState("");
   const [content, setContent] = useState("");
+  const [extracting, setExtracting] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
 
-  function handleFile(file: File) {
+  async function handleFile(file: File) {
+    const baseName = file.name.replace(/\.[^/.]+$/, "");
+    if (file.name.toLowerCase().endsWith(".pdf")) {
+      setExtracting(true);
+      try {
+        const text = await extractPdfText(file);
+        setName(baseName);
+        setContent(text);
+        if (!text.trim()) {
+          alert("Couldn't find any text in that PDF — it may be scanned/image-only. Try pasting the text directly instead.");
+        }
+      } catch (e: any) {
+        alert("Couldn't read that PDF: " + e.message);
+      } finally {
+        setExtracting(false);
+      }
+      return;
+    }
     const reader = new FileReader();
     reader.onload = () => {
-      setName(file.name.replace(/\.[^/.]+$/, ""));
+      setName(baseName);
       setContent(String(reader.result || ""));
     };
     reader.readAsText(file);
@@ -290,12 +309,14 @@ function KnowledgeBaseTab({ workshop, docs }: { workshop: Workshop; docs: Knowle
         <div className="space-y-2 bg-gray-50 border border-gray-200 rounded-md p-4">
           <div className="flex items-center gap-2">
             <label className="inline-flex items-center gap-2 font-semibold text-sm rounded-lg px-4 py-2 bg-white border border-gray-200 hover:border-[#DD4B4E] cursor-pointer text-[#14121F]">
-              <Upload className="w-4 h-4" /> Upload .txt / .md file
+              {extracting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+              {extracting ? "Reading PDF..." : "Upload .pdf / .txt / .md file"}
               <input
                 ref={fileInput}
                 type="file"
-                accept=".txt,.md"
+                accept=".pdf,.txt,.md"
                 className="hidden"
+                disabled={extracting}
                 onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
               />
             </label>
@@ -1332,7 +1353,7 @@ function ReportTab({
 }
 
 // ── Workshop Dashboard ───────────────────────────────────────────────────
-function WorkshopDashboard({ workshop: initialWorkshop, adminSecret }: { workshop: Workshop; adminSecret: string }) {
+function WorkshopDashboard({ workshop: initialWorkshop, adminSecret, onBackToList }: { workshop: Workshop; adminSecret: string; onBackToList: () => void }) {
   const [tab, setTab] = useState<"knowledge" | "pre" | "workshop" | "presentation" | "report">("knowledge");
   const [preStep, setPreStep] = useState<"participants" | "groups" | "challenges">("participants");
   const [workshop, setWorkshop] = useState<Workshop>(initialWorkshop);
@@ -1452,9 +1473,9 @@ function WorkshopDashboard({ workshop: initialWorkshop, adminSecret }: { worksho
           })}
         </nav>
         <div className="p-3 border-t border-gray-200 space-y-1">
-          <a href="/admin" className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-semibold text-gray-500 hover:bg-gray-50 hover:text-[#14121F]">
+          <button onClick={onBackToList} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-semibold text-gray-500 hover:bg-gray-50 hover:text-[#14121F] text-left">
             ← All workshops
-          </a>
+          </button>
         </div>
       </aside>
 
@@ -1612,5 +1633,5 @@ export default function AdminApp() {
 
   if (!adminSecret) return <Login onLogin={setAdminSecret} />;
   if (!workshop) return <WorkshopPicker adminSecret={adminSecret} onSelect={setWorkshop} />;
-  return <WorkshopDashboard workshop={workshop} adminSecret={adminSecret} />;
+  return <WorkshopDashboard workshop={workshop} adminSecret={adminSecret} onBackToList={() => setWorkshop(null)} />;
 }

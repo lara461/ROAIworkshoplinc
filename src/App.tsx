@@ -12,7 +12,7 @@ function Home() {
       <div className="max-w-md w-full space-y-6">
         <ROAILogo size="md" />
         <PageHeader
-          title="Future of Work Action Workshop"
+          title="AI-Native Workshop Tool"
           subtitle="Assigned facilitators use their workshop link to work on their group's activities; everyone else follows along on the public groups link, shared by the admin."
         />
         <a
