@@ -78,7 +78,7 @@ export interface Group {
   id: string;
   workshopId: string;
   name: string;
-  participantIds: string[]; // max 4
+  participantIds: string[]; // max 7, facilitator included
   challengeId?: string | null; // selected Challenge id, once chosen
   currentStep?: GroupStep; // drives the facilitator's 3-activity stepper, set when the workshop is launched
   stepStartedAt?: string; // ISO timestamp — start of the current 15-minute activity
@@ -109,7 +109,6 @@ export interface GroupSolution {
 export interface PersonaChallenge {
   role: string;
   objection: string;
-  roaiTools: string[];
 }
 
 export interface BoardChallenge {
@@ -117,6 +116,28 @@ export interface BoardChallenge {
   groupId: string;
   workshopId: string;
   personaChallenges: PersonaChallenge[];
+  createdAt: string;
+}
+
+export interface GroupReport {
+  id: string; // == groupId
+  groupId: string;
+  workshopId: string;
+  executiveSummary: string;
+  keyInsight: string;
+  evolution: string; // how the group's thinking changed from their solution to their reviewed solution
+  recommendedNextSteps: string[];
+  createdAt: string;
+}
+
+// A reference document the admin uploads/pastes when setting up a workshop.
+// Used to ground both the generated challenges and the C-level board
+// feedback in this workshop's own material, instead of generic content.
+export interface KnowledgeDoc {
+  id: string;
+  workshopId: string;
+  name: string;
+  content: string;
   createdAt: string;
 }
 

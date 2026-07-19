@@ -29,19 +29,22 @@ npm run dev
 
 ## Workshop flow
 
+### Knowledge Base tab (do this first)
+Upload or paste the material this workshop is actually about — briefs, prior reports, slide notes, anything specific to it (`.txt`/`.md` files, or just paste text). This is optional but recommended: both the generated challenges and the C-level board's feedback are grounded in it instead of generic AI-strategy content. No knowledge base uploaded means challenges are grounded in survey answers only, and the board falls back to general executive judgment.
+
 ### Pre-workshop tab
 1. **Import participants + survey answers** — upload the export from your external survey tool. Email is optional; add an "Email" column yourself if your export doesn't include one. A downloadable template is available.
 2. **See each participant's survey answers** inline (expand "survey" next to their name).
 3. **Mark facilitators** — a fixed property of the person.
 4. **Create groups manually** — max 7 participants (facilitator included), **max 1 facilitator per group**. Groups can be edited after creation — add or remove members any time before launch.
-5. **Generate challenges for all groups at once** — one button, C-level/boardroom framing, editable after generation. Picking which option a group works on is the **facilitator's call, on their own link** — the admin can edit wording but doesn't select for them.
+5. **Generate challenges for all groups at once** — one button, grounded in each group's survey answers plus the Knowledge Base (if any), C-level/boardroom framing, editable after generation. Picking which option a group works on is the **facilitator's call, on their own link** — the admin can edit wording but doesn't select for them.
 6. **Launch workshop** — a button sitting right on the Participants / Groups / Challenges tab row (not up in the header, next to utility actions like Edit/copy-link — it's the primary next step for this workflow, so it lives with it). Enabled once at least one group has challenge *options* generated (picking one is the facilitator's job, and it's the first thing they do once the workshop is live — not a precondition for launching). This unlocks every group's first activity (starting with picking their challenge) and switches you to the Workshop tab. From here on, each group runs itself — you generally won't need to intervene until the Presentation tab.
 
 ### Workshop tab — 3 group activities, driven by the facilitator
 Each group moves through this sequence on its own, at its own pace — the facilitator advances with a "Submit & continue" button whenever they're ready:
 
 1. **Pick the challenge** — right after launch, the facilitator picks which of the generated options their group works on (on their own link). Then **Question 1** — facilitator writes and submits the group's initial answer; other members see it read-only, live.
-2. **C-level board challenge + revised answer** — as soon as the group enters this step, the board challenge is generated automatically (no admin action needed): 4 simulated committee members raise objections, grounded in the ROAI F1–F6 framework:
+2. **C-level board challenge + revised answer** — as soon as the group enters this step, the board challenge is generated automatically (no admin action needed): 4 simulated committee members raise objections, grounded in the workshop's own **Knowledge Base** (not a generic framework):
    - **Board Committee Member** (strategy, growth, competitive positioning)
    - **Finance Committee Member** (cost, ROI, budget discipline)
    - **Technology Committee Member** (feasibility, data readiness, technical risk)
@@ -53,7 +56,10 @@ Each group moves through this sequence on its own, at its own pace — the facil
 The admin's Workshop tab is a live 3-column board (Question 1 / Board & revised answer / 30/60/90 actions) — every group appears as a card in whichever column matches its current activity, so you can see at a glance who's ahead and who's behind. Tap a group's card to open a popup with everything it's done so far — **Challenge**, **Their solution**, **Board feedback**, **Reviewed solution**, **30/60/90-day actions** — plus a manual "regenerate board challenge" fallback button in case the automatic one needs a redo.
 
 ### Presentation tab
-Open `/present/:workshopId` on the room screen. Pick which group is presenting, then reveal only the part(s) they're actually talking about (Challenge / Their solution / Board feedback / Reviewed solution / 30/60/90 actions) — no group ever covers everything in their readout, so show just what's relevant as they go, one or more sections at a time. "Mark workshop as closed" when done.
+Open `/present/:workshopId` on the room screen. Pick which group is presenting, then reveal only the part(s) they're actually talking about (Challenge / Their solution / Board feedback / Reviewed solution / 30/60/90 actions) — no group ever covers everything in their readout, so show just what's relevant as they go, one or more sections at a time.
+
+### Report tab
+Mark the workshop as closed here once it's over — then generate a report for each group: executive summary, key insight, how their thinking evolved from their solution to their reviewed solution, and recommended next steps.
 
 ## Access — two separate links
 
@@ -67,12 +73,12 @@ Both links are shown (and copyable) at the top of the admin dashboard once a wor
 ```
 server.ts                          — Backend Express + Claude API endpoints
 src/App.tsx                        — Path-based router (/admin, /w/:workshopId, /groups/:workshopId, /present/:id)
-src/components/AdminApp.tsx         — Pre-workshop / Workshop / Presentation tabs
+src/components/AdminApp.tsx         — Knowledge Base / Pre-workshop / Workshop / Presentation / Report tabs
 src/components/ParticipantApp.tsx   — Facilitator-only login, challenge picker, 3-activity group stepper
 src/components/PublicGroupsView.tsx — Public, no-login: browse groups and their live progress
 src/components/PresentationView.tsx — Admin-driven single-screen plenary view
 src/firebase.ts                     — Lazy Firestore init (fow_* collections)
-src/types.ts                        — Shared types, step labels, timer duration
+src/types.ts                        — Shared types, step labels, presentation section keys
 src/csvImport.ts                    — CSV/XLSX parsing (tolerant of export preamble rows)
 src/ui.tsx                          — Shared UI primitives matching ROAI brand
 firestore.rules                     — Firestore security rules

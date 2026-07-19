@@ -34,6 +34,13 @@
         },
         "presentationGroupId": {
           "type": "string"
+        },
+        "presentationSections": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Which parts of the presenting group's work are shown on /present, chosen live by the admin"
         }
       },
       "required": [
@@ -288,12 +295,6 @@
               },
               "objection": {
                 "type": "string"
-              },
-              "roaiTools": {
-                "type": "array",
-                "items": {
-                  "type": "string"
-                }
               }
             }
           }
@@ -307,6 +308,69 @@
         "groupId",
         "workshopId",
         "personaChallenges",
+        "createdAt"
+      ]
+    },
+    "KnowledgeDoc": {
+      "title": "KnowledgeDoc",
+      "description": "A reference document (uploaded or pasted) the admin adds when setting up a workshop. Grounds both the generated challenges and the C-level board feedback in this workshop's own material instead of generic content.",
+      "type": "object",
+      "properties": {
+        "workshopId": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "content": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "workshopId",
+        "name",
+        "content",
+        "createdAt"
+      ]
+    },
+    "GroupReport": {
+      "title": "GroupReport",
+      "description": "Doc id == groupId. One report PER GROUP, generated in the Report tab after the workshop is marked closed: executive summary, key insight, how the group's thinking evolved from their solution to their reviewed solution, and next steps.",
+      "type": "object",
+      "properties": {
+        "groupId": {
+          "type": "string"
+        },
+        "workshopId": {
+          "type": "string"
+        },
+        "executiveSummary": {
+          "type": "string"
+        },
+        "keyInsight": {
+          "type": "string"
+        },
+        "evolution": {
+          "type": "string"
+        },
+        "recommendedNextSteps": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "groupId",
+        "workshopId",
         "createdAt"
       ]
     }
@@ -332,6 +396,12 @@
     },
     "fow_board_challenges": {
       "schema": "BoardChallenge"
+    },
+    "fow_knowledge_docs": {
+      "schema": "KnowledgeDoc"
+    },
+    "fow_group_reports": {
+      "schema": "GroupReport"
     }
   }
 }

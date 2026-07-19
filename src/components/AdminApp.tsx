@@ -12,9 +12,11 @@ import {
 } from "firebase/firestore";
 import { nanoid } from "nanoid";
 import {
+  BookOpen,
   CheckCircle2,
   ClipboardList,
   Copy,
+  FileBarChart,
   FileText,
   Loader2,
   ListChecks,
@@ -41,7 +43,9 @@ import type {
   BoardChallenge,
   Challenge,
   Group,
+  GroupReport,
   GroupSolution,
+  KnowledgeDoc,
   Participant,
   SurveyResponse,
   Workshop,
@@ -235,6 +239,97 @@ function WorkshopPicker({ adminSecret, onSelect }: { adminSecret: string; onSele
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ── Knowledge Base: reference material used to ground both the generated
+// challenges and the C-level board feedback in this workshop's own content.
+function KnowledgeBaseTab({ workshop, docs }: { workshop: Workshop; docs: KnowledgeDoc[] }) {
+  const [name, setName] = useState("");
+  const [content, setContent] = useState("");
+  const fileInput = useRef<HTMLInputElement>(null);
+
+  function handleFile(file: File) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      setName(file.name.replace(/\.[^/.]+$/, ""));
+      setContent(String(reader.result || ""));
+    };
+    reader.readAsText(file);
+  }
+
+  async function addDoc_() {
+    if (!name.trim() || !content.trim()) return;
+    await addDoc(col.knowledgeDocs, {
+      workshopId: workshop.id,
+      name: name.trim(),
+      content: content.trim(),
+      createdAt: new Date().toISOString(),
+    });
+    setName("");
+    setContent("");
+    if (fileInput.current) fileInput.current.value = "";
+  }
+
+  async function removeDoc(id: string) {
+    await deleteDoc(docIn("knowledgeDocs", id));
+  }
+
+  const totalChars = docs.reduce((sum, d) => sum + d.content.length, 0);
+
+  return (
+    <div className="space-y-4">
+      <Section title="Knowledge base">
+        <p className="text-sm text-gray-500">
+          Upload or paste the material this workshop is actually about — slides notes, briefs, prior reports, anything
+          specific to it. Both the generated challenges and the C-level board's feedback will be grounded in this
+          instead of generic AI content.
+        </p>
+
+        <div className="space-y-2 bg-gray-50 border border-gray-200 rounded-md p-4">
+          <div className="flex items-center gap-2">
+            <label className="inline-flex items-center gap-2 font-semibold text-sm rounded-lg px-4 py-2 bg-white border border-gray-200 hover:border-[#DD4B4E] cursor-pointer text-[#14121F]">
+              <Upload className="w-4 h-4" /> Upload .txt / .md file
+              <input
+                ref={fileInput}
+                type="file"
+                accept=".txt,.md"
+                className="hidden"
+                onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
+              />
+            </label>
+            <span className="text-xs text-gray-400">— or just paste text below</span>
+          </div>
+          <Field label="Document name" value={name} onChange={setName} placeholder="e.g. Workshop brief, Q3 strategy notes" />
+          <TextArea label="Content" value={content} onChange={setContent} rows={8} placeholder="Paste the material here..." />
+          <Btn variant="coral" onClick={addDoc_} disabled={!name.trim() || !content.trim()}>
+            <Plus className="w-4 h-4" /> Add document
+          </Btn>
+        </div>
+
+        {docs.length > 0 && (
+          <p className="text-xs text-gray-400">{docs.length} document{docs.length === 1 ? "" : "s"} · {totalChars.toLocaleString()} characters total</p>
+        )}
+
+        <div className="space-y-2">
+          {docs.map((d) => (
+            <Accordion
+              key={d.id}
+              title={d.name}
+              subtitle={`${d.content.length.toLocaleString()} characters`}
+              right={
+                <button onClick={(e) => { e.stopPropagation(); removeDoc(d.id); }} className="text-gray-300 hover:text-red-500">
+                  <X className="w-4 h-4" />
+                </button>
+              }
+            >
+              <p className="text-xs text-gray-500 whitespace-pre-wrap max-h-48 overflow-y-auto">{d.content}</p>
+            </Accordion>
+          ))}
+          {docs.length === 0 && <p className="text-gray-400 text-sm">No reference material yet — this is optional, but the challenges and board feedback will be more specific to your workshop with it.</p>}
+        </div>
+      </Section>
     </div>
   );
 }
@@ -685,6 +780,7 @@ function ChallengesSection({
   responses,
   groups,
   challenges,
+  knowledgeDocs,
 }: {
   workshop: Workshop;
   adminSecret: string;
@@ -692,10 +788,13 @@ function ChallengesSection({
   responses: SurveyResponse[];
   groups: Group[];
   challenges: Challenge[];
+  knowledgeDocs: KnowledgeDoc[];
 }) {
   const [generatingAll, setGeneratingAll] = useState(false);
   const [editing, setEditing] = useState<Record<string, { title: string; description: string }>>({});
   const [numOptions, setNumOptions] = useState(3);
+
+  const knowledgeBase = knowledgeDocs.map((d) => `--- ${d.name} ---\n${d.content}`).join("\n\n");
 
   async function generateForGroup(group: Group) {
     const members = group.participantIds.map((id) => participants.find((p) => p.id === id)).filter(Boolean) as Participant[];
@@ -713,6 +812,7 @@ function ChallengesSection({
       groupName: group.name,
       responses: responsePayload,
       numOptions,
+      knowledgeBase,
     });
     for (const c of generated) {
       await addDoc(col.challenges, {
@@ -851,15 +951,18 @@ function WorkshopTab({
   challenges,
   solutions,
   boards,
+  knowledgeDocs,
 }: {
   workshop: Workshop;
   groups: Group[];
   challenges: Challenge[];
   solutions: GroupSolution[];
   boards: BoardChallenge[];
+  knowledgeDocs: KnowledgeDoc[];
 }) {
   const [regenerating, setRegenerating] = useState<string | null>(null);
   const [openGroupId, setOpenGroupId] = useState<string | null>(null);
+  const knowledgeBase = knowledgeDocs.map((d) => `--- ${d.name} ---\n${d.content}`).join("\n\n");
 
   async function regenerateBoard(group: Group, challenge: Challenge | undefined, solution: GroupSolution | undefined) {
     if (!challenge || !solution?.initialSolution) return alert("This group hasn't submitted an initial answer yet.");
@@ -872,6 +975,7 @@ function WorkshopTab({
           challenge: { title: challenge.title, description: challenge.description },
           solution: solution.initialSolution,
           groupName: group.name,
+          knowledgeBase,
         }),
       });
       if (!res.ok) throw new Error((await res.json()).error || "Request failed");
@@ -1120,24 +1224,116 @@ function PresentationTab({ workshop, groups }: { workshop: Workshop; groups: Gro
           </div>
         </div>
       )}
-
-      {workshop.status !== "closed" && (
-        <div className="pt-4 border-t border-gray-200">
-          <Btn variant="coral" onClick={async () => updateDoc(docIn("workshops", workshop.id), { status: "closed" })}>
-            Mark workshop as closed
-          </Btn>
-        </div>
-      )}
-      {workshop.status === "closed" && (
-        <p className="text-green-600 text-sm font-medium flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4" /> Workshop closed.</p>
-      )}
     </Section>
+  );
+}
+
+// ── Report tab: mark the workshop closed, then a report per group ───────
+function ReportTab({
+  workshop,
+  adminSecret,
+  groups,
+  challenges,
+  solutions,
+  boards,
+}: {
+  workshop: Workshop;
+  adminSecret: string;
+  groups: Group[];
+  challenges: Challenge[];
+  solutions: GroupSolution[];
+  boards: BoardChallenge[];
+}) {
+  const [reports, setReports] = useState<GroupReport[]>([]);
+  const [generating, setGenerating] = useState<string | null>(null);
+
+  useEffect(() => onSnapshot(query(col.groupReports, where("workshopId", "==", workshop.id)), (s) =>
+    setReports(s.docs.map((d) => ({ id: d.id, ...d.data() } as GroupReport)))
+  ), [workshop.id]);
+
+  async function closeWorkshop() {
+    await updateDoc(docIn("workshops", workshop.id), { status: "closed" });
+  }
+
+  async function generateReport(g: Group) {
+    const challenge = challenges.find((c) => c.id === g.challengeId);
+    if (!challenge) return alert("This group never picked a challenge.");
+    const sol = solutions.find((s) => s.groupId === g.id);
+    const board = boards.find((b) => b.groupId === g.id);
+    setGenerating(g.id);
+    try {
+      const result = await api("/generate-group-report", adminSecret, {
+        workshop: { name: workshop.name },
+        group: { name: g.name },
+        challenge: { title: challenge.title, description: challenge.description },
+        solution: sol,
+        personaChallenges: board?.personaChallenges,
+      });
+      await setDoc(docIn("groupReports", g.id), {
+        groupId: g.id,
+        workshopId: workshop.id,
+        ...result,
+        createdAt: new Date().toISOString(),
+      });
+    } catch (e: any) {
+      alert(e.message);
+    } finally {
+      setGenerating(null);
+    }
+  }
+
+  if (workshop.status !== "closed") {
+    return (
+      <Section title="Report">
+        <p className="text-sm text-gray-500">
+          Once the workshop is over, mark it as closed — then you can generate a report for each group here.
+        </p>
+        <Btn variant="coral" onClick={closeWorkshop}>Mark workshop as closed</Btn>
+      </Section>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-1.5 text-emerald-600 text-sm font-medium">
+        <CheckCircle2 className="w-4 h-4" /> Workshop closed.
+      </div>
+      {groups.map((g) => {
+        const challenge = challenges.find((c) => c.id === g.challengeId);
+        const report = reports.find((r) => r.groupId === g.id);
+        return (
+          <Section key={g.id} title={g.name}>
+            <Btn variant="outline" onClick={() => generateReport(g)} loading={generating === g.id} disabled={!challenge}>
+              {report && <RefreshCw className="w-3.5 h-3.5" />}
+              {report ? "Regenerate report" : "Generate report"}
+            </Btn>
+            {report && (
+              <div className="space-y-3 pt-2">
+                <p className="text-gray-600 text-sm">{report.executiveSummary}</p>
+                <div className="border-l-4 border-[#3545A3] bg-[#3545A3]/5 rounded-r-lg p-3">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-[#3545A3] mb-1">Key insight</p>
+                  <p className="text-sm text-[#14121F]">{report.keyInsight}</p>
+                </div>
+                <div className="border-l-4 border-[#1FA398] bg-[#1FA398]/5 rounded-r-lg p-3">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-[#1FA398] mb-1">How their thinking evolved</p>
+                  <p className="text-sm text-gray-700">{report.evolution}</p>
+                </div>
+                <ul className="list-disc list-inside text-sm text-gray-600">
+                  {report.recommendedNextSteps?.map((s, i) => <li key={i}>{s}</li>)}
+                </ul>
+              </div>
+            )}
+          </Section>
+        );
+      })}
+      {groups.length === 0 && <Section title="Report"><p className="text-gray-400 text-sm">No groups.</p></Section>}
+    </div>
   );
 }
 
 // ── Workshop Dashboard ───────────────────────────────────────────────────
 function WorkshopDashboard({ workshop: initialWorkshop, adminSecret }: { workshop: Workshop; adminSecret: string }) {
-  const [tab, setTab] = useState<"pre" | "workshop" | "presentation">("pre");
+  const [tab, setTab] = useState<"knowledge" | "pre" | "workshop" | "presentation" | "report">("knowledge");
   const [preStep, setPreStep] = useState<"participants" | "groups" | "challenges">("participants");
   const [workshop, setWorkshop] = useState<Workshop>(initialWorkshop);
   const [participants, setParticipants] = useState<Participant[]>([]);
@@ -1146,6 +1342,7 @@ function WorkshopDashboard({ workshop: initialWorkshop, adminSecret }: { worksho
   const [groups, setGroups] = useState<Group[]>([]);
   const [solutions, setSolutions] = useState<GroupSolution[]>([]);
   const [boards, setBoards] = useState<BoardChallenge[]>([]);
+  const [knowledgeDocs, setKnowledgeDocs] = useState<KnowledgeDoc[]>([]);
 
   useEffect(() => onSnapshot(docIn("workshops", initialWorkshop.id), (s) => {
     const data = s.data() as Workshop | undefined;
@@ -1168,6 +1365,9 @@ function WorkshopDashboard({ workshop: initialWorkshop, adminSecret }: { worksho
   ), [workshop.id]);
   useEffect(() => onSnapshot(query(col.boardChallenges, where("workshopId", "==", workshop.id)), (s) =>
     setBoards(s.docs.map((d) => ({ id: d.id, ...d.data() } as BoardChallenge)))
+  ), [workshop.id]);
+  useEffect(() => onSnapshot(query(col.knowledgeDocs, where("workshopId", "==", workshop.id)), (s) =>
+    setKnowledgeDocs(s.docs.map((d) => ({ id: d.id, ...d.data() } as KnowledgeDoc)))
   ), [workshop.id]);
 
   const facilitatorLink = `${window.location.origin}/w/${workshop.id}`;
@@ -1218,9 +1418,11 @@ function WorkshopDashboard({ workshop: initialWorkshop, adminSecret }: { worksho
   }
 
   const navItems = [
+    { key: "knowledge" as const, label: "Knowledge Base", icon: BookOpen },
     { key: "pre" as const, label: "Pre-workshop", icon: ClipboardList },
     { key: "workshop" as const, label: "Workshop", icon: PlayCircle },
     { key: "presentation" as const, label: "Presentation", icon: PresentationIcon },
+    { key: "report" as const, label: "Report", icon: FileBarChart },
   ];
 
   return (
@@ -1306,6 +1508,8 @@ function WorkshopDashboard({ workshop: initialWorkshop, adminSecret }: { worksho
             </Card>
           )}
 
+          {tab === "knowledge" && <KnowledgeBaseTab workshop={workshop} docs={knowledgeDocs} />}
+
           {tab === "pre" && (
             <div className="space-y-6">
               <StepTabs
@@ -1359,6 +1563,7 @@ function WorkshopDashboard({ workshop: initialWorkshop, adminSecret }: { worksho
                     responses={responses}
                     groups={groups}
                     challenges={challenges}
+                    knowledgeDocs={knowledgeDocs}
                   />
                   {workshop.status === "setup" && (
                     <p className="text-xs text-gray-400">
@@ -1379,10 +1584,22 @@ function WorkshopDashboard({ workshop: initialWorkshop, adminSecret }: { worksho
               challenges={challenges}
               solutions={solutions}
               boards={boards}
+              knowledgeDocs={knowledgeDocs}
             />
           )}
 
           {tab === "presentation" && <PresentationTab workshop={workshop} groups={groups} />}
+
+          {tab === "report" && (
+            <ReportTab
+              workshop={workshop}
+              adminSecret={adminSecret}
+              groups={groups}
+              challenges={challenges}
+              solutions={solutions}
+              boards={boards}
+            />
+          )}
         </div>
       </main>
     </div>

@@ -9,6 +9,7 @@ import type {
   Challenge,
   Group,
   GroupSolution,
+  KnowledgeDoc,
   Participant,
   Workshop,
 } from "../types";
@@ -17,7 +18,7 @@ function sessionKey(workshopId: string) {
   return `fow_session_${workshopId}`;
 }
 
-async function generateBoardChallenge(challenge: Challenge, solution: string, groupName: string) {
+async function generateBoardChallenge(challenge: Challenge, solution: string, groupName: string, knowledgeBase: string) {
   const res = await fetch("/api/generate-board-challenge", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -25,6 +26,7 @@ async function generateBoardChallenge(challenge: Challenge, solution: string, gr
       challenge: { title: challenge.title, description: challenge.description },
       solution,
       groupName,
+      knowledgeBase,
     }),
   });
   if (!res.ok) throw new Error((await res.json()).error || "Request failed");
@@ -189,8 +191,17 @@ function GroupWorkspace({
   const [board, setBoard] = useState<BoardChallenge | null>(null);
   const [saving, setSaving] = useState(false);
   const [generatingBoard, setGeneratingBoard] = useState(false);
+  const [knowledgeDocs, setKnowledgeDocs] = useState<KnowledgeDoc[]>([]);
+  const [kbLoaded, setKbLoaded] = useState(false);
 
   const step = group.currentStep || "initial";
+
+  useEffect(() => {
+    return onSnapshot(query(col.knowledgeDocs, where("workshopId", "==", workshop.id)), (snap) => {
+      setKnowledgeDocs(snap.docs.map((d) => ({ id: d.id, ...d.data() } as KnowledgeDoc)));
+      setKbLoaded(true);
+    });
+  }, [workshop.id]);
 
   useEffect(() => {
     return onSnapshot(docIn("groupSolutions", group.id), (s) => {
@@ -213,10 +224,11 @@ function GroupWorkspace({
   // Auto-generate the board challenge once the group enters the "board"
   // step, so the facilitator doesn't need the admin to trigger it.
   useEffect(() => {
-    if (step !== "board" || !isFacilitator || board || generatingBoard || !challenge) return;
+    if (step !== "board" || !isFacilitator || board || generatingBoard || !challenge || !kbLoaded) return;
     if (!solutionDoc?.initialSolution) return;
     setGeneratingBoard(true);
-    generateBoardChallenge(challenge, solutionDoc.initialSolution, group.name)
+    const knowledgeBase = knowledgeDocs.map((d) => `--- ${d.name} ---\n${d.content}`).join("\n\n");
+    generateBoardChallenge(challenge, solutionDoc.initialSolution, group.name, knowledgeBase)
       .then(({ personaChallenges }) =>
         setDoc(docIn("boardChallenges", group.id), {
           groupId: group.id,
@@ -227,7 +239,7 @@ function GroupWorkspace({
       )
       .catch((e) => alert(e.message))
       .finally(() => setGeneratingBoard(false));
-  }, [step, isFacilitator, board, challenge, solutionDoc?.initialSolution]);
+  }, [step, isFacilitator, board, challenge, solutionDoc?.initialSolution, kbLoaded]);
 
   async function saveField(field: string, value: string, setter: (v: string) => void) {
     setter(value);
