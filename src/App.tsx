@@ -3,28 +3,24 @@ import AdminApp from "./components/AdminApp";
 import ParticipantApp from "./components/ParticipantApp";
 import PresentationView from "./components/PresentationView";
 import PublicGroupsView from "./components/PublicGroupsView";
-import { GradientHero, ROAILogo } from "./ui";
+import { GradientHero } from "./ui";
 import { initFirebase } from "./firebase";
 
 function Home() {
   return (
-    <div className="min-h-screen bg-[#F7F5FB]">
-      <GradientHero>
-        <div className="flex justify-center mb-6">
-          <ROAILogo dark size="lg" />
-        </div>
-        <h1 className="text-4xl font-black text-white">Future of Work Action Workshop</h1>
+    <div className="min-h-screen bg-[#F7F6F9]">
+      <GradientHero
+        eyebrow="ROAI Institute"
+        title="Future of Work Action Workshop"
+        subtitle="Assigned facilitators use their workshop link to work on their group's activities; everyone else follows along on the public groups link, shared by the admin."
+      >
+        <a
+          href="/admin"
+          className="inline-flex items-center gap-2 bg-white text-[#191534] font-bold text-sm rounded-full px-6 py-3 hover:bg-white/90 transition-colors"
+        >
+          Go to admin
+        </a>
       </GradientHero>
-      <div className="max-w-lg mx-auto text-center px-6 py-10">
-        <p className="text-gray-500">
-          This is the workshop facilitation tool. Facilitators should go to{" "}
-          <a href="/admin" className="text-[#FF6B4A] font-bold underline">
-            /admin
-          </a>
-          . Assigned facilitators use their workshop link to work on their group's activities; everyone else can
-          follow along on the public groups link, shared by the admin.
-        </p>
-      </div>
     </div>
   );
 }

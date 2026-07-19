@@ -10,7 +10,7 @@ function Waiting({ message }: { message: string }) {
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#F7F5FB] px-6">
       <div className="max-w-md text-center space-y-4">
-        <Loader2 className="animate-spin w-6 h-6 mx-auto text-[#FF6B4A]" />
+        <Loader2 className="animate-spin w-6 h-6 mx-auto text-[#DD4B4E]" />
         <p className="text-gray-500">{message}</p>
       </div>
     </div>
@@ -33,13 +33,13 @@ function GroupDetail({
   onBack: () => void;
 }) {
   return (
-    <div className="max-w-2xl mx-auto space-y-6 py-10 px-4">
-      <button onClick={onBack} className="text-[#FF6B4A] font-bold text-sm inline-flex items-center gap-1.5">
+    <div className="max-w-2xl md:max-w-3xl mx-auto space-y-6 py-10 px-4 md:px-0">
+      <button onClick={onBack} className="text-[#DD4B4E] font-bold text-sm inline-flex items-center gap-1.5">
         <ArrowLeft className="w-4 h-4" /> All groups
       </button>
 
       <div>
-        <h1 className="text-2xl font-black text-[#140F2D]">{group.name}</h1>
+        <h1 className="text-2xl font-black text-[#191534]">{group.name}</h1>
         <p className="text-gray-400 text-sm">{members.map((m) => m.name + (m.role === "facilitator" ? " ★" : "")).join(" · ")}</p>
         <div className="mt-2">
           <Tag color={group.currentStep === "done" ? "green" : "coral"}>{GROUP_STEP_LABELS[group.currentStep || "initial"]}</Tag>
@@ -50,8 +50,8 @@ function GroupDetail({
 
       {challenge && (
         <Card>
-          <p className="text-[10px] font-bold uppercase tracking-widest text-[#FF6B4A] mb-1">Challenge</p>
-          <p className="font-bold text-[#140F2D]">{challenge.title}</p>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-[#DD4B4E] mb-1">Challenge</p>
+          <p className="font-bold text-[#191534]">{challenge.title}</p>
           <p className="text-sm text-gray-500 mt-1">{challenge.description}</p>
         </Card>
       )}
@@ -62,17 +62,17 @@ function GroupDetail({
             <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Initial answer</p>
             {solution.initialSubmitted && <Tag color="green">submitted</Tag>}
           </div>
-          <p className="text-sm text-[#140F2D] whitespace-pre-wrap">{solution.initialSolution}</p>
+          <p className="text-sm text-[#191534] whitespace-pre-wrap">{solution.initialSolution}</p>
         </Card>
       )}
 
       {board && (
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-widest text-[#FF6B4A] mb-2">The C-level board's challenge</p>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-[#DD4B4E] mb-2">The C-level board's challenge</p>
           <div className="grid sm:grid-cols-2 gap-2">
             {board.personaChallenges.map((pc, i) => (
-              <div key={i} className="bg-[#140F2D] rounded-xl p-3 text-sm">
-                <div className="text-[#FF6B4A] font-bold text-xs uppercase tracking-widest mb-1">{pc.role}</div>
+              <div key={i} className="bg-[#191534] rounded-xl p-3 text-sm">
+                <div className="text-[#DD4B4E] font-bold text-xs uppercase tracking-widest mb-1">{pc.role}</div>
                 <div className="text-white/90">{pc.objection}</div>
               </div>
             ))}
@@ -86,7 +86,7 @@ function GroupDetail({
             <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Revised answer</p>
             {solution.revisedSubmitted && <Tag color="green">submitted</Tag>}
           </div>
-          <p className="text-sm text-[#140F2D] whitespace-pre-wrap">{solution.revisedSolution}</p>
+          <p className="text-sm text-[#191534] whitespace-pre-wrap">{solution.revisedSolution}</p>
         </Card>
       )}
 
@@ -94,9 +94,9 @@ function GroupDetail({
         <Card>
           <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2">30 / 60 / 90-day actions</p>
           <div className="grid sm:grid-cols-3 gap-3 text-sm">
-            <div><p className="text-[10px] font-bold uppercase tracking-widest text-[#FF6B4A] mb-1">30 days</p><p className="text-gray-600 whitespace-pre-wrap">{solution.action30}</p></div>
-            <div><p className="text-[10px] font-bold uppercase tracking-widest text-[#FF6B4A] mb-1">60 days</p><p className="text-gray-600 whitespace-pre-wrap">{solution.action60}</p></div>
-            <div><p className="text-[10px] font-bold uppercase tracking-widest text-[#FF6B4A] mb-1">90 days</p><p className="text-gray-600 whitespace-pre-wrap">{solution.action90}</p></div>
+            <div><p className="text-[10px] font-bold uppercase tracking-widest text-[#DD4B4E] mb-1">30 days</p><p className="text-gray-600 whitespace-pre-wrap">{solution.action30}</p></div>
+            <div><p className="text-[10px] font-bold uppercase tracking-widest text-[#DD4B4E] mb-1">60 days</p><p className="text-gray-600 whitespace-pre-wrap">{solution.action60}</p></div>
+            <div><p className="text-[10px] font-bold uppercase tracking-widest text-[#DD4B4E] mb-1">90 days</p><p className="text-gray-600 whitespace-pre-wrap">{solution.action90}</p></div>
           </div>
         </Card>
       )}
@@ -163,32 +163,34 @@ export default function PublicGroupsView({ workshopId }: { workshopId: string })
 
   return (
     <div className="min-h-screen bg-[#F7F5FB]">
-      <GradientHero compact>
-        <div className="flex justify-center mb-4"><ROAILogo dark size="lg" /></div>
-        <h1 className="text-3xl font-black text-white">{workshop.name}</h1>
-        <p className="text-white/50 text-sm mt-2">Tap a group to see their progress.</p>
-      </GradientHero>
+      <GradientHero
+        eyebrow={workshop.date}
+        title={workshop.name}
+        subtitle="Tap a group below to see their live progress."
+      />
 
-      <div className="max-w-2xl mx-auto px-4 py-8 space-y-3">
-        {groups.map((g) => {
-          const members = g.participantIds.map((id) => participants.find((p) => p.id === id)).filter(Boolean) as Participant[];
-          return (
-            <button
-              key={g.id}
-              onClick={() => setSelectedGroupId(g.id)}
-              className="w-full text-left bg-white border border-gray-200 hover:border-[#FF6B4A]/40 rounded-[28px] p-5 transition-all"
-            >
-              <div className="flex items-center justify-between">
-                <div className="font-bold text-[#140F2D]">{g.name}</div>
-                <Tag color={g.currentStep === "done" ? "green" : "coral"}>{GROUP_STEP_LABELS[g.currentStep || "initial"]}</Tag>
-              </div>
-              <p className="text-sm text-gray-500 mt-1">
-                {members.map((m) => m.name + (m.role === "facilitator" ? " ★" : "")).join(" · ") || "No members yet"}
-              </p>
-            </button>
-          );
-        })}
-        {groups.length === 0 && <p className="text-gray-400 text-sm text-center">No groups yet.</p>}
+      <div className="max-w-5xl mx-auto px-4 md:px-14 py-8 md:py-12">
+        <div className="grid md:grid-cols-2 gap-3 md:gap-4">
+          {groups.map((g) => {
+            const members = g.participantIds.map((id) => participants.find((p) => p.id === id)).filter(Boolean) as Participant[];
+            return (
+              <button
+                key={g.id}
+                onClick={() => setSelectedGroupId(g.id)}
+                className="w-full text-left bg-white border border-gray-200 hover:border-[#DD4B4E]/40 rounded-[28px] p-5 transition-all"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="font-bold text-[#191534]">{g.name}</div>
+                  <Tag color={g.currentStep === "done" ? "green" : "coral"}>{GROUP_STEP_LABELS[g.currentStep || "initial"]}</Tag>
+                </div>
+                <p className="text-sm text-gray-500 mt-1">
+                  {members.map((m) => m.name + (m.role === "facilitator" ? " ★" : "")).join(" · ") || "No members yet"}
+                </p>
+              </button>
+            );
+          })}
+        </div>
+        {groups.length === 0 && <p className="text-gray-400 text-sm text-center mt-6">No groups yet.</p>}
       </div>
     </div>
   );
