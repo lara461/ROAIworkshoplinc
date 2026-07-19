@@ -12,11 +12,10 @@ import {
 import { nanoid } from "nanoid";
 import {
   CheckCircle2,
-  ChevronDown,
-  ChevronUp,
   ClipboardList,
   Copy,
   Loader2,
+  Pencil,
   Plus,
   PlayCircle,
   Presentation as PresentationIcon,
@@ -30,7 +29,7 @@ import { col, docIn } from "../firebase";
 import { cn } from "../utils";
 import { downloadTemplate, parseParticipantsFile } from "../csvImport";
 import type { ImportedRow } from "../csvImport";
-import { Btn, Card, Field, PageHeader, ROAILogo, Tag, TextArea } from "../ui";
+import { Accordion, Btn, Card, Field, PageHeader, ROAILogo, Tag, TextArea } from "../ui";
 import { GROUP_STEP_LABELS } from "../types";
 import type {
   BoardChallenge,
@@ -113,6 +112,7 @@ function WorkshopPicker({ adminSecret, onSelect }: { adminSecret: string; onSele
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [date, setDate] = useState("");
+  const [showCreate, setShowCreate] = useState(false);
 
   useEffect(() => {
     return onSnapshot(col.workshops, (snap) => {
@@ -138,42 +138,57 @@ function WorkshopPicker({ adminSecret, onSelect }: { adminSecret: string; onSele
 
   return (
     <div className="min-h-screen bg-white">
-      <div className="max-w-3xl mx-auto px-6 py-10 space-y-8">
+      <div className="max-w-3xl mx-auto px-6 py-10 space-y-6">
         <div className="flex items-center justify-between mb-2">
           <ROAILogo size="md" />
           <span className="text-xs font-semibold text-gray-400">Admin</span>
         </div>
         <PageHeader
           title="Future of Work Action Workshop"
-          subtitle="Create a new workshop below, or open one you've already started."
+          subtitle="Pick a workshop to open, or create a new one."
         />
 
-        <Section title="Create a new workshop">
-          <Field label="Workshop name" value={name} onChange={setName} placeholder="e.g. Acme Leadership Team — July 2026" />
-          <TextArea label="Short description" value={description} onChange={setDescription} rows={2} />
-          <div>
-            <label className="block text-xs font-semibold text-gray-500 mb-1.5">Date</label>
-            <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
-              className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#DD4B4E]" />
-          </div>
-          <Btn variant="coral" onClick={create}><Plus className="w-4 h-4" /> Create workshop</Btn>
-        </Section>
+        {showCreate && (
+          <Card className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-base font-bold text-[#14121F]">Create a new workshop</h2>
+              <button onClick={() => setShowCreate(false)} className="text-gray-400 hover:text-gray-600"><X className="w-4 h-4" /></button>
+            </div>
+            <Field label="Workshop name" value={name} onChange={setName} placeholder="e.g. Acme Leadership Team — July 2026" />
+            <TextArea label="Short description" value={description} onChange={setDescription} rows={2} />
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 mb-1.5">Date</label>
+              <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
+                className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#DD4B4E]" />
+            </div>
+            <Btn variant="coral" onClick={create} disabled={!name || !date}><Plus className="w-4 h-4" /> Create workshop</Btn>
+          </Card>
+        )}
 
-        <Section title="Existing workshops">
-          <div className="space-y-2">
-            {workshops.map((w) => (
-              <button key={w.id} onClick={() => onSelect(w)}
-                className="w-full text-left bg-white hover:bg-gray-50 border border-gray-200 hover:border-gray-300 rounded-lg px-4 py-3 flex items-center justify-between transition-colors group">
-                <div>
-                  <div className="font-bold text-[#14121F]">{w.name}</div>
-                  <div className="text-xs text-gray-400">{w.date} — status: {w.status}</div>
-                </div>
-                <span className="text-[#DD4B4E] text-sm font-bold">Open →</span>
-              </button>
-            ))}
-            {workshops.length === 0 && <p className="text-gray-400 text-sm">No workshops yet.</p>}
-          </div>
-        </Section>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          {workshops.map((w) => (
+            <button
+              key={w.id}
+              onClick={() => onSelect(w)}
+              className="aspect-square bg-white hover:bg-gray-50 border border-gray-200 hover:border-gray-300 rounded-lg p-4 flex flex-col justify-between text-left transition-colors"
+            >
+              <div>
+                <div className="font-bold text-[#14121F] text-sm leading-snug line-clamp-3">{w.name}</div>
+              </div>
+              <div>
+                <Tag color={w.status === "closed" ? "green" : "coral"}>{w.status}</Tag>
+                <div className="text-xs text-gray-400 mt-1.5">{w.date}</div>
+              </div>
+            </button>
+          ))}
+          <button
+            onClick={() => setShowCreate(true)}
+            className="aspect-square border border-dashed border-gray-300 hover:border-[#DD4B4E] rounded-lg flex flex-col items-center justify-center gap-1.5 text-gray-400 hover:text-[#DD4B4E] transition-colors"
+          >
+            <Plus className="w-6 h-6" />
+            <span className="text-xs font-semibold">New workshop</span>
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -314,7 +329,6 @@ function ParticipantsSection({
   const [newName, setNewName] = useState("");
   const [newEmail, setNewEmail] = useState("");
   const [newRole, setNewRole] = useState<"participant" | "facilitator">("participant");
-  const [expanded, setExpanded] = useState<string | null>(null);
 
   async function addParticipant() {
     if (!newName) return;
@@ -364,42 +378,41 @@ function ParticipantsSection({
         {responses.length}/{participants.length} have survey answers on file
       </p>
 
-      <div className="divide-y divide-gray-100">
+      <div className="space-y-2">
         {participants.map((p) => {
           const response = responses.find((r) => r.participantId === p.id);
-          const isExpanded = expanded === p.id;
           return (
-            <div key={p.id} className="py-2.5 text-sm">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="font-bold text-[#14121F] flex items-center gap-2">
-                    {p.name}
-                    {p.role === "facilitator" && <Tag color="coral">facilitator</Tag>}
-                  </div>
-                  {p.email && <div className="text-gray-400 text-xs">{p.email}</div>}
-                </div>
-                <div className="flex items-center gap-3">
-                  {response ? (
-                    <button onClick={() => setExpanded(isExpanded ? null : p.id)} className="text-green-600 flex items-center gap-1 font-bold text-xs">
-                      <CheckCircle2 className="w-4 h-4" /> survey {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                    </button>
-                  ) : (
-                    <Tag>no survey</Tag>
-                  )}
-                  <button onClick={() => toggleRole(p)} className="text-gray-400 hover:text-[#DD4B4E] font-bold text-xs">
+            <Accordion
+              key={p.id}
+              title={
+                <span className="flex items-center gap-2">
+                  {p.name}
+                  {p.role === "facilitator" && <Tag color="coral">facilitator</Tag>}
+                </span>
+              }
+              subtitle={p.email || undefined}
+              right={
+                <>
+                  {response ? <Tag color="green">survey on file</Tag> : <Tag>no survey</Tag>}
+                  <button onClick={(e) => { e.stopPropagation(); toggleRole(p); }} className="text-gray-400 hover:text-[#DD4B4E] font-semibold text-xs">
                     {p.role === "facilitator" ? "make participant" : "make facilitator"}
                   </button>
-                  <button onClick={() => removeParticipant(p.id)} className="text-gray-400 hover:text-red-500 font-bold">remove</button>
+                  <button onClick={(e) => { e.stopPropagation(); removeParticipant(p.id); }} className="text-gray-400 hover:text-red-500 font-semibold text-xs">
+                    remove
+                  </button>
+                </>
+              }
+            >
+              {response ? (
+                <div className="space-y-2 text-xs text-gray-600">
+                  <div><span className="font-semibold text-gray-400 uppercase tracking-wide text-[10px]">AI relationship: </span>{response.aiRelationship}</div>
+                  <div><span className="font-semibold text-gray-400 uppercase tracking-wide text-[10px]">Future vision: </span>{response.futureVision}</div>
+                  <div><span className="font-semibold text-gray-400 uppercase tracking-wide text-[10px]">Opportunities/challenges: </span>{response.opportunitiesChallenges}</div>
                 </div>
-              </div>
-              {isExpanded && response && (
-                <div className="mt-2 ml-1 pl-3 border-l-2 border-gray-200 space-y-2 text-xs text-gray-600">
-                  <div><span className="font-bold text-gray-400 uppercase tracking-wide text-[10px]">AI relationship: </span>{response.aiRelationship}</div>
-                  <div><span className="font-bold text-gray-400 uppercase tracking-wide text-[10px]">Future vision: </span>{response.futureVision}</div>
-                  <div><span className="font-bold text-gray-400 uppercase tracking-wide text-[10px]">Opportunities/challenges: </span>{response.opportunitiesChallenges}</div>
-                </div>
+              ) : (
+                <p className="text-xs text-gray-400">No survey answers on file for this participant.</p>
               )}
-            </div>
+            </Accordion>
           );
         })}
         {participants.length === 0 && <p className="text-gray-400 text-sm py-2">No participants yet — import a file or add one above.</p>}
@@ -569,24 +582,27 @@ function GroupsSection({
           {groups.map((g) => {
             const members = g.participantIds.map((id) => participants.find((p) => p.id === id)).filter(Boolean) as Participant[];
             return (
-              <div key={g.id} className="relative bg-gray-50 border border-gray-200 rounded-md p-3 flex items-center justify-between">
-                <div>
-                  <div className="font-bold text-[#14121F] text-sm">{g.name}</div>
-                  <div className="flex flex-wrap gap-1.5 mt-1">
-                    {members.map((m) => (
-                      <span key={m.id} className="inline-flex items-center gap-1 text-xs bg-white border border-gray-200 rounded-md pl-2 pr-1 py-0.5">
-                        {m.name}{m.role === "facilitator" && <span className="text-[#DD4B4E] font-bold">★</span>}
-                        <button onClick={() => removeMember(g.id, m.id, g.participantIds)} className="text-gray-300 hover:text-red-500">
-                          <X className="w-3 h-3" />
-                        </button>
-                      </span>
-                    ))}
-                  </div>
+              <Accordion
+                key={g.id}
+                title={g.name}
+                subtitle={`${members.length} member${members.length === 1 ? "" : "s"}`}
+                right={
+                  <button onClick={(e) => { e.stopPropagation(); deleteGroup(g.id); }} className="text-gray-300 hover:text-red-500">
+                    <X className="w-4 h-4" />
+                  </button>
+                }
+              >
+                <div className="flex flex-wrap gap-1.5">
+                  {members.map((m) => (
+                    <span key={m.id} className="inline-flex items-center gap-1 text-xs bg-gray-50 border border-gray-200 rounded-md pl-2 pr-1 py-0.5">
+                      {m.name}{m.role === "facilitator" && <span className="text-[#DD4B4E] font-bold">★</span>}
+                      <button onClick={() => removeMember(g.id, m.id, g.participantIds)} className="text-gray-300 hover:text-red-500">
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  ))}
                 </div>
-                <button onClick={() => deleteGroup(g.id)} className="text-gray-300 hover:text-red-500">
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
+              </Accordion>
             );
           })}
           {groups.length === 0 && <p className="text-gray-400 text-sm">No groups yet — create one above.</p>}
@@ -600,52 +616,59 @@ function GroupsSection({
           </p>
           <div className="flex items-center gap-2">
             <input type="number" min={2} max={5} value={numOptions} onChange={(e) => setNumOptions(Number(e.target.value))}
-              className="w-16 bg-gray-50 border border-gray-200 rounded-lg px-2 py-1.5 text-sm outline-none focus:border-[#DD4B4E]" />
+              className="w-16 bg-white border border-gray-200 rounded-lg px-2 py-1.5 text-sm outline-none focus:border-[#DD4B4E]" />
             <span className="text-xs text-gray-400">options per group</span>
             <Btn variant="coral" onClick={generateAllChallenges} loading={generatingAll} disabled={groupsWithoutChallenges === 0}>
               <Rocket className="w-4 h-4" /> Generate challenges for {groupsWithoutChallenges || "all"} group{groupsWithoutChallenges === 1 ? "" : "s"}
             </Btn>
           </div>
 
-          <div className="space-y-3">
+          <div className="space-y-2">
             {groups.map((g) => {
               const groupChallenges = challenges.filter((c) => c.groupId === g.id);
               if (groupChallenges.length === 0) return null;
+              const selected = groupChallenges.find((c) => c.status === "selected");
               return (
-                <div key={g.id} className="bg-gray-50 border border-gray-200 rounded-md p-4 space-y-2">
-                  <div className="font-bold text-[#14121F] text-sm">{g.name}</div>
-                  {groupChallenges.map((c) => {
-                    const isEditing = !!editing[c.id];
-                    return (
-                      <div key={c.id} className={`bg-white border rounded-lg p-3 ${c.status === "selected" ? "border-[#DD4B4E]" : "border-gray-200"}`}>
-                        {isEditing ? (
-                          <div className="space-y-2">
-                            <input value={editing[c.id].title} onChange={(e) => setEditing((prev) => ({ ...prev, [c.id]: { ...prev[c.id], title: e.target.value } }))}
-                              className="w-full font-bold text-sm border border-gray-200 rounded-lg px-2 py-1 outline-none focus:border-[#DD4B4E]" />
-                            <textarea value={editing[c.id].description} rows={2}
-                              onChange={(e) => setEditing((prev) => ({ ...prev, [c.id]: { ...prev[c.id], description: e.target.value } }))}
-                              className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1 outline-none focus:border-[#DD4B4E] resize-none" />
-                            <Btn variant="coral" className="text-xs px-3 py-1.5" onClick={() => saveEdit(c)}>Save</Btn>
-                          </div>
-                        ) : (
-                          <>
-                            <div className="flex items-center justify-between">
-                              <div className="font-bold text-sm text-[#14121F]">{c.title}</div>
-                              {c.status === "selected" && <Tag color="coral">selected</Tag>}
+                <Accordion
+                  key={g.id}
+                  title={g.name}
+                  subtitle={`${groupChallenges.length} option${groupChallenges.length === 1 ? "" : "s"}`}
+                  right={selected ? <Tag color="coral">{selected.title}</Tag> : <Tag>not selected</Tag>}
+                >
+                  <div className="space-y-2">
+                    {groupChallenges.map((c) => {
+                      const isEditing = !!editing[c.id];
+                      return (
+                        <div key={c.id} className={`bg-white border rounded-lg p-3 ${c.status === "selected" ? "border-[#DD4B4E]" : "border-gray-200"}`}>
+                          {isEditing ? (
+                            <div className="space-y-2">
+                              <input value={editing[c.id].title} onChange={(e) => setEditing((prev) => ({ ...prev, [c.id]: { ...prev[c.id], title: e.target.value } }))}
+                                className="w-full font-bold text-sm border border-gray-200 rounded-lg px-2 py-1 outline-none focus:border-[#DD4B4E]" />
+                              <textarea value={editing[c.id].description} rows={2}
+                                onChange={(e) => setEditing((prev) => ({ ...prev, [c.id]: { ...prev[c.id], description: e.target.value } }))}
+                                className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1 outline-none focus:border-[#DD4B4E] resize-none" />
+                              <Btn variant="coral" className="text-xs px-3 py-1.5" onClick={() => saveEdit(c)}>Save</Btn>
                             </div>
-                            <p className="text-xs text-gray-500 mt-1">{c.description}</p>
-                            <div className="flex gap-2 mt-2">
-                              {c.status !== "selected" && (
-                                <Btn variant="coral" className="text-xs px-3 py-1.5" onClick={() => selectChallenge(g, c.id)}>Select this challenge</Btn>
-                              )}
-                              <Btn variant="outline" className="text-xs px-3 py-1.5" onClick={() => startEdit(c)}>Edit</Btn>
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
+                          ) : (
+                            <>
+                              <div className="flex items-center justify-between">
+                                <div className="font-bold text-sm text-[#14121F]">{c.title}</div>
+                                {c.status === "selected" && <Tag color="coral">selected</Tag>}
+                              </div>
+                              <p className="text-xs text-gray-500 mt-1">{c.description}</p>
+                              <div className="flex gap-2 mt-2">
+                                {c.status !== "selected" && (
+                                  <Btn variant="coral" className="text-xs px-3 py-1.5" onClick={() => selectChallenge(g, c.id)}>Select this challenge</Btn>
+                                )}
+                                <Btn variant="outline" className="text-xs px-3 py-1.5" onClick={() => startEdit(c)}>Edit</Btn>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </Accordion>
               );
             })}
           </div>
@@ -708,80 +731,79 @@ function WorkshopTab({
         Facilitators drive each group's 3 timed activities themselves (15 min each) — nothing to do here unless something
         needs a manual nudge.
       </p>
-      <div className="space-y-3">
+      <div className="space-y-2">
         {groups.map((g) => {
           const challenge = challenges.find((c) => c.id === g.challengeId);
           const sol = solutions.find((s) => s.groupId === g.id);
           const board = boards.find((b) => b.groupId === g.id);
           if (!challenge) {
             return (
-              <div key={g.id} className="bg-gray-50 border border-gray-200 rounded-md p-4 text-sm text-gray-400">
+              <div key={g.id} className="bg-white border border-gray-200 rounded-lg p-4 text-sm text-gray-400">
                 {g.name} — no challenge selected yet (see Pre-workshop tab)
               </div>
             );
           }
           return (
-            <div key={g.id} className="bg-gray-50 border border-gray-200 rounded-md p-4 space-y-3">
-              <div className="flex items-center justify-between flex-wrap gap-2">
-                <div className="font-black text-[#14121F]">{g.name}</div>
-                <div className="flex items-center gap-2">
-                  <Tag color="navy">{challenge.title}</Tag>
-                  <Tag color={g.currentStep === "done" ? "green" : "coral"}>{GROUP_STEP_LABELS[g.currentStep || "initial"]}</Tag>
-                </div>
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Initial answer</p>
-                  {sol?.initialSubmitted && <Tag color="green">submitted</Tag>}
-                </div>
-                <p className="text-sm text-gray-600 whitespace-pre-wrap">{sol?.initialSolution || "Not submitted yet."}</p>
-              </div>
-
-              {board && (
-                <div className="grid sm:grid-cols-2 gap-2">
-                  {board.personaChallenges.map((pc, i) => (
-                    <div key={i} className="bg-white border border-gray-200 rounded-lg p-3 text-xs">
-                      <div className="text-[#DD4B4E] font-bold uppercase tracking-widest text-[10px] mb-1">{pc.role}</div>
-                      <div className="text-[#14121F]">{pc.objection}</div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {(g.currentStep === "board" || g.currentStep === "actions" || g.currentStep === "done") && sol?.initialSubmitted && (
-                <Btn variant="outline" onClick={() => regenerateBoard(g, challenge, sol)} loading={regenerating === g.id}>
-                  <RefreshCw className="w-3.5 h-3.5" /> {board ? "Regenerate" : "Generate"} board challenge
-                </Btn>
-              )}
-
-              {board && (
+            <Accordion
+              key={g.id}
+              title={g.name}
+              subtitle={challenge.title}
+              right={<Tag color={g.currentStep === "done" ? "green" : "coral"}>{GROUP_STEP_LABELS[g.currentStep || "initial"]}</Tag>}
+            >
+              <div className="space-y-3">
                 <div>
                   <div className="flex items-center justify-between mb-1">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Revised answer</p>
-                    {sol?.revisedSubmitted && <Tag color="green">submitted</Tag>}
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Initial answer</p>
+                    {sol?.initialSubmitted && <Tag color="green">submitted</Tag>}
                   </div>
-                  <p className="text-sm text-gray-600 whitespace-pre-wrap">{sol?.revisedSolution || "Not submitted yet."}</p>
+                  <p className="text-sm text-gray-600 whitespace-pre-wrap">{sol?.initialSolution || "Not submitted yet."}</p>
                 </div>
-              )}
 
-              {sol?.actionsSubmitted && (
-                <div className="grid sm:grid-cols-3 gap-2 pt-2 border-t border-gray-200">
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">30 days</p>
-                    <p className="text-xs text-gray-600 whitespace-pre-wrap">{sol.action30}</p>
+                {board && (
+                  <div className="grid sm:grid-cols-2 gap-2">
+                    {board.personaChallenges.map((pc, i) => (
+                      <div key={i} className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs">
+                        <div className="text-[#DD4B4E] font-bold uppercase tracking-widest text-[10px] mb-1">{pc.role}</div>
+                        <div className="text-[#14121F]">{pc.objection}</div>
+                      </div>
+                    ))}
                   </div>
+                )}
+
+                {(g.currentStep === "board" || g.currentStep === "actions" || g.currentStep === "done") && sol?.initialSubmitted && (
+                  <Btn variant="outline" onClick={() => regenerateBoard(g, challenge, sol)} loading={regenerating === g.id}>
+                    <RefreshCw className="w-3.5 h-3.5" /> {board ? "Regenerate" : "Generate"} board challenge
+                  </Btn>
+                )}
+
+                {board && (
                   <div>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">60 days</p>
-                    <p className="text-xs text-gray-600 whitespace-pre-wrap">{sol.action60}</p>
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Revised answer</p>
+                      {sol?.revisedSubmitted && <Tag color="green">submitted</Tag>}
+                    </div>
+                    <p className="text-sm text-gray-600 whitespace-pre-wrap">{sol?.revisedSolution || "Not submitted yet."}</p>
                   </div>
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">90 days</p>
-                    <p className="text-xs text-gray-600 whitespace-pre-wrap">{sol.action90}</p>
+                )}
+
+                {sol?.actionsSubmitted && (
+                  <div className="grid sm:grid-cols-3 gap-2 pt-2 border-t border-gray-200">
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">30 days</p>
+                      <p className="text-xs text-gray-600 whitespace-pre-wrap">{sol.action30}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">60 days</p>
+                      <p className="text-xs text-gray-600 whitespace-pre-wrap">{sol.action60}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">90 days</p>
+                      <p className="text-xs text-gray-600 whitespace-pre-wrap">{sol.action90}</p>
+                    </div>
                   </div>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
+            </Accordion>
           );
         })}
         {groups.length === 0 && <p className="text-gray-400 text-sm">No groups yet.</p>}
@@ -859,6 +881,27 @@ function WorkshopDashboard({ workshop: initialWorkshop, adminSecret }: { worksho
   const facilitatorLink = `${window.location.origin}/w/${workshop.id}`;
   const publicLink = `${window.location.origin}/groups/${workshop.id}`;
 
+  const [editingDetails, setEditingDetails] = useState(false);
+  const [editName, setEditName] = useState(workshop.name);
+  const [editDescription, setEditDescription] = useState(workshop.description || "");
+  const [editDate, setEditDate] = useState(workshop.date);
+
+  function openEditDetails() {
+    setEditName(workshop.name);
+    setEditDescription(workshop.description || "");
+    setEditDate(workshop.date);
+    setEditingDetails(true);
+  }
+
+  async function saveDetails() {
+    await updateDoc(docIn("workshops", workshop.id), {
+      name: editName,
+      description: editDescription,
+      date: editDate,
+    });
+    setEditingDetails(false);
+  }
+
   async function launchWorkshop() {
     await updateDoc(docIn("workshops", workshop.id), { status: "working" });
     const now = new Date().toISOString();
@@ -915,6 +958,10 @@ function WorkshopDashboard({ workshop: initialWorkshop, adminSecret }: { worksho
             title={workshop.name}
             right={
               <div className="flex items-center gap-2">
+                <button onClick={openEditDetails}
+                  className="text-gray-500 hover:bg-gray-50 flex items-center gap-1.5 font-semibold text-xs bg-white border border-gray-200 rounded-lg px-3 py-1.5">
+                  <Pencil className="w-3.5 h-3.5" /> Edit details
+                </button>
                 <button onClick={() => navigator.clipboard.writeText(facilitatorLink)}
                   className="text-[#DD4B4E] hover:bg-[#DD4B4E]/5 flex items-center gap-1.5 font-semibold text-xs bg-white border border-[#DD4B4E]/20 rounded-lg px-3 py-1.5">
                   <Copy className="w-3.5 h-3.5" /> Facilitator link
@@ -926,6 +973,23 @@ function WorkshopDashboard({ workshop: initialWorkshop, adminSecret }: { worksho
               </div>
             }
           />
+
+          {editingDetails && (
+            <Card className="space-y-3 mb-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-base font-bold text-[#14121F]">Edit workshop details</h2>
+                <button onClick={() => setEditingDetails(false)} className="text-gray-400 hover:text-gray-600"><X className="w-4 h-4" /></button>
+              </div>
+              <Field label="Workshop name" value={editName} onChange={setEditName} />
+              <TextArea label="Short description" value={editDescription} onChange={setEditDescription} rows={2} />
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 mb-1.5">Date</label>
+                <input type="date" value={editDate} onChange={(e) => setEditDate(e.target.value)}
+                  className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#DD4B4E]" />
+              </div>
+              <Btn variant="coral" onClick={saveDetails} disabled={!editName || !editDate}>Save changes</Btn>
+            </Card>
+          )}
 
           {tab === "pre" && (
             <div className="space-y-6">

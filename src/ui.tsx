@@ -1,4 +1,5 @@
-import { Loader2 } from "lucide-react";
+import { ChevronDown, Loader2 } from "lucide-react";
+import { useState } from "react";
 import type { ReactNode } from "react";
 import { cn } from "./utils";
 
@@ -122,6 +123,40 @@ export const Tag = ({
 export const Card = ({ children, className = "" }: { children: ReactNode; className?: string }) => (
   <div className={cn("bg-white rounded-xl border border-gray-200 p-6", className)}>{children}</div>
 );
+
+// A single collapsible row/panel — header always visible, body toggles.
+// Use for lists where each item has more detail than fits inline
+// (participants, groups) so the list stays scannable by default.
+export const Accordion = ({
+  title,
+  subtitle,
+  right,
+  defaultOpen = false,
+  children,
+}: {
+  title: ReactNode;
+  subtitle?: ReactNode;
+  right?: ReactNode;
+  defaultOpen?: boolean;
+  children: ReactNode;
+}) => {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="border border-gray-200 rounded-lg overflow-hidden bg-white">
+      <div className="w-full flex items-center justify-between px-4 py-3 gap-3">
+        <button onClick={() => setOpen((o) => !o)} className="flex-1 min-w-0 flex items-center gap-2.5 text-left cursor-pointer">
+          <ChevronDown className={cn("w-4 h-4 text-gray-400 shrink-0 transition-transform", open && "rotate-180")} />
+          <div className="min-w-0">
+            <div className="font-semibold text-sm text-[#14121F] truncate">{title}</div>
+            {subtitle && <div className="text-xs text-gray-400 truncate mt-0.5">{subtitle}</div>}
+          </div>
+        </button>
+        {right && <div className="shrink-0 flex items-center gap-2">{right}</div>}
+      </div>
+      {open && <div className="px-4 pb-4 pt-1 border-t border-gray-100">{children}</div>}
+    </div>
+  );
+};
 
 export const Eyebrow = ({ children, coral = false }: { children: ReactNode; coral?: boolean }) => (
   <p className={cn("text-[11px] font-semibold uppercase tracking-wide mb-1", coral ? "text-[#DD4B4E]" : "text-gray-400")}>
