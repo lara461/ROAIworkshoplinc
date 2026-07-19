@@ -83,6 +83,17 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
+function StepHeader({ step, label }: { step: number; label: string }) {
+  return (
+    <div className="flex items-center gap-2 mb-3">
+      <span className="w-6 h-6 rounded-full roai-mark text-white text-xs font-bold flex items-center justify-center shrink-0">
+        {step}
+      </span>
+      <h2 className="text-sm font-bold text-[#14121F] uppercase tracking-wide">{label}</h2>
+    </div>
+  );
+}
+
 // ── Login ─────────────────────────────────────────────────────────────────
 function Login({ onLogin }: { onLogin: (secret: string) => void }) {
   const [secret, setSecret] = useState("");
@@ -463,26 +474,17 @@ function ParticipantsSection({
 }
 
 // ── Groups: manual creation (max 4, max 1 facilitator) + challenge setup ─
-function GroupsSection({
+function CreateGroupsSection({
   workshop,
-  adminSecret,
   participants,
-  responses,
   groups,
-  challenges,
 }: {
   workshop: Workshop;
-  adminSecret: string;
   participants: Participant[];
-  responses: SurveyResponse[];
   groups: Group[];
-  challenges: Challenge[];
 }) {
   const [groupName, setGroupName] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [generatingAll, setGeneratingAll] = useState(false);
-  const [editing, setEditing] = useState<Record<string, { title: string; description: string }>>({});
-  const [numOptions, setNumOptions] = useState(3);
 
   const assignedIds = new Set(groups.flatMap((g) => g.participantIds));
   const unassigned = participants.filter((p) => !assignedIds.has(p.id));
@@ -525,6 +527,81 @@ function GroupsSection({
       participantIds: currentIds.filter((id) => id !== participantId),
     });
   }
+
+  return (
+    <Section title="Groups (max 4, max 1 facilitator)">
+      <div className="space-y-2 bg-gray-50 border border-gray-200 rounded-md p-4">
+        <Field label="Group name" value={groupName} onChange={setGroupName} placeholder="e.g. Group 1 — Ops Leaders" />
+        <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1.5">
+          Pick up to 4 unassigned participants ({selectedIds.length}/4)
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {unassigned.map((p) => (
+            <button key={p.id} onClick={() => toggle(p.id)}
+              className={`text-xs px-3 py-1.5 rounded-md border font-medium transition-all ${
+                selectedIds.includes(p.id) ? "bg-[#DD4B4E]/10 border-[#DD4B4E] text-[#DD4B4E]" : "bg-white border-gray-200 text-gray-600 hover:border-[#DD4B4E]/40"
+              }`}>
+              {p.name}{p.role === "facilitator" ? " ★" : ""}
+            </button>
+          ))}
+          {unassigned.length === 0 && <p className="text-gray-400 text-xs">All participants are already assigned to a group.</p>}
+        </div>
+        <Btn variant="coral" onClick={createGroup} disabled={!groupName || selectedIds.length === 0}>
+          <Plus className="w-4 h-4" /> Create group
+        </Btn>
+      </div>
+
+      <div className="space-y-2">
+        {groups.map((g) => {
+          const members = g.participantIds.map((id) => participants.find((p) => p.id === id)).filter(Boolean) as Participant[];
+          return (
+            <Accordion
+              key={g.id}
+              title={g.name}
+              subtitle={`${members.length} member${members.length === 1 ? "" : "s"}`}
+              right={
+                <button onClick={(e) => { e.stopPropagation(); deleteGroup(g.id); }} className="text-gray-300 hover:text-red-500">
+                  <X className="w-4 h-4" />
+                </button>
+              }
+            >
+              <div className="flex flex-wrap gap-1.5">
+                {members.map((m) => (
+                  <span key={m.id} className="inline-flex items-center gap-1 text-xs bg-gray-50 border border-gray-200 rounded-md pl-2 pr-1 py-0.5">
+                    {m.name}{m.role === "facilitator" && <span className="text-[#DD4B4E] font-bold">★</span>}
+                    <button onClick={() => removeMember(g.id, m.id, g.participantIds)} className="text-gray-300 hover:text-red-500">
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            </Accordion>
+          );
+        })}
+        {groups.length === 0 && <p className="text-gray-400 text-sm">No groups yet — create one above.</p>}
+      </div>
+    </Section>
+  );
+}
+
+function ChallengesSection({
+  workshop,
+  adminSecret,
+  participants,
+  responses,
+  groups,
+  challenges,
+}: {
+  workshop: Workshop;
+  adminSecret: string;
+  participants: Participant[];
+  responses: SurveyResponse[];
+  groups: Group[];
+  challenges: Challenge[];
+}) {
+  const [generatingAll, setGeneratingAll] = useState(false);
+  const [editing, setEditing] = useState<Record<string, { title: string; description: string }>>({});
+  const [numOptions, setNumOptions] = useState(3);
 
   async function generateForGroup(group: Group) {
     const members = group.participantIds.map((id) => participants.find((p) => p.id === id)).filter(Boolean) as Participant[];
@@ -595,130 +672,80 @@ function GroupsSection({
 
   const groupsWithoutChallenges = groups.filter((g) => !challenges.some((c) => c.groupId === g.id)).length;
 
-  return (
-    <>
-      <Section title="Create groups (max 4 per group, max 1 facilitator per group)">
-        <div className="space-y-2 bg-gray-50 border border-gray-200 rounded-md p-4">
-          <Field label="Group name" value={groupName} onChange={setGroupName} placeholder="e.g. Group 1 — Ops Leaders" />
-          <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1.5">
-            Pick up to 4 unassigned participants ({selectedIds.length}/4)
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {unassigned.map((p) => (
-              <button key={p.id} onClick={() => toggle(p.id)}
-                className={`text-xs px-3 py-1.5 rounded-md border font-medium transition-all ${
-                  selectedIds.includes(p.id) ? "bg-[#DD4B4E]/10 border-[#DD4B4E] text-[#DD4B4E]" : "bg-white border-gray-200 text-gray-600 hover:border-[#DD4B4E]/40"
-                }`}>
-                {p.name}{p.role === "facilitator" ? " ★" : ""}
-              </button>
-            ))}
-            {unassigned.length === 0 && <p className="text-gray-400 text-xs">All participants are already assigned to a group.</p>}
-          </div>
-          <Btn variant="coral" onClick={createGroup} disabled={!groupName || selectedIds.length === 0}>
-            <Plus className="w-4 h-4" /> Create group
-          </Btn>
-        </div>
-
-        <div className="space-y-2">
-          {groups.map((g) => {
-            const members = g.participantIds.map((id) => participants.find((p) => p.id === id)).filter(Boolean) as Participant[];
-            return (
-              <Accordion
-                key={g.id}
-                title={g.name}
-                subtitle={`${members.length} member${members.length === 1 ? "" : "s"}`}
-                right={
-                  <button onClick={(e) => { e.stopPropagation(); deleteGroup(g.id); }} className="text-gray-300 hover:text-red-500">
-                    <X className="w-4 h-4" />
-                  </button>
-                }
-              >
-                <div className="flex flex-wrap gap-1.5">
-                  {members.map((m) => (
-                    <span key={m.id} className="inline-flex items-center gap-1 text-xs bg-gray-50 border border-gray-200 rounded-md pl-2 pr-1 py-0.5">
-                      {m.name}{m.role === "facilitator" && <span className="text-[#DD4B4E] font-bold">★</span>}
-                      <button onClick={() => removeMember(g.id, m.id, g.participantIds)} className="text-gray-300 hover:text-red-500">
-                        <X className="w-3 h-3" />
-                      </button>
-                    </span>
-                  ))}
-                </div>
-              </Accordion>
-            );
-          })}
-          {groups.length === 0 && <p className="text-gray-400 text-sm">No groups yet — create one above.</p>}
-        </div>
+  if (groups.length === 0) {
+    return (
+      <Section title="Challenges">
+        <p className="text-gray-400 text-sm">Create at least one group first.</p>
       </Section>
+    );
+  }
 
-      {groups.length > 0 && (
-        <Section title="Generate challenges for all groups">
-          <p className="text-sm text-gray-500">
-            One click generates challenge options for every group that doesn't have any yet, from that group's members' survey answers.
-          </p>
-          <div className="flex items-center gap-2">
-            <input type="number" min={2} max={5} value={numOptions} onChange={(e) => setNumOptions(Number(e.target.value))}
-              className="w-16 bg-white border border-gray-200 rounded-lg px-2 py-1.5 text-sm outline-none focus:border-[#DD4B4E]" />
-            <span className="text-xs text-gray-400">options per group</span>
-            <Btn variant="coral" onClick={generateAllChallenges} loading={generatingAll} disabled={groupsWithoutChallenges === 0}>
-              <Rocket className="w-4 h-4" /> Generate challenges for {groupsWithoutChallenges || "all"} group{groupsWithoutChallenges === 1 ? "" : "s"}
-            </Btn>
-          </div>
+  return (
+    <Section title="Challenges">
+      <p className="text-sm text-gray-500">
+        One click generates challenge options for every group that doesn't have any yet, from that group's members' survey answers.
+      </p>
+      <div className="flex items-center gap-2 flex-wrap">
+        <input type="number" min={2} max={5} value={numOptions} onChange={(e) => setNumOptions(Number(e.target.value))}
+          className="w-16 bg-white border border-gray-200 rounded-lg px-2 py-1.5 text-sm outline-none focus:border-[#DD4B4E]" />
+        <span className="text-xs text-gray-400">options/group</span>
+        <Btn variant="coral" onClick={generateAllChallenges} loading={generatingAll} disabled={groupsWithoutChallenges === 0}>
+          <Rocket className="w-4 h-4" /> Generate for {groupsWithoutChallenges || "all"}
+        </Btn>
+      </div>
 
-          <div className="space-y-2">
-            {groups.map((g) => {
-              const groupChallenges = challenges.filter((c) => c.groupId === g.id);
-              if (groupChallenges.length === 0) return null;
-              const selected = groupChallenges.find((c) => c.status === "selected");
-              return (
-                <Accordion
-                  key={g.id}
-                  title={g.name}
-                  subtitle={`${groupChallenges.length} option${groupChallenges.length === 1 ? "" : "s"}`}
-                  right={selected ? <Tag color="coral">{selected.title}</Tag> : <Tag>not selected</Tag>}
-                >
-                  <div className="space-y-2">
-                    {groupChallenges.map((c) => {
-                      const isEditing = !!editing[c.id];
-                      return (
-                        <div key={c.id} className={`bg-white border rounded-lg p-3 ${c.status === "selected" ? "border-[#DD4B4E]" : "border-gray-200"}`}>
-                          {isEditing ? (
-                            <div className="space-y-2">
-                              <input value={editing[c.id].title} onChange={(e) => setEditing((prev) => ({ ...prev, [c.id]: { ...prev[c.id], title: e.target.value } }))}
-                                className="w-full font-bold text-sm border border-gray-200 rounded-lg px-2 py-1 outline-none focus:border-[#DD4B4E]" />
-                              <textarea value={editing[c.id].description} rows={2}
-                                onChange={(e) => setEditing((prev) => ({ ...prev, [c.id]: { ...prev[c.id], description: e.target.value } }))}
-                                className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1 outline-none focus:border-[#DD4B4E] resize-none" />
-                              <Btn variant="coral" className="text-xs px-3 py-1.5" onClick={() => saveEdit(c)}>Save</Btn>
-                            </div>
-                          ) : (
-                            <>
-                              <div className="flex items-center justify-between">
-                                <div className="font-bold text-sm text-[#14121F]">{c.title}</div>
-                                {c.status === "selected" && <Tag color="coral">selected</Tag>}
-                              </div>
-                              <p className="text-xs text-gray-500 mt-1">{c.description}</p>
-                              <div className="flex gap-2 mt-2">
-                                {c.status !== "selected" && (
-                                  <Btn variant="coral" className="text-xs px-3 py-1.5" onClick={() => selectChallenge(g, c.id)}>Select this challenge</Btn>
-                                )}
-                                <Btn variant="outline" className="text-xs px-3 py-1.5" onClick={() => startEdit(c)}>Edit</Btn>
-                              </div>
-                            </>
-                          )}
+      <div className="space-y-2">
+        {groups.map((g) => {
+          const groupChallenges = challenges.filter((c) => c.groupId === g.id);
+          if (groupChallenges.length === 0) return null;
+          const selected = groupChallenges.find((c) => c.status === "selected");
+          return (
+            <Accordion
+              key={g.id}
+              title={g.name}
+              subtitle={`${groupChallenges.length} option${groupChallenges.length === 1 ? "" : "s"}`}
+              right={selected ? <Tag color="coral">{selected.title}</Tag> : <Tag>not selected</Tag>}
+            >
+              <div className="space-y-2">
+                {groupChallenges.map((c) => {
+                  const isEditing = !!editing[c.id];
+                  return (
+                    <div key={c.id} className={`bg-white border rounded-lg p-3 ${c.status === "selected" ? "border-[#DD4B4E]" : "border-gray-200"}`}>
+                      {isEditing ? (
+                        <div className="space-y-2">
+                          <input value={editing[c.id].title} onChange={(e) => setEditing((prev) => ({ ...prev, [c.id]: { ...prev[c.id], title: e.target.value } }))}
+                            className="w-full font-bold text-sm border border-gray-200 rounded-lg px-2 py-1 outline-none focus:border-[#DD4B4E]" />
+                          <textarea value={editing[c.id].description} rows={2}
+                            onChange={(e) => setEditing((prev) => ({ ...prev, [c.id]: { ...prev[c.id], description: e.target.value } }))}
+                            className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1 outline-none focus:border-[#DD4B4E] resize-none" />
+                          <Btn variant="coral" className="text-xs px-3 py-1.5" onClick={() => saveEdit(c)}>Save</Btn>
                         </div>
-                      );
-                    })}
-                  </div>
-                </Accordion>
-              );
-            })}
-          </div>
-        </Section>
-      )}
-    </>
+                      ) : (
+                        <>
+                          <div className="flex items-center justify-between">
+                            <div className="font-bold text-sm text-[#14121F]">{c.title}</div>
+                            {c.status === "selected" && <Tag color="coral">selected</Tag>}
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1">{c.description}</p>
+                          <div className="flex gap-2 mt-2">
+                            {c.status !== "selected" && (
+                              <Btn variant="coral" className="text-xs px-3 py-1.5" onClick={() => selectChallenge(g, c.id)}>Select this challenge</Btn>
+                            )}
+                            <Btn variant="outline" className="text-xs px-3 py-1.5" onClick={() => startEdit(c)}>Edit</Btn>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </Accordion>
+          );
+        })}
+      </div>
+    </Section>
   );
 }
-
 
 // ── Workshop tab: each group's 3-activity progress ───────────────────────
 function WorkshopTab({
@@ -1006,7 +1033,7 @@ function WorkshopDashboard({ workshop: initialWorkshop, adminSecret }: { worksho
 
       {/* Main content */}
       <main className="flex-1 min-w-0 px-8 py-8">
-        <div className="max-w-4xl">
+        <div className="max-w-6xl">
           <PageHeader
             eyebrow={`${workshop.date} · status: ${workshop.status}`}
             title={workshop.name}
@@ -1052,16 +1079,30 @@ function WorkshopDashboard({ workshop: initialWorkshop, adminSecret }: { worksho
 
           {tab === "pre" && (
             <div className="space-y-6">
-              <ImportSection workshop={workshop} />
-              <ParticipantsSection workshop={workshop} participants={participants} responses={responses} />
-              <GroupsSection
-                workshop={workshop}
-                adminSecret={adminSecret}
-                participants={participants}
-                responses={responses}
-                groups={groups}
-                challenges={challenges}
-              />
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
+                <div>
+                  <StepHeader step={1} label="Participants" />
+                  <div className="space-y-4">
+                    <ImportSection workshop={workshop} />
+                    <ParticipantsSection workshop={workshop} participants={participants} responses={responses} />
+                  </div>
+                </div>
+                <div>
+                  <StepHeader step={2} label="Groups" />
+                  <CreateGroupsSection workshop={workshop} participants={participants} groups={groups} />
+                </div>
+                <div>
+                  <StepHeader step={3} label="Challenges" />
+                  <ChallengesSection
+                    workshop={workshop}
+                    adminSecret={adminSecret}
+                    participants={participants}
+                    responses={responses}
+                    groups={groups}
+                    challenges={challenges}
+                  />
+                </div>
+              </div>
 
               <Section title="Ready?">
                 {workshop.status === "setup" ? (
