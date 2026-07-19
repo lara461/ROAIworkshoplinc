@@ -3,7 +3,7 @@ import { onSnapshot, query, setDoc, updateDoc, where } from "firebase/firestore"
 import { LogOut, Loader2 } from "lucide-react";
 import { col, docIn } from "../firebase";
 import { Btn, Card, ROAILogo, Tag } from "../ui";
-import { ACTIVITY_DURATION_SECONDS, GROUP_STEP_LABELS } from "../types";
+import { GROUP_STEP_LABELS } from "../types";
 import type {
   BoardChallenge,
   Challenge,
@@ -89,7 +89,7 @@ function Login({
         <Card className="space-y-4">
           <div className="text-center space-y-1">
             <h1 className="text-xl font-black text-[#0A0E2A]">{workshop.name}</h1>
-            <p className="text-gray-400 text-sm">Find your name to enter your profile.</p>
+            <p className="text-gray-400 text-sm">Facilitator access — find your name to enter your group.</p>
           </div>
           <div>
             <label className="block text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1.5">Your name</label>
@@ -164,29 +164,6 @@ function ChallengePicker({
         </div>
       </div>
     </div>
-  );
-}
-
-function Timer({ startedAt }: { startedAt?: string }) {
-  const [now, setNow] = useState(Date.now());
-
-  useEffect(() => {
-    const interval = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(interval);
-  }, []);
-
-  if (!startedAt) return null;
-  const elapsed = Math.floor((now - new Date(startedAt).getTime()) / 1000);
-  const remaining = ACTIVITY_DURATION_SECONDS - elapsed;
-  const timeUp = remaining <= 0;
-  const mm = Math.floor(Math.abs(remaining) / 60);
-  const ss = Math.abs(remaining) % 60;
-  const display = `${mm}:${ss.toString().padStart(2, "0")}`;
-
-  return (
-    <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${timeUp ? "bg-red-50 text-red-500" : "bg-gray-100 text-gray-500"}`}>
-      {timeUp ? `Time's up (+${display})` : `⏱ ${display}`}
-    </span>
   );
 }
 
@@ -318,9 +295,8 @@ function GroupWorkspace({
           {challenge && <p className="text-gray-500 text-sm mt-1">{challenge.description}</p>}
         </div>
         {step !== "done" && (
-          <div className="text-right space-y-1">
+          <div className="text-right">
             <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">{GROUP_STEP_LABELS[step]}</p>
-            <Timer startedAt={group.stepStartedAt} />
           </div>
         )}
       </div>
@@ -520,8 +496,9 @@ export default function ParticipantApp({ workshopId }: { workshopId: string }) {
   }
 
   if (!participant) {
-    if (participants.length === 0) return <Waiting message="Participants haven't been added yet. Check back shortly." />;
-    return <Login workshop={workshop} participants={participants} onLogin={setParticipant} />;
+    const facilitators = participants.filter((p) => p.role === "facilitator");
+    if (facilitators.length === 0) return <Waiting message="No facilitators have been assigned yet. Check back shortly." />;
+    return <Login workshop={workshop} participants={facilitators} onLogin={setParticipant} />;
   }
 
   function logOut() {

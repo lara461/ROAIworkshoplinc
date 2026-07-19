@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import AdminApp from "./components/AdminApp";
 import ParticipantApp from "./components/ParticipantApp";
 import PresentationView from "./components/PresentationView";
+import PublicGroupsView from "./components/PublicGroupsView";
 import { ROAILogo } from "./ui";
 import { initFirebase } from "./firebase";
 
@@ -18,7 +19,8 @@ function Home() {
           <a href="/admin" className="text-[#E8503A] font-bold underline">
             /admin
           </a>
-          . Participants use the single shared workshop link and pick their name once there.
+          . Assigned facilitators use their workshop link to work on their group's activities; everyone else can
+          follow along on the public groups link, shared by the admin.
         </p>
       </div>
     </div>
@@ -53,6 +55,7 @@ export default function App() {
 
   if (path === "/admin") return <AdminApp />;
   if (path.startsWith("/w/")) return <ParticipantApp workshopId={extractId(path, "/w/")} />;
+  if (path.startsWith("/groups/")) return <PublicGroupsView workshopId={extractId(path, "/groups/")} />;
   if (path.startsWith("/present/")) return <PresentationView workshopId={extractId(path, "/present/")} />;
   return <Home />;
 }

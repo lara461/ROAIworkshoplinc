@@ -849,7 +849,8 @@ function WorkshopDashboard({ workshop: initialWorkshop, adminSecret }: { worksho
     setBoards(s.docs.map((d) => ({ id: d.id, ...d.data() } as BoardChallenge)))
   ), [workshop.id]);
 
-  const workshopLink = `${window.location.origin}/w/${workshop.id}`;
+  const facilitatorLink = `${window.location.origin}/w/${workshop.id}`;
+  const publicLink = `${window.location.origin}/groups/${workshop.id}`;
 
   async function launchWorkshop() {
     await updateDoc(docIn("workshops", workshop.id), { status: "working" });
@@ -874,11 +875,18 @@ function WorkshopDashboard({ workshop: initialWorkshop, adminSecret }: { worksho
           </div>
           <div className="flex items-center gap-3">
             <div className="text-right">
-              <button onClick={() => navigator.clipboard.writeText(workshopLink)}
+              <button onClick={() => navigator.clipboard.writeText(facilitatorLink)}
                 className="text-[#E8503A] hover:text-[#d4432f] flex items-center gap-1.5 font-bold text-sm bg-[#E8503A]/5 border border-[#E8503A]/20 rounded-lg px-3 py-1.5">
-                <Copy className="w-3.5 h-3.5" /> Copy workshop link
+                <Copy className="w-3.5 h-3.5" /> Copy facilitator link
               </button>
-              <p className="text-[10px] text-gray-400 mt-1 max-w-[220px]">Same link for everyone — participants and facilitators pick their name after opening it.</p>
+              <p className="text-[10px] text-gray-400 mt-1 max-w-[220px]">Send only to assigned facilitators — they pick their name to edit their group.</p>
+            </div>
+            <div className="text-right">
+              <button onClick={() => navigator.clipboard.writeText(publicLink)}
+                className="text-[#0A0E2A] hover:text-gray-600 flex items-center gap-1.5 font-bold text-sm bg-gray-100 border border-gray-200 rounded-lg px-3 py-1.5">
+                <Copy className="w-3.5 h-3.5" /> Copy public groups link
+              </button>
+              <p className="text-[10px] text-gray-400 mt-1 max-w-[220px]">Share with everyone — no login, browse groups and live progress.</p>
             </div>
             <a href="/admin" className="text-sm text-gray-400 hover:text-[#E8503A] font-bold">← All workshops</a>
           </div>
@@ -916,8 +924,8 @@ function WorkshopDashboard({ workshop: initialWorkshop, adminSecret }: { worksho
               {workshop.status === "setup" ? (
                 <>
                   <p className="text-sm text-gray-500">
-                    Once your groups have a challenge selected, launch the workshop — this starts each group's first
-                    15-minute activity (Question 1) and switches you to the Workshop tab. From there, facilitators drive
+                    Once your groups have a challenge selected, launch the workshop — this unlocks each group's first
+                    activity (Question 1) and switches you to the Workshop tab. From there, facilitators drive
                     their own group through all 3 activities; you'll mainly need the Presentation tab at the end.
                   </p>
                   <Btn

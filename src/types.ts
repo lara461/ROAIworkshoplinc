@@ -53,8 +53,6 @@ export interface Challenge {
 
 export type GroupStep = "initial" | "board" | "actions" | "done";
 
-export const ACTIVITY_DURATION_SECONDS = 15 * 60;
-
 export const GROUP_STEP_LABELS: Record<GroupStep, string> = {
   initial: "Question 1",
   board: "C-Level Board Challenge & Revised Answer",

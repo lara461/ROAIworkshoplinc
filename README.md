@@ -35,10 +35,10 @@ npm run dev
 3. **Mark facilitators** — a fixed property of the person.
 4. **Create groups manually** — max 4 participants, **max 1 facilitator per group**.
 5. **Generate challenges for all groups at once** — one button, C-level/boardroom framing, editable after generation. Either the admin or the group's facilitator can select which option the group works on.
-6. **Launch workshop** — once at least one group has a challenge selected. This starts every group's first timed activity and switches you to the Workshop tab. From here on, each group runs itself — you generally won't need to intervene until the Presentation tab.
+6. **Launch workshop** — once at least one group has a challenge selected. This unlocks every group's first activity and switches you to the Workshop tab. From here on, each group runs itself — you generally won't need to intervene until the Presentation tab.
 
-### Workshop tab — 3 timed group activities (15 min each), driven by the facilitator
-Each group moves through this sequence on its own, with a visible 15-minute countdown per step (the countdown is informational — the facilitator advances manually with a "Submit & continue" button whenever they're ready, not forced by the clock):
+### Workshop tab — 3 group activities, driven by the facilitator
+Each group moves through this sequence on its own, at its own pace — the facilitator advances with a "Submit & continue" button whenever they're ready:
 
 1. **Question 1** — facilitator writes and submits the group's initial answer; other members see it read-only, live.
 2. **C-level board challenge + revised answer** — as soon as the group enters this step, the board challenge is generated automatically (no admin action needed): 4 simulated committee members raise objections, grounded in the ROAI F1–F6 framework:
@@ -55,16 +55,22 @@ The admin's Workshop tab is a live read-only view of every group's progress, plu
 ### Presentation tab
 Open `/present/:workshopId` on the room screen, click through groups to bring each one up (challenge, initial answer, board challenge, revised answer, and the 30/60/90 actions). "Mark workshop as closed" when done.
 
-## Participant access
-**One shared link per workshop** (`/w/:workshopId`) for everyone — participants and facilitators alike. On landing, pick your name from a list and confirm with your email (matched against the imported record, or saved on first entry if none was on file). The session is remembered on that device; a **Log out** button lets someone switch profiles on a shared device.
+## Access — two separate links
+
+**Facilitator link** (`/w/:workshopId`) — send only to people assigned as facilitators. On landing, they pick their name from a list of facilitators (only) and confirm with their email, then land directly in their group's editable workspace (the 3-activity stepper). Session is remembered on that device; a **Log out** button switches profiles on a shared device.
+
+**Public groups link** (`/groups/:workshopId`) — share with everyone else. No login. Shows every group's name and members; tapping a group opens a read-only, live view of that group's challenge, initial answer, board challenge, revised answer, and 30/60/90 actions — it updates the moment the facilitator saves or resubmits a step.
+
+Both links are shown (and copyable) at the top of the admin dashboard once a workshop is open.
 
 ## Structure
 ```
 server.ts                          — Backend Express + Claude API endpoints
-src/App.tsx                        — Path-based router (/admin, /w/:workshopId, /present/:id)
+src/App.tsx                        — Path-based router (/admin, /w/:workshopId, /groups/:workshopId, /present/:id)
 src/components/AdminApp.tsx         — Pre-workshop / Workshop / Presentation tabs
-src/components/ParticipantApp.tsx   — Login, challenge picker, timed 3-activity group stepper
-src/components/PresentationView.tsx — Public plenary/big-screen view
+src/components/ParticipantApp.tsx   — Facilitator-only login, challenge picker, 3-activity group stepper
+src/components/PublicGroupsView.tsx — Public, no-login: browse groups and their live progress
+src/components/PresentationView.tsx — Admin-driven single-screen plenary view
 src/firebase.ts                     — Lazy Firestore init (fow_* collections)
 src/types.ts                        — Shared types, step labels, timer duration
 src/csvImport.ts                    — CSV/XLSX parsing (tolerant of export preamble rows)
