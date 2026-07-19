@@ -38,7 +38,7 @@ import { cn } from "../utils";
 import { downloadTemplate, parseParticipantsFile } from "../csvImport";
 import { extractPdfText } from "../pdfExtract";
 import type { ImportedRow } from "../csvImport";
-import { Accordion, Btn, Card, FacilitatorBadge, Field, Modal, PageHeader, ROAILogo, StepTabs, Tag, TextArea } from "../ui";
+import { Accordion, Btn, Card, FacilitatorBadge, Field, Modal, PageHeader, ROAILogo, StepTabs, Tag, TabIntro, TextArea } from "../ui";
 import { PRESENTATION_SECTIONS } from "../types";
 import type {
   BoardChallenge,
@@ -208,7 +208,7 @@ function WorkshopPicker({ adminSecret, onSelect }: { adminSecret: string; onSele
           </Card>
         )}
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {workshops.map((w) => (
             <div
               key={w.id}
@@ -298,59 +298,57 @@ function KnowledgeBaseTab({ workshop, docs }: { workshop: Workshop; docs: Knowle
   const totalChars = docs.reduce((sum, d) => sum + d.content.length, 0);
 
   return (
-    <div className="space-y-4">
-      <Section title="Knowledge base">
-        <p className="text-sm text-gray-500">
-          Upload or paste the material this workshop is actually about — slides notes, briefs, prior reports, anything
-          specific to it. Both the generated challenges and the C-level board's feedback will be grounded in this
-          instead of generic AI content.
-        </p>
+    <div>
+      <TabIntro>
+        Upload or paste the material this workshop is actually about — slides notes, briefs, prior reports, anything
+        specific to it. Both the generated challenges and the C-level board's feedback will be grounded in this
+        instead of generic AI content.
+      </TabIntro>
 
-        <div className="space-y-2 bg-gray-50 border border-gray-200 rounded-md p-4">
-          <div className="flex items-center gap-2">
-            <label className="inline-flex items-center gap-2 font-semibold text-sm rounded-lg px-4 py-2 bg-white border border-gray-200 hover:border-[#DD4B4E] cursor-pointer text-[#14121F]">
-              {extracting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-              {extracting ? "Reading PDF..." : "Upload .pdf / .txt / .md file"}
-              <input
-                ref={fileInput}
-                type="file"
-                accept=".pdf,.txt,.md"
-                className="hidden"
-                disabled={extracting}
-                onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
-              />
-            </label>
-            <span className="text-xs text-gray-400">— or just paste text below</span>
-          </div>
-          <Field label="Document name" value={name} onChange={setName} placeholder="e.g. Workshop brief, Q3 strategy notes" />
-          <TextArea label="Content" value={content} onChange={setContent} rows={8} placeholder="Paste the material here..." />
-          <Btn variant="coral" onClick={addDoc_} disabled={!name.trim() || !content.trim()}>
-            <Plus className="w-4 h-4" /> Add document
-          </Btn>
+      <div className="space-y-2 bg-gray-50 border border-gray-200 rounded-md p-4">
+        <div className="flex items-center gap-2 flex-wrap">
+          <label className="inline-flex items-center gap-2 font-semibold text-sm rounded-lg px-4 py-2 bg-white border border-gray-200 hover:border-[#DD4B4E] cursor-pointer text-[#14121F]">
+            {extracting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+            {extracting ? "Reading PDF..." : "Upload .pdf / .txt / .md file"}
+            <input
+              ref={fileInput}
+              type="file"
+              accept=".pdf,.txt,.md"
+              className="hidden"
+              disabled={extracting}
+              onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
+            />
+          </label>
+          <span className="text-xs text-gray-400">— or just paste text below</span>
         </div>
+        <Field label="Document name" value={name} onChange={setName} placeholder="e.g. Workshop brief, Q3 strategy notes" />
+        <TextArea label="Content" value={content} onChange={setContent} rows={8} placeholder="Paste the material here..." />
+        <Btn variant="coral" onClick={addDoc_} disabled={!name.trim() || !content.trim()}>
+          <Plus className="w-4 h-4" /> Add document
+        </Btn>
+      </div>
 
-        {docs.length > 0 && (
-          <p className="text-xs text-gray-400">{docs.length} document{docs.length === 1 ? "" : "s"} · {totalChars.toLocaleString()} characters total</p>
-        )}
+      {docs.length > 0 && (
+        <p className="text-xs text-gray-400 mt-4">{docs.length} document{docs.length === 1 ? "" : "s"} · {totalChars.toLocaleString()} characters total</p>
+      )}
 
-        <div className="space-y-2">
-          {docs.map((d) => (
-            <Accordion
-              key={d.id}
-              title={d.name}
-              subtitle={`${d.content.length.toLocaleString()} characters`}
-              right={
-                <button onClick={(e) => { e.stopPropagation(); removeDoc(d.id); }} className="text-gray-300 hover:text-red-500">
-                  <X className="w-4 h-4" />
-                </button>
-              }
-            >
-              <p className="text-xs text-gray-500 whitespace-pre-wrap max-h-48 overflow-y-auto">{d.content}</p>
-            </Accordion>
-          ))}
-          {docs.length === 0 && <p className="text-gray-400 text-sm">No reference material yet — this is optional, but the challenges and board feedback will be more specific to your workshop with it.</p>}
-        </div>
-      </Section>
+      <div className="space-y-2 mt-2">
+        {docs.map((d) => (
+          <Accordion
+            key={d.id}
+            title={d.name}
+            subtitle={`${d.content.length.toLocaleString()} characters`}
+            right={
+              <button onClick={(e) => { e.stopPropagation(); removeDoc(d.id); }} className="text-gray-300 hover:text-red-500">
+                <X className="w-4 h-4" />
+              </button>
+            }
+          >
+            <p className="text-xs text-gray-500 whitespace-pre-wrap max-h-48 overflow-y-auto">{d.content}</p>
+          </Accordion>
+        ))}
+        {docs.length === 0 && <p className="text-gray-400 text-sm">No reference material yet — this is optional, but the challenges and board feedback will be more specific to your workshop with it.</p>}
+      </div>
     </div>
   );
 }
@@ -686,7 +684,7 @@ function CreateGroupsSection({
         </div>
       }
     >
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {groups.map((g) => {
           const members = g.participantIds.map((id) => participants.find((p) => p.id === id)).filter(Boolean) as Participant[];
           return (
@@ -1019,7 +1017,7 @@ function WorkshopTab({
       <Section title="Workshop">
         <p className="text-sm text-gray-500">
           The workshop hasn't launched yet. Use the <span className="font-semibold text-[#DD4B4E]">Launch workshop</span> button
-          in Pre-workshop (next to the step tabs) once your groups have challenge options generated — facilitators pick
+          in Setup Groups and Challenges (next to the step tabs) once your groups have challenge options generated — facilitators pick
           theirs as their first step, right after you launch.
         </p>
       </Section>
@@ -1029,7 +1027,7 @@ function WorkshopTab({
   if (groups.length === 0) {
     return (
       <Section title="Workshop">
-        <p className="text-gray-400 text-sm">No groups yet — set them up in Pre-workshop.</p>
+        <p className="text-gray-400 text-sm">No groups yet — set them up in Setup Groups and Challenges.</p>
       </Section>
     );
   }
@@ -1041,7 +1039,7 @@ function WorkshopTab({
 
   return (
     <div>
-      <p className="text-xs text-gray-400 mb-4">Every group, at a glance. Tap a group to see what it's done so far.</p>
+      <TabIntro>Every group, at a glance. Tap a group to see what it's done so far.</TabIntro>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {WORKSHOP_COLUMNS.map((col) => {
@@ -1193,12 +1191,12 @@ function PresentationTab({ workshop, groups }: { workshop: Workshop; groups: Gro
   const activeSections = workshop.presentationSections || [];
 
   return (
-    <Section title="Plenary presentation">
-      <p className="text-sm text-gray-500">
+    <div className="space-y-6">
+      <TabIntro>
         Open <a href={`/present/${workshop.id}`} target="_blank" className="text-[#DD4B4E] font-bold underline">/present/{workshop.id}</a>{" "}
         on the room screen. Pick which group is presenting, then reveal only the part(s) they're actually talking about —
         no group ever covers everything, so show just what's relevant as they go.
-      </p>
+      </TabIntro>
 
       <div>
         <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1.5">Who's presenting</p>
@@ -1245,7 +1243,7 @@ function PresentationTab({ workshop, groups }: { workshop: Workshop; groups: Gro
           </div>
         </div>
       )}
-    </Section>
+    </div>
   );
 }
 
@@ -1348,6 +1346,10 @@ function ReportTab({
 
   return (
     <div>
+      <TabIntro>
+        Generate a report for each group once their work is done, edit any field by hand if it needs a tweak, and mark
+        the workshop as closed when everyone's finished.
+      </TabIntro>
       <StepTabs
         steps={groups.map((g) => ({ key: g.id, label: g.name }))}
         active={activeGroupId || groups[0].id}
@@ -1461,6 +1463,7 @@ function WorkshopDashboard({ workshop: initialWorkshop, adminSecret, onBackToLis
   const presentationLink = `${window.location.origin}/present/${workshop.id}`;
 
   const [editingDetails, setEditingDetails] = useState(false);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [editName, setEditName] = useState(workshop.name);
   const [editDescription, setEditDescription] = useState(workshop.description || "");
   const [editDate, setEditDate] = useState(workshop.date);
@@ -1505,7 +1508,7 @@ function WorkshopDashboard({ workshop: initialWorkshop, adminSecret, onBackToLis
 
   const navItems = [
     { key: "knowledge" as const, label: "Knowledge Base", icon: BookOpen },
-    { key: "pre" as const, label: "Pre-workshop", icon: ClipboardList },
+    { key: "pre" as const, label: "Setup Groups and Challenges", icon: ClipboardList },
     { key: "workshop" as const, label: "Workshop", icon: PlayCircle },
     { key: "presentation" as const, label: "Presentation", icon: PresentationIcon },
     { key: "report" as const, label: "Report", icon: FileBarChart },
@@ -1513,8 +1516,16 @@ function WorkshopDashboard({ workshop: initialWorkshop, adminSecret, onBackToLis
 
   return (
     <div className="min-h-screen bg-white flex">
-      {/* Sidebar */}
-      <aside className="w-60 shrink-0 border-r border-gray-200 flex flex-col h-screen sticky top-0">
+      {/* Mobile top bar — logo + back to workshop list (sidebar is desktop-only) */}
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-40 bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
+        <ROAILogo size="sm" />
+        <button onClick={onBackToList} className="text-xs font-semibold text-gray-500 hover:text-[#14121F]">
+          ← All workshops
+        </button>
+      </div>
+
+      {/* Sidebar — desktop only */}
+      <aside className="hidden lg:flex w-60 shrink-0 border-r border-gray-200 flex-col h-screen sticky top-0">
         <div className="p-5 border-b border-gray-200">
           <ROAILogo size="sm" />
         </div>
@@ -1544,30 +1555,86 @@ function WorkshopDashboard({ workshop: initialWorkshop, adminSecret, onBackToLis
         </div>
       </aside>
 
+      {/* Bottom tab bar — mobile only */}
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-gray-200 flex items-stretch">
+        {navItems.map((item) => {
+          const Icon = item.icon;
+          const active = tab === item.key;
+          const shortLabels: Record<string, string> = {
+            "Setup Groups and Challenges": "Setup",
+            "Presentation": "Present",
+          };
+          return (
+            <button
+              key={item.key}
+              onClick={() => setTab(item.key)}
+              className={cn(
+                "flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-semibold transition-colors",
+                active ? "text-[#DD4B4E]" : "text-gray-400"
+              )}
+            >
+              <Icon className="w-5 h-5" />
+              {shortLabels[item.label] || item.label}
+            </button>
+          );
+        })}
+      </nav>
+
       {/* Main content */}
-      <main className="flex-1 min-w-0 px-8 py-8">
+      <main className="flex-1 min-w-0 px-4 py-4 pt-20 pb-24 lg:px-8 lg:py-8 lg:pt-8 lg:pb-8">
         <div className="max-w-6xl">
           <PageHeader
             eyebrow={`${workshop.date} · status: ${workshop.status}`}
             title={workshop.name}
             right={
-              <div className="flex items-center gap-2 flex-wrap justify-end">
-                <button onClick={openEditDetails}
-                  className="text-gray-500 hover:bg-gray-50 flex items-center gap-1.5 font-semibold text-xs bg-white border border-gray-200 rounded-lg px-3 py-1.5">
-                  <Pencil className="w-3.5 h-3.5" /> Edit workshop details
-                </button>
-                <button onClick={() => navigator.clipboard.writeText(facilitatorLink)}
-                  className="text-[#DD4B4E] hover:bg-[#DD4B4E]/5 flex items-center gap-1.5 font-semibold text-xs bg-white border border-[#DD4B4E]/20 rounded-lg px-3 py-1.5">
-                  <Copy className="w-3.5 h-3.5" /> Facilitator link
-                </button>
-                <button onClick={() => navigator.clipboard.writeText(publicLink)}
-                  className="text-[#14121F] hover:bg-gray-50 flex items-center gap-1.5 font-semibold text-xs bg-white border border-gray-200 rounded-lg px-3 py-1.5">
-                  <Copy className="w-3.5 h-3.5" /> Public groups link
-                </button>
-                <button onClick={() => navigator.clipboard.writeText(presentationLink)}
-                  className="text-[#14121F] hover:bg-gray-50 flex items-center gap-1.5 font-semibold text-xs bg-white border border-gray-200 rounded-lg px-3 py-1.5">
-                  <Copy className="w-3.5 h-3.5" /> Presentation link
-                </button>
+              <div className="relative">
+                {/* Desktop — unchanged */}
+                <div className="hidden lg:flex items-center gap-2 flex-wrap justify-end">
+                  <button onClick={openEditDetails}
+                    className="text-gray-500 hover:bg-gray-50 flex items-center gap-1.5 font-semibold text-xs bg-white border border-gray-200 rounded-lg px-3 py-1.5">
+                    <Pencil className="w-3.5 h-3.5" /> Edit workshop details
+                  </button>
+                  <button onClick={() => navigator.clipboard.writeText(facilitatorLink)}
+                    className="text-[#DD4B4E] hover:bg-[#DD4B4E]/5 flex items-center gap-1.5 font-semibold text-xs bg-white border border-[#DD4B4E]/20 rounded-lg px-3 py-1.5">
+                    <Copy className="w-3.5 h-3.5" /> Facilitator link
+                  </button>
+                  <button onClick={() => navigator.clipboard.writeText(publicLink)}
+                    className="text-[#14121F] hover:bg-gray-50 flex items-center gap-1.5 font-semibold text-xs bg-white border border-gray-200 rounded-lg px-3 py-1.5">
+                    <Copy className="w-3.5 h-3.5" /> Public groups link
+                  </button>
+                  <button onClick={() => navigator.clipboard.writeText(presentationLink)}
+                    className="text-[#14121F] hover:bg-gray-50 flex items-center gap-1.5 font-semibold text-xs bg-white border border-gray-200 rounded-lg px-3 py-1.5">
+                    <Copy className="w-3.5 h-3.5" /> Presentation link
+                  </button>
+                </div>
+
+                {/* Mobile — single "⋯" trigger with a dropdown */}
+                <div className="lg:hidden">
+                  <button onClick={() => setShowMobileMenu((v) => !v)}
+                    className="text-gray-500 bg-white border border-gray-200 rounded-lg px-3 py-1.5 font-bold">
+                    ⋯
+                  </button>
+                  {showMobileMenu && (
+                    <div className="absolute right-0 mt-1 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-30 overflow-hidden">
+                      <button onClick={() => { openEditDetails(); setShowMobileMenu(false); }}
+                        className="w-full text-left px-3 py-2.5 text-sm text-gray-600 hover:bg-gray-50 flex items-center gap-2">
+                        <Pencil className="w-3.5 h-3.5" /> Edit workshop details
+                      </button>
+                      <button onClick={() => { navigator.clipboard.writeText(facilitatorLink); setShowMobileMenu(false); }}
+                        className="w-full text-left px-3 py-2.5 text-sm text-[#DD4B4E] hover:bg-gray-50 flex items-center gap-2">
+                        <Copy className="w-3.5 h-3.5" /> Facilitator link
+                      </button>
+                      <button onClick={() => { navigator.clipboard.writeText(publicLink); setShowMobileMenu(false); }}
+                        className="w-full text-left px-3 py-2.5 text-sm text-gray-600 hover:bg-gray-50 flex items-center gap-2">
+                        <Copy className="w-3.5 h-3.5" /> Public groups link
+                      </button>
+                      <button onClick={() => { navigator.clipboard.writeText(presentationLink); setShowMobileMenu(false); }}
+                        className="w-full text-left px-3 py-2.5 text-sm text-gray-600 hover:bg-gray-50 flex items-center gap-2">
+                        <Copy className="w-3.5 h-3.5" /> Presentation link
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             }
           />
@@ -1598,6 +1665,10 @@ function WorkshopDashboard({ workshop: initialWorkshop, adminSecret, onBackToLis
 
           {tab === "pre" && (
             <div className="space-y-6">
+              <TabIntro>
+                Import your participants, form their groups, then generate and pick the boardroom-level challenge each
+                group will work on.
+              </TabIntro>
               <StepTabs
                 steps={[
                   { key: "participants", label: "Participants" },

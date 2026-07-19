@@ -38,3 +38,14 @@
 
 ::-webkit-scrollbar { width: 8px; }
 ::-webkit-scrollbar-thumb { background: #D9D9D9; border-radius: 8px; }
+
+/* Hides the scrollbar on horizontally-scrollable rows (e.g. tab bars on
+   narrow screens) while keeping them scrollable — the scroll affordance
+   itself (partially visible next item) is enough of a hint. */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}

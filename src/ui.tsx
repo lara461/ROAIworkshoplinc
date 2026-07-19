@@ -121,7 +121,7 @@ export const Tag = ({
 );
 
 export const Card = ({ children, className = "" }: { children: ReactNode; className?: string }) => (
-  <div className={cn("bg-white rounded-xl border border-gray-200 p-6", className)}>{children}</div>
+  <div className={cn("bg-white rounded-xl border border-gray-200 p-4 sm:p-6", className)}>{children}</div>
 );
 
 // Small, consistent marker for "this person is the facilitator" — used
@@ -151,7 +151,7 @@ export const StepTabs = ({
   right?: ReactNode;
 }) => (
   <div className="flex items-center justify-between gap-4 border-b border-gray-200 mb-6">
-    <div className="flex gap-6">
+    <div className="flex gap-6 overflow-x-auto no-scrollbar">
       {steps.map((s, i) => {
         const isActive = s.key === active;
         return (
@@ -161,7 +161,7 @@ export const StepTabs = ({
             disabled={s.locked}
             title={s.locked ? s.lockedReason : undefined}
             className={cn(
-              "pb-3 -mb-px text-sm font-semibold border-b-2 transition-colors flex items-center gap-1.5",
+              "pb-3 -mb-px text-sm font-semibold border-b-2 transition-colors flex items-center gap-1.5 shrink-0 whitespace-nowrap",
               isActive
                 ? "border-[#DD4B4E] text-[#14121F]"
                 : s.locked
@@ -193,7 +193,7 @@ export const Modal = ({
 }) => (
   <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50" onClick={onClose}>
     <div
-      className="bg-white rounded-xl border border-gray-200 max-w-3xl w-full max-h-[90vh] overflow-y-auto p-8"
+      className="bg-white rounded-xl border border-gray-200 max-w-3xl w-full max-h-[90vh] overflow-y-auto p-4 sm:p-8"
       onClick={(e) => e.stopPropagation()}
     >
       {title && (
@@ -242,6 +242,13 @@ export const Accordion = ({
     </div>
   );
 };
+
+// Consistent one-line (or short paragraph) explanation shown at the top of
+// every admin tab, right below the tab bar — describes what the tab is for
+// and what to do, without repeating the tab's own title.
+export const TabIntro = ({ children }: { children: ReactNode }) => (
+  <p className="text-sm text-gray-500 mb-6 max-w-2xl">{children}</p>
+);
 
 export const Eyebrow = ({ children, coral = false }: { children: ReactNode; coral?: boolean }) => (
   <p className={cn("text-[11px] font-semibold uppercase tracking-wide mb-1", coral ? "text-[#DD4B4E]" : "text-gray-400")}>
