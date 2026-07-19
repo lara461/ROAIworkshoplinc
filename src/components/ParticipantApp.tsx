@@ -515,15 +515,15 @@ export default function ParticipantApp({ workshopId }: { workshopId: string }) {
   const groupChallenges = challenges.filter((c) => c.groupId === myGroup.id);
   const isFacilitator = participant.role === "facilitator";
 
+  if (workshop.status === "setup") {
+    return <Waiting message="The workshop hasn't started yet. Sit tight — you'll pick your challenge once it launches." />;
+  }
+
   if (!myGroup.challengeId) {
     if (groupChallenges.length === 0) {
       return <Waiting message="Your challenge options are being prepared. Sit tight." />;
     }
     return <ChallengePicker group={myGroup} challenges={groupChallenges} canSelect={isFacilitator} />;
-  }
-
-  if (workshop.status === "setup") {
-    return <Waiting message="Your challenge is set — the workshop hasn't started yet. Sit tight." />;
   }
 
   const challenge = groupChallenges.find((c) => c.id === myGroup.challengeId);

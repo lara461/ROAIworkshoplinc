@@ -1,4 +1,4 @@
-import { ChevronDown, Loader2, Star } from "lucide-react";
+import { ChevronDown, Loader2, Star, X } from "lucide-react";
 import { useState } from "react";
 import type { ReactNode } from "react";
 import { cn } from "./utils";
@@ -143,34 +143,69 @@ export const StepTabs = ({
   steps,
   active,
   onChange,
+  right,
 }: {
   steps: { key: string; label: string; locked?: boolean; lockedReason?: string }[];
   active: string;
   onChange: (key: string) => void;
+  right?: ReactNode;
 }) => (
-  <div className="flex gap-6 border-b border-gray-200 mb-6">
-    {steps.map((s, i) => {
-      const isActive = s.key === active;
-      return (
-        <button
-          key={s.key}
-          onClick={() => !s.locked && onChange(s.key)}
-          disabled={s.locked}
-          title={s.locked ? s.lockedReason : undefined}
-          className={cn(
-            "pb-3 -mb-px text-sm font-semibold border-b-2 transition-colors flex items-center gap-1.5",
-            isActive
-              ? "border-[#DD4B4E] text-[#14121F]"
-              : s.locked
-              ? "border-transparent text-gray-300 cursor-not-allowed"
-              : "border-transparent text-gray-400 hover:text-gray-600 cursor-pointer"
-          )}
-        >
-          <span className="text-xs text-gray-400">{i + 1}.</span>
-          {s.label}
-        </button>
-      );
-    })}
+  <div className="flex items-center justify-between gap-4 border-b border-gray-200 mb-6">
+    <div className="flex gap-6">
+      {steps.map((s, i) => {
+        const isActive = s.key === active;
+        return (
+          <button
+            key={s.key}
+            onClick={() => !s.locked && onChange(s.key)}
+            disabled={s.locked}
+            title={s.locked ? s.lockedReason : undefined}
+            className={cn(
+              "pb-3 -mb-px text-sm font-semibold border-b-2 transition-colors flex items-center gap-1.5",
+              isActive
+                ? "border-[#DD4B4E] text-[#14121F]"
+                : s.locked
+                ? "border-transparent text-gray-300 cursor-not-allowed"
+                : "border-transparent text-gray-400 hover:text-gray-600 cursor-pointer"
+            )}
+          >
+            <span className="text-xs text-gray-400">{i + 1}.</span>
+            {s.label}
+          </button>
+        );
+      })}
+    </div>
+    {right && <div className="pb-2 shrink-0">{right}</div>}
+  </div>
+);
+
+// Simple centered overlay for drill-into-detail views (e.g. a group's
+// progress) that should keep the board/list behind visible in context
+// rather than navigating away from it.
+export const Modal = ({
+  title,
+  onClose,
+  children,
+}: {
+  title?: ReactNode;
+  onClose: () => void;
+  children: ReactNode;
+}) => (
+  <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50" onClick={onClose}>
+    <div
+      className="bg-white rounded-xl border border-gray-200 max-w-lg w-full max-h-[85vh] overflow-y-auto p-6"
+      onClick={(e) => e.stopPropagation()}
+    >
+      {title && (
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-base font-bold text-[#14121F]">{title}</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 shrink-0">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+      {children}
+    </div>
   </div>
 );
 

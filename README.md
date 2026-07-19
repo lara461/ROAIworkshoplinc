@@ -35,12 +35,12 @@ npm run dev
 3. **Mark facilitators** — a fixed property of the person.
 4. **Create groups manually** — max 7 participants (facilitator included), **max 1 facilitator per group**. Groups can be edited after creation — add or remove members any time before launch.
 5. **Generate challenges for all groups at once** — one button, C-level/boardroom framing, editable after generation. Picking which option a group works on is the **facilitator's call, on their own link** — the admin can edit wording but doesn't select for them.
-6. **Launch workshop** — a button in the top-right of the header, next to the link-copy buttons, enabled once at least one group has a facilitator-picked challenge. This unlocks every group's first activity and switches you to the Workshop tab. From here on, each group runs itself — you generally won't need to intervene until the Presentation tab.
+6. **Launch workshop** — a button sitting right on the Participants / Groups / Challenges tab row (not up in the header, next to utility actions like Edit/copy-link — it's the primary next step for this workflow, so it lives with it). Enabled once at least one group has challenge *options* generated (picking one is the facilitator's job, and it's the first thing they do once the workshop is live — not a precondition for launching). This unlocks every group's first activity (starting with picking their challenge) and switches you to the Workshop tab. From here on, each group runs itself — you generally won't need to intervene until the Presentation tab.
 
 ### Workshop tab — 3 group activities, driven by the facilitator
 Each group moves through this sequence on its own, at its own pace — the facilitator advances with a "Submit & continue" button whenever they're ready:
 
-1. **Question 1** — facilitator writes and submits the group's initial answer; other members see it read-only, live.
+1. **Pick the challenge** — right after launch, the facilitator picks which of the generated options their group works on (on their own link). Then **Question 1** — facilitator writes and submits the group's initial answer; other members see it read-only, live.
 2. **C-level board challenge + revised answer** — as soon as the group enters this step, the board challenge is generated automatically (no admin action needed): 4 simulated committee members raise objections, grounded in the ROAI F1–F6 framework:
    - **Board Committee Member** (strategy, growth, competitive positioning)
    - **Finance Committee Member** (cost, ROI, budget discipline)
@@ -50,7 +50,7 @@ Each group moves through this sequence on its own, at its own pace — the facil
    The facilitator then writes and submits a revised answer in response.
 3. **30 / 60 / 90-day actions** — immediately after the revised answer, still a group activity written by the facilitator: three fields — what the organization will do in the next 30 days (immediate moves), 60 days (needs some planning/buy-in), and 90 days (structural/strategic change). Submitting marks the group as done.
 
-The admin's Workshop tab is a live read-only view of every group's progress, plus a manual "regenerate board challenge" fallback button in case the automatic one needs a redo.
+The admin's Workshop tab is a live 3-column board (Question 1 / Board & revised answer / 30/60/90 actions) — every group appears as a card in whichever column matches its current activity, so you can see at a glance who's ahead and who's behind. Tap a group's card to open a popup with everything it's done so far, plus a manual "regenerate board challenge" fallback button in case the automatic one needs a redo.
 
 ### Presentation tab
 Open `/present/:workshopId` on the room screen, click through groups to bring each one up (challenge, initial answer, board challenge, revised answer, and the 30/60/90 actions). "Mark workshop as closed" when done.

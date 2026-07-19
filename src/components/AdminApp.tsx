@@ -31,8 +31,7 @@ import { col, docIn } from "../firebase";
 import { cn } from "../utils";
 import { downloadTemplate, parseParticipantsFile } from "../csvImport";
 import type { ImportedRow } from "../csvImport";
-import { Accordion, Btn, Card, FacilitatorBadge, Field, PageHeader, ROAILogo, StepTabs, Tag, TextArea } from "../ui";
-import { GROUP_STEP_LABELS } from "../types";
+import { Accordion, Btn, Card, FacilitatorBadge, Field, Modal, PageHeader, ROAILogo, StepTabs, Tag, TextArea } from "../ui";
 import type {
   BoardChallenge,
   Challenge,
@@ -829,44 +828,33 @@ function ChallengesSection({
 }
 
 // ── Workshop tab: each group's 3-activity progress ───────────────────────
+const WORKSHOP_COLUMNS: { step: "initial" | "board" | "actions"; label: string }[] = [
+  { step: "initial", label: "Question 1" },
+  { step: "board", label: "Board & revised answer" },
+  { step: "actions", label: "30/60/90 actions" },
+];
+
+function columnForGroup(step: Group["currentStep"]): "initial" | "board" | "actions" {
+  if (step === "board") return "board";
+  if (step === "actions" || step === "done") return "actions";
+  return "initial";
+}
+
 function WorkshopTab({
   workshop,
-  participants,
   groups,
   challenges,
   solutions,
   boards,
 }: {
   workshop: Workshop;
-  participants: Participant[];
   groups: Group[];
   challenges: Challenge[];
   solutions: GroupSolution[];
   boards: BoardChallenge[];
 }) {
   const [regenerating, setRegenerating] = useState<string | null>(null);
-  const [activeGroupId, setActiveGroupId] = useState<string | null>(groups[0]?.id ?? null);
-  const [activeSubStep, setActiveSubStep] = useState<"initial" | "board" | "actions">("initial");
-
-  useEffect(() => {
-    if (!activeGroupId && groups.length > 0) setActiveGroupId(groups[0].id);
-  }, [groups, activeGroupId]);
-
-  const activeGroup = groups.find((g) => g.id === activeGroupId) || groups[0];
-
-  // How far this group has actually progressed, so we can lock sub-steps
-  // that haven't happened yet and default to wherever the group currently is.
-  function reachedIndex(step: Group["currentStep"]) {
-    if (step === "board") return 1;
-    if (step === "actions" || step === "done") return 2;
-    return 0;
-  }
-
-  useEffect(() => {
-    if (!activeGroup) return;
-    const idx = reachedIndex(activeGroup.currentStep);
-    setActiveSubStep(idx === 0 ? "initial" : idx === 1 ? "board" : "actions");
-  }, [activeGroup?.id]);
+  const [openGroupId, setOpenGroupId] = useState<string | null>(null);
 
   async function regenerateBoard(group: Group, challenge: Challenge | undefined, solution: GroupSolution | undefined) {
     if (!challenge || !solution?.initialSolution) return alert("This group hasn't submitted an initial answer yet.");
@@ -901,13 +889,14 @@ function WorkshopTab({
       <Section title="Workshop">
         <p className="text-sm text-gray-500">
           The workshop hasn't launched yet. Use the <span className="font-semibold text-[#DD4B4E]">Launch workshop</span> button
-          at the top of the page once your groups have a challenge picked.
+          in Pre-workshop (next to the step tabs) once your groups have challenge options generated — facilitators pick
+          theirs as their first step, right after you launch.
         </p>
       </Section>
     );
   }
 
-  if (groups.length === 0 || !activeGroup) {
+  if (groups.length === 0) {
     return (
       <Section title="Workshop">
         <p className="text-gray-400 text-sm">No groups yet — set them up in Pre-workshop.</p>
@@ -915,119 +904,119 @@ function WorkshopTab({
     );
   }
 
-  const challenge = challenges.find((c) => c.id === activeGroup.challengeId);
-  const sol = solutions.find((s) => s.groupId === activeGroup.id);
-  const board = boards.find((b) => b.groupId === activeGroup.id);
-  const reached = reachedIndex(activeGroup.currentStep);
+  const openGroup = groups.find((g) => g.id === openGroupId);
+  const openChallenge = openGroup ? challenges.find((c) => c.id === openGroup.challengeId) : undefined;
+  const openSolution = openGroup ? solutions.find((s) => s.groupId === openGroup.id) : undefined;
+  const openBoard = openGroup ? boards.find((b) => b.groupId === openGroup.id) : undefined;
 
   return (
     <div>
-      <StepTabs
-        steps={groups.map((g) => ({ key: g.id, label: g.name }))}
-        active={activeGroup.id}
-        onChange={setActiveGroupId}
-      />
+      <p className="text-xs text-gray-400 mb-4">Every group, at a glance. Tap a group to see what it's done so far.</p>
 
-      <Section
-        title={
-          <div className="flex items-center justify-between">
-            <span>{activeGroup.name}</span>
-            <Tag color={activeGroup.currentStep === "done" ? "green" : "coral"}>
-              {GROUP_STEP_LABELS[activeGroup.currentStep || "initial"]}
-            </Tag>
-          </div>
-        }
-      >
-        {!challenge ? (
-          <p className="text-sm text-gray-400">No challenge selected yet — waiting on the facilitator.</p>
-        ) : (
-          <>
-            <p className="text-sm text-gray-500 mb-4">{challenge.title}</p>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {WORKSHOP_COLUMNS.map((col) => {
+          const colGroups = groups.filter((g) => columnForGroup(g.currentStep) === col.step);
+          return (
+            <div key={col.step}>
+              <div className="flex items-center justify-between mb-2 px-1">
+                <p className="text-xs font-bold uppercase tracking-wide text-gray-500">{col.label}</p>
+                <span className="text-xs text-gray-400">{colGroups.length}</span>
+              </div>
+              <div className="space-y-2">
+                {colGroups.map((g) => {
+                  const sol = solutions.find((s) => s.groupId === g.id);
+                  const done = g.currentStep === "done";
+                  let caption = "In progress";
+                  if (col.step === "initial") caption = "Writing initial answer";
+                  else if (col.step === "board") caption = sol?.revisedSubmitted ? "Revised — moving on" : boards.some((b) => b.groupId === g.id) ? "Responding to the board" : "Board challenge generating";
+                  else if (col.step === "actions") caption = done ? "Complete" : "Writing 30/60/90 actions";
+                  return (
+                    <button
+                      key={g.id}
+                      onClick={() => setOpenGroupId(g.id)}
+                      className="w-full text-left bg-white border border-gray-200 hover:border-[#DD4B4E]/40 rounded-lg p-3 transition-colors"
+                    >
+                      <div className="font-bold text-sm text-[#14121F]">{g.name}</div>
+                      <div className="flex items-center gap-1.5 mt-1">
+                        {done && <Tag color="green">done</Tag>}
+                        <span className="text-xs text-gray-400">{caption}</span>
+                      </div>
+                    </button>
+                  );
+                })}
+                {colGroups.length === 0 && <p className="text-xs text-gray-300 px-1">No groups here.</p>}
+              </div>
+            </div>
+          );
+        })}
+      </div>
 
-            <StepTabs
-              steps={[
-                { key: "initial", label: "Question 1" },
-                { key: "board", label: "Board & revised answer", locked: reached < 1 },
-                { key: "actions", label: "30/60/90 actions", locked: reached < 2 },
-              ]}
-              active={activeSubStep}
-              onChange={(k) => setActiveSubStep(k as typeof activeSubStep)}
-            />
+      {openGroup && (
+        <Modal title={openGroup.name} onClose={() => setOpenGroupId(null)}>
+          {!openChallenge ? (
+            <p className="text-sm text-gray-400">No challenge selected yet — waiting on the facilitator.</p>
+          ) : (
+            <div className="space-y-4">
+              <p className="text-sm text-gray-500">{openChallenge.title}</p>
 
-            {activeSubStep === "initial" && (
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">What they've done</p>
-                  {sol?.initialSubmitted && <Tag color="green">submitted</Tag>}
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Initial answer</p>
+                  {openSolution?.initialSubmitted && <Tag color="green">submitted</Tag>}
                 </div>
-                <p className="text-sm text-gray-600 whitespace-pre-wrap">{sol?.initialSolution || "Not submitted yet."}</p>
-                {!sol?.initialSubmitted && (
-                  <p className="text-xs text-gray-400 mt-2">Still to do: the facilitator writes and submits the group's initial answer.</p>
-                )}
+                <p className="text-sm text-gray-600 whitespace-pre-wrap">{openSolution?.initialSolution || "Not submitted yet."}</p>
               </div>
-            )}
 
-            {activeSubStep === "board" && (
-              <div className="space-y-4">
-                {board ? (
-                  <div className="grid sm:grid-cols-2 gap-2">
-                    {board.personaChallenges.map((pc, i) => (
-                      <div key={i} className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs">
-                        <div className="text-[#DD4B4E] font-bold uppercase tracking-widest text-[10px] mb-1">{pc.role}</div>
-                        <div className="text-[#14121F]">{pc.objection}</div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-gray-400">The board challenge hasn't been generated yet.</p>
-                )}
+              {openBoard && (
+                <div className="grid sm:grid-cols-2 gap-2">
+                  {openBoard.personaChallenges.map((pc, i) => (
+                    <div key={i} className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs">
+                      <div className="text-[#DD4B4E] font-bold uppercase tracking-widest text-[10px] mb-1">{pc.role}</div>
+                      <div className="text-[#14121F]">{pc.objection}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
 
-                <Btn variant="outline" onClick={() => regenerateBoard(activeGroup, challenge, sol)} loading={regenerating === activeGroup.id}>
-                  <RefreshCw className="w-3.5 h-3.5" /> {board ? "Regenerate" : "Generate"} board challenge
+              {openSolution?.initialSubmitted && (
+                <Btn variant="outline" onClick={() => regenerateBoard(openGroup, openChallenge, openSolution)} loading={regenerating === openGroup.id}>
+                  <RefreshCw className="w-3.5 h-3.5" /> {openBoard ? "Regenerate" : "Generate"} board challenge
                 </Btn>
+              )}
 
+              {openBoard && (
                 <div>
                   <div className="flex items-center justify-between mb-1">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">What they've done — revised answer</p>
-                    {sol?.revisedSubmitted && <Tag color="green">submitted</Tag>}
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Revised answer</p>
+                    {openSolution?.revisedSubmitted && <Tag color="green">submitted</Tag>}
                   </div>
-                  <p className="text-sm text-gray-600 whitespace-pre-wrap">{sol?.revisedSolution || "Not submitted yet."}</p>
-                  {board && !sol?.revisedSubmitted && (
-                    <p className="text-xs text-gray-400 mt-2">Still to do: the facilitator responds to the board and submits a revised answer.</p>
-                  )}
+                  <p className="text-sm text-gray-600 whitespace-pre-wrap">{openSolution?.revisedSolution || "Not submitted yet."}</p>
                 </div>
-              </div>
-            )}
+              )}
 
-            {activeSubStep === "actions" && (
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">What they've done</p>
-                  {sol?.actionsSubmitted && <Tag color="green">submitted</Tag>}
-                </div>
-                {sol?.actionsSubmitted ? (
+              {openSolution?.actionsSubmitted && (
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2">30 / 60 / 90-day actions</p>
                   <div className="grid sm:grid-cols-3 gap-2">
                     <div>
                       <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">30 days</p>
-                      <p className="text-xs text-gray-600 whitespace-pre-wrap">{sol.action30}</p>
+                      <p className="text-xs text-gray-600 whitespace-pre-wrap">{openSolution.action30}</p>
                     </div>
                     <div>
                       <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">60 days</p>
-                      <p className="text-xs text-gray-600 whitespace-pre-wrap">{sol.action60}</p>
+                      <p className="text-xs text-gray-600 whitespace-pre-wrap">{openSolution.action60}</p>
                     </div>
                     <div>
                       <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">90 days</p>
-                      <p className="text-xs text-gray-600 whitespace-pre-wrap">{sol.action90}</p>
+                      <p className="text-xs text-gray-600 whitespace-pre-wrap">{openSolution.action90}</p>
                     </div>
                   </div>
-                ) : (
-                  <p className="text-sm text-gray-400">Still to do: the facilitator writes and submits the 30/60/90-day actions.</p>
-                )}
-              </div>
-            )}
-          </>
-        )}
-      </Section>
+                </div>
+              )}
+            </div>
+          )}
+        </Modal>
+      )}
     </div>
   );
 }
@@ -1204,18 +1193,6 @@ function WorkshopDashboard({ workshop: initialWorkshop, adminSecret }: { worksho
                   className="text-[#14121F] hover:bg-gray-50 flex items-center gap-1.5 font-semibold text-xs bg-white border border-gray-200 rounded-lg px-3 py-1.5">
                   <Copy className="w-3.5 h-3.5" /> Public groups link
                 </button>
-                {workshop.status === "setup" && (
-                  <span title={!groups.some((g) => g.challengeId) ? "At least one group needs a facilitator-picked challenge first." : undefined}>
-                    <Btn
-                      variant="coral"
-                      onClick={launchWorkshop}
-                      disabled={!groups.some((g) => g.challengeId)}
-                      className="text-xs px-3 py-1.5"
-                    >
-                      <PlayCircle className="w-3.5 h-3.5" /> Launch workshop
-                    </Btn>
-                  </span>
-                )}
               </div>
             }
           />
@@ -1262,6 +1239,20 @@ function WorkshopDashboard({ workshop: initialWorkshop, adminSecret }: { worksho
                 ]}
                 active={preStep}
                 onChange={(k) => setPreStep(k as typeof preStep)}
+                right={
+                  workshop.status === "setup" ? (
+                    <span title={!groups.some((g) => challenges.some((c) => c.groupId === g.id)) ? "At least one group needs its challenge options generated first." : undefined}>
+                      <Btn
+                        variant="coral"
+                        onClick={launchWorkshop}
+                        disabled={!groups.some((g) => challenges.some((c) => c.groupId === g.id))}
+                        className="text-xs px-3 py-1.5"
+                      >
+                        <PlayCircle className="w-3.5 h-3.5" /> Launch workshop
+                      </Btn>
+                    </span>
+                  ) : undefined
+                }
               />
 
               {preStep === "participants" && (
@@ -1284,8 +1275,9 @@ function WorkshopDashboard({ workshop: initialWorkshop, adminSecret }: { worksho
                   />
                   {workshop.status === "setup" && (
                     <p className="text-xs text-gray-400">
-                      Once a facilitator has picked a challenge for their group, use the{" "}
-                      <span className="font-semibold text-[#DD4B4E]">Launch workshop</span> button at the top of the page.
+                      Once you've generated challenge options for your groups, use the{" "}
+                      <span className="font-semibold text-[#DD4B4E]">Launch workshop</span> button next to the tabs above —
+                      facilitators will pick theirs as the first thing they do once it's live.
                     </p>
                   )}
                 </>
@@ -1296,7 +1288,6 @@ function WorkshopDashboard({ workshop: initialWorkshop, adminSecret }: { worksho
           {tab === "workshop" && (
             <WorkshopTab
               workshop={workshop}
-              participants={participants}
               groups={groups}
               challenges={challenges}
               solutions={solutions}
