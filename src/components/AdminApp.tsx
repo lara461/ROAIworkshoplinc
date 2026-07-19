@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import {
   addDoc,
   deleteDoc,
+  getDocs,
   onSnapshot,
   query,
   setDoc,
@@ -21,6 +22,7 @@ import {
   Presentation as PresentationIcon,
   RefreshCw,
   Rocket,
+  Trash2,
   Upload,
   Users,
   X,
@@ -49,6 +51,27 @@ async function api(path: string, adminSecret: string, body?: any) {
   });
   if (!res.ok) throw new Error((await res.json()).error || "Request failed");
   return res.json();
+}
+
+// Deletes a workshop and every document across collections that references
+// it (participants, survey responses, groups, challenges, solutions, board
+// challenges) so nothing orphaned is left behind in Firestore.
+async function deleteWorkshopCascade(workshopId: string) {
+  const collectionsToClean = [
+    col.participants,
+    col.surveyResponses,
+    col.groups,
+    col.challenges,
+    col.groupSolutions,
+    col.boardChallenges,
+  ];
+  for (const collectionRef of collectionsToClean) {
+    const snap = await getDocs(query(collectionRef, where("workshopId", "==", workshopId)));
+    for (const d of snap.docs) {
+      await deleteDoc(d.ref);
+    }
+  }
+  await deleteDoc(docIn("workshops", workshopId));
 }
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
@@ -113,6 +136,7 @@ function WorkshopPicker({ adminSecret, onSelect }: { adminSecret: string; onSele
   const [description, setDescription] = useState("");
   const [date, setDate] = useState("");
   const [showCreate, setShowCreate] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     return onSnapshot(col.workshops, (snap) => {
@@ -134,6 +158,16 @@ function WorkshopPicker({ adminSecret, onSelect }: { adminSecret: string; onSele
       presentationGroupId: null,
     });
     onSelect({ id: ref.id, name, description, date, adminSecret, createdAt: new Date().toISOString(), status: "setup" });
+  }
+
+  async function deleteWorkshop(w: Workshop) {
+    if (!confirm(`Delete "${w.name}"? This removes all its participants, groups, and answers. This can't be undone.`)) return;
+    setDeletingId(w.id);
+    try {
+      await deleteWorkshopCascade(w.id);
+    } finally {
+      setDeletingId(null);
+    }
   }
 
   return (
@@ -167,19 +201,26 @@ function WorkshopPicker({ adminSecret, onSelect }: { adminSecret: string; onSele
 
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           {workshops.map((w) => (
-            <button
+            <div
               key={w.id}
               onClick={() => onSelect(w)}
-              className="aspect-square bg-white hover:bg-gray-50 border border-gray-200 hover:border-gray-300 rounded-lg p-4 flex flex-col justify-between text-left transition-colors"
+              className="relative aspect-square bg-white hover:bg-gray-50 border border-gray-200 hover:border-gray-300 rounded-lg p-4 flex flex-col justify-between text-left transition-colors cursor-pointer group"
             >
+              <button
+                onClick={(e) => { e.stopPropagation(); deleteWorkshop(w); }}
+                disabled={deletingId === w.id}
+                className="absolute top-2 right-2 p-1.5 rounded-md text-gray-300 opacity-0 group-hover:opacity-100 hover:bg-red-50 hover:text-red-500 transition-all"
+              >
+                {deletingId === w.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+              </button>
               <div>
-                <div className="font-bold text-[#14121F] text-sm leading-snug line-clamp-3">{w.name}</div>
+                <div className="font-bold text-[#14121F] text-sm leading-snug line-clamp-3 pr-5">{w.name}</div>
               </div>
               <div>
                 <Tag color={w.status === "closed" ? "green" : "coral"}>{w.status}</Tag>
                 <div className="text-xs text-gray-400 mt-1.5">{w.date}</div>
               </div>
-            </button>
+            </div>
           ))}
           <button
             onClick={() => setShowCreate(true)}
@@ -902,6 +943,19 @@ function WorkshopDashboard({ workshop: initialWorkshop, adminSecret }: { worksho
     setEditingDetails(false);
   }
 
+  const [deletingWorkshop, setDeletingWorkshop] = useState(false);
+
+  async function deleteThisWorkshop() {
+    if (!confirm(`Delete "${workshop.name}"? This removes all its participants, groups, and answers. This can't be undone.`)) return;
+    setDeletingWorkshop(true);
+    try {
+      await deleteWorkshopCascade(workshop.id);
+      window.location.href = "/admin";
+    } finally {
+      setDeletingWorkshop(false);
+    }
+  }
+
   async function launchWorkshop() {
     await updateDoc(docIn("workshops", workshop.id), { status: "working" });
     const now = new Date().toISOString();
@@ -987,7 +1041,12 @@ function WorkshopDashboard({ workshop: initialWorkshop, adminSecret }: { worksho
                 <input type="date" value={editDate} onChange={(e) => setEditDate(e.target.value)}
                   className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#DD4B4E]" />
               </div>
-              <Btn variant="coral" onClick={saveDetails} disabled={!editName || !editDate}>Save changes</Btn>
+              <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+                <Btn variant="coral" onClick={saveDetails} disabled={!editName || !editDate}>Save changes</Btn>
+                <Btn variant="danger" onClick={deleteThisWorkshop} loading={deletingWorkshop}>
+                  <Trash2 className="w-3.5 h-3.5" /> Delete workshop
+                </Btn>
+              </div>
             </Card>
           )}
 
