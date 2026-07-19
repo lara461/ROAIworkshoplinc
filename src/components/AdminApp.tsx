@@ -542,6 +542,16 @@ function CreateGroupsSection({
   }
 
   const activeGroup = groups.find((g) => g.id === activeGroupId);
+  const [editGroupName, setEditGroupName] = useState("");
+
+  useEffect(() => {
+    setEditGroupName(activeGroup?.name || "");
+  }, [activeGroup?.id]);
+
+  async function saveGroupName() {
+    if (!activeGroup || !editGroupName.trim() || editGroupName === activeGroup.name) return;
+    await updateDoc(docIn("groups", activeGroup.id), { name: editGroupName.trim() });
+  }
 
   return (
     <Section
@@ -606,9 +616,15 @@ function CreateGroupsSection({
 
       {activeGroup && (
         <div className="bg-gray-50 border border-gray-200 rounded-md p-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="font-bold text-[#14121F] text-sm">{activeGroup.name}</div>
-            <button onClick={() => deleteGroup(activeGroup.id)} className="text-gray-400 hover:text-red-500 text-xs font-semibold flex items-center gap-1">
+          <div className="flex items-center justify-between gap-2">
+            <input
+              value={editGroupName}
+              onChange={(e) => setEditGroupName(e.target.value)}
+              onBlur={saveGroupName}
+              onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
+              className="font-bold text-sm text-[#14121F] bg-transparent border-b border-transparent hover:border-gray-300 focus:border-[#DD4B4E] outline-none px-0.5 py-0.5 flex-1 min-w-0"
+            />
+            <button onClick={() => deleteGroup(activeGroup.id)} className="text-gray-400 hover:text-red-500 text-xs font-semibold flex items-center gap-1 shrink-0">
               <Trash2 className="w-3.5 h-3.5" /> Delete group
             </button>
           </div>
@@ -721,14 +737,6 @@ function ChallengesSection({
     }
   }
 
-  async function selectChallenge(group: Group, challengeId: string) {
-    const groupChallenges = challenges.filter((c) => c.groupId === group.id);
-    for (const c of groupChallenges) {
-      await updateDoc(docIn("challenges", c.id), { status: c.id === challengeId ? "selected" : "option" });
-    }
-    await updateDoc(docIn("groups", group.id), { challengeId });
-  }
-
   function startEdit(c: Challenge) {
     setEditing((prev) => ({ ...prev, [c.id]: { title: c.title, description: c.description } }));
   }
@@ -758,6 +766,8 @@ function ChallengesSection({
     <Section title="Challenges">
       <p className="text-sm text-gray-500">
         One click generates challenge options for every group that doesn't have any yet, from that group's members' survey answers.
+        You can edit the wording here, but <strong>picking which one the group works on happens on the facilitator's own link</strong> —
+        not here, since it's their group's call.
       </p>
       <div className="flex items-center gap-2 flex-wrap">
         <input type="number" min={2} max={5} value={numOptions} onChange={(e) => setNumOptions(Number(e.target.value))}
@@ -778,7 +788,7 @@ function ChallengesSection({
               key={g.id}
               title={g.name}
               subtitle={`${groupChallenges.length} option${groupChallenges.length === 1 ? "" : "s"}`}
-              right={selected ? <Tag color="coral">{selected.title}</Tag> : <Tag>not selected</Tag>}
+              right={selected ? <Tag color="coral">{selected.title}</Tag> : <Tag>awaiting facilitator's pick</Tag>}
             >
               <div className="space-y-2">
                 {groupChallenges.map((c) => {
@@ -802,9 +812,6 @@ function ChallengesSection({
                           </div>
                           <p className="text-xs text-gray-500 mt-1">{c.description}</p>
                           <div className="flex gap-2 mt-2">
-                            {c.status !== "selected" && (
-                              <Btn variant="coral" className="text-xs px-3 py-1.5" onClick={() => selectChallenge(g, c.id)}>Select this challenge</Btn>
-                            )}
                             <Btn variant="outline" className="text-xs px-3 py-1.5" onClick={() => startEdit(c)}>Edit</Btn>
                           </div>
                         </>
@@ -822,39 +829,6 @@ function ChallengesSection({
 }
 
 // ── Workshop tab: each group's 3-activity progress ───────────────────────
-// ── Shared "launch the workshop" block — used in Pre-workshop > Challenges,
-// and again in the Workshop tab (as an error state) if launch happens late.
-function ReadySection({
-  groups,
-  onLaunch,
-  severity = "hint",
-}: {
-  groups: Group[];
-  onLaunch: () => void;
-  severity?: "hint" | "error";
-}) {
-  const canLaunch = groups.length > 0 && groups.some((g) => g.challengeId);
-  return (
-    <Section title="Ready?">
-      <p className="text-sm text-gray-500">
-        Once your groups have a challenge selected, launch the workshop — this unlocks each group's first
-        activity (Question 1) and switches you to the Workshop tab. From there, facilitators drive
-        their own group through all 3 activities; you'll mainly need the Presentation tab at the end.
-      </p>
-      <Btn variant="coral" onClick={onLaunch} disabled={!canLaunch}>
-        Launch workshop
-      </Btn>
-      {!canLaunch && (
-        <p className={severity === "error" ? "text-sm text-red-600 font-semibold" : "text-xs text-gray-400"}>
-          {groups.length === 0
-            ? "You need at least one group before you can launch."
-            : "At least one group needs a selected challenge before you can launch — see the Challenges step in Pre-workshop."}
-        </p>
-      )}
-    </Section>
-  );
-}
-
 function WorkshopTab({
   workshop,
   participants,
@@ -862,7 +836,6 @@ function WorkshopTab({
   challenges,
   solutions,
   boards,
-  onLaunch,
 }: {
   workshop: Workshop;
   participants: Participant[];
@@ -870,14 +843,30 @@ function WorkshopTab({
   challenges: Challenge[];
   solutions: GroupSolution[];
   boards: BoardChallenge[];
-  onLaunch: () => void;
 }) {
   const [regenerating, setRegenerating] = useState<string | null>(null);
   const [activeGroupId, setActiveGroupId] = useState<string | null>(groups[0]?.id ?? null);
+  const [activeSubStep, setActiveSubStep] = useState<"initial" | "board" | "actions">("initial");
 
   useEffect(() => {
     if (!activeGroupId && groups.length > 0) setActiveGroupId(groups[0].id);
   }, [groups, activeGroupId]);
+
+  const activeGroup = groups.find((g) => g.id === activeGroupId) || groups[0];
+
+  // How far this group has actually progressed, so we can lock sub-steps
+  // that haven't happened yet and default to wherever the group currently is.
+  function reachedIndex(step: Group["currentStep"]) {
+    if (step === "board") return 1;
+    if (step === "actions" || step === "done") return 2;
+    return 0;
+  }
+
+  useEffect(() => {
+    if (!activeGroup) return;
+    const idx = reachedIndex(activeGroup.currentStep);
+    setActiveSubStep(idx === 0 ? "initial" : idx === 1 ? "board" : "actions");
+  }, [activeGroup?.id]);
 
   async function regenerateBoard(group: Group, challenge: Challenge | undefined, solution: GroupSolution | undefined) {
     if (!challenge || !solution?.initialSolution) return alert("This group hasn't submitted an initial answer yet.");
@@ -908,10 +897,17 @@ function WorkshopTab({
   }
 
   if (workshop.status === "setup") {
-    return <ReadySection groups={groups} onLaunch={onLaunch} severity="error" />;
+    return (
+      <Section title="Workshop">
+        <p className="text-sm text-gray-500">
+          The workshop hasn't launched yet. Use the <span className="font-semibold text-[#DD4B4E]">Launch workshop</span> button
+          at the top of the page once your groups have a challenge picked.
+        </p>
+      </Section>
+    );
   }
 
-  if (groups.length === 0) {
+  if (groups.length === 0 || !activeGroup) {
     return (
       <Section title="Workshop">
         <p className="text-gray-400 text-sm">No groups yet — set them up in Pre-workshop.</p>
@@ -919,10 +915,10 @@ function WorkshopTab({
     );
   }
 
-  const activeGroup = groups.find((g) => g.id === activeGroupId) || groups[0];
   const challenge = challenges.find((c) => c.id === activeGroup.challengeId);
   const sol = solutions.find((s) => s.groupId === activeGroup.id);
   const board = boards.find((b) => b.groupId === activeGroup.id);
+  const reached = reachedIndex(activeGroup.currentStep);
 
   return (
     <div>
@@ -943,63 +939,93 @@ function WorkshopTab({
         }
       >
         {!challenge ? (
-          <p className="text-sm text-gray-400">No challenge selected yet (see Pre-workshop tab).</p>
+          <p className="text-sm text-gray-400">No challenge selected yet — waiting on the facilitator.</p>
         ) : (
-          <div className="space-y-4">
-            <p className="text-sm text-gray-500">{challenge.title}</p>
+          <>
+            <p className="text-sm text-gray-500 mb-4">{challenge.title}</p>
 
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Initial answer</p>
-                {sol?.initialSubmitted && <Tag color="green">submitted</Tag>}
-              </div>
-              <p className="text-sm text-gray-600 whitespace-pre-wrap">{sol?.initialSolution || "Not submitted yet."}</p>
-            </div>
+            <StepTabs
+              steps={[
+                { key: "initial", label: "Question 1" },
+                { key: "board", label: "Board & revised answer", locked: reached < 1 },
+                { key: "actions", label: "30/60/90 actions", locked: reached < 2 },
+              ]}
+              active={activeSubStep}
+              onChange={(k) => setActiveSubStep(k as typeof activeSubStep)}
+            />
 
-            {board && (
-              <div className="grid sm:grid-cols-2 gap-2">
-                {board.personaChallenges.map((pc, i) => (
-                  <div key={i} className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs">
-                    <div className="text-[#DD4B4E] font-bold uppercase tracking-widest text-[10px] mb-1">{pc.role}</div>
-                    <div className="text-[#14121F]">{pc.objection}</div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {(activeGroup.currentStep === "board" || activeGroup.currentStep === "actions" || activeGroup.currentStep === "done") && sol?.initialSubmitted && (
-              <Btn variant="outline" onClick={() => regenerateBoard(activeGroup, challenge, sol)} loading={regenerating === activeGroup.id}>
-                <RefreshCw className="w-3.5 h-3.5" /> {board ? "Regenerate" : "Generate"} board challenge
-              </Btn>
-            )}
-
-            {board && (
+            {activeSubStep === "initial" && (
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Revised answer</p>
-                  {sol?.revisedSubmitted && <Tag color="green">submitted</Tag>}
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">What they've done</p>
+                  {sol?.initialSubmitted && <Tag color="green">submitted</Tag>}
                 </div>
-                <p className="text-sm text-gray-600 whitespace-pre-wrap">{sol?.revisedSolution || "Not submitted yet."}</p>
+                <p className="text-sm text-gray-600 whitespace-pre-wrap">{sol?.initialSolution || "Not submitted yet."}</p>
+                {!sol?.initialSubmitted && (
+                  <p className="text-xs text-gray-400 mt-2">Still to do: the facilitator writes and submits the group's initial answer.</p>
+                )}
               </div>
             )}
 
-            {sol?.actionsSubmitted && (
-              <div className="grid sm:grid-cols-3 gap-2 pt-2 border-t border-gray-200">
+            {activeSubStep === "board" && (
+              <div className="space-y-4">
+                {board ? (
+                  <div className="grid sm:grid-cols-2 gap-2">
+                    {board.personaChallenges.map((pc, i) => (
+                      <div key={i} className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs">
+                        <div className="text-[#DD4B4E] font-bold uppercase tracking-widest text-[10px] mb-1">{pc.role}</div>
+                        <div className="text-[#14121F]">{pc.objection}</div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-400">The board challenge hasn't been generated yet.</p>
+                )}
+
+                <Btn variant="outline" onClick={() => regenerateBoard(activeGroup, challenge, sol)} loading={regenerating === activeGroup.id}>
+                  <RefreshCw className="w-3.5 h-3.5" /> {board ? "Regenerate" : "Generate"} board challenge
+                </Btn>
+
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">30 days</p>
-                  <p className="text-xs text-gray-600 whitespace-pre-wrap">{sol.action30}</p>
-                </div>
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">60 days</p>
-                  <p className="text-xs text-gray-600 whitespace-pre-wrap">{sol.action60}</p>
-                </div>
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">90 days</p>
-                  <p className="text-xs text-gray-600 whitespace-pre-wrap">{sol.action90}</p>
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">What they've done — revised answer</p>
+                    {sol?.revisedSubmitted && <Tag color="green">submitted</Tag>}
+                  </div>
+                  <p className="text-sm text-gray-600 whitespace-pre-wrap">{sol?.revisedSolution || "Not submitted yet."}</p>
+                  {board && !sol?.revisedSubmitted && (
+                    <p className="text-xs text-gray-400 mt-2">Still to do: the facilitator responds to the board and submits a revised answer.</p>
+                  )}
                 </div>
               </div>
             )}
-          </div>
+
+            {activeSubStep === "actions" && (
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">What they've done</p>
+                  {sol?.actionsSubmitted && <Tag color="green">submitted</Tag>}
+                </div>
+                {sol?.actionsSubmitted ? (
+                  <div className="grid sm:grid-cols-3 gap-2">
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">30 days</p>
+                      <p className="text-xs text-gray-600 whitespace-pre-wrap">{sol.action30}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">60 days</p>
+                      <p className="text-xs text-gray-600 whitespace-pre-wrap">{sol.action60}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">90 days</p>
+                      <p className="text-xs text-gray-600 whitespace-pre-wrap">{sol.action90}</p>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-400">Still to do: the facilitator writes and submits the 30/60/90-day actions.</p>
+                )}
+              </div>
+            )}
+          </>
         )}
       </Section>
     </div>
@@ -1178,6 +1204,18 @@ function WorkshopDashboard({ workshop: initialWorkshop, adminSecret }: { worksho
                   className="text-[#14121F] hover:bg-gray-50 flex items-center gap-1.5 font-semibold text-xs bg-white border border-gray-200 rounded-lg px-3 py-1.5">
                   <Copy className="w-3.5 h-3.5" /> Public groups link
                 </button>
+                {workshop.status === "setup" && (
+                  <span title={!groups.some((g) => g.challengeId) ? "At least one group needs a facilitator-picked challenge first." : undefined}>
+                    <Btn
+                      variant="coral"
+                      onClick={launchWorkshop}
+                      disabled={!groups.some((g) => g.challengeId)}
+                      className="text-xs px-3 py-1.5"
+                    >
+                      <PlayCircle className="w-3.5 h-3.5" /> Launch workshop
+                    </Btn>
+                  </span>
+                )}
               </div>
             }
           />
@@ -1244,7 +1282,12 @@ function WorkshopDashboard({ workshop: initialWorkshop, adminSecret }: { worksho
                     groups={groups}
                     challenges={challenges}
                   />
-                  {workshop.status === "setup" && <ReadySection groups={groups} onLaunch={launchWorkshop} />}
+                  {workshop.status === "setup" && (
+                    <p className="text-xs text-gray-400">
+                      Once a facilitator has picked a challenge for their group, use the{" "}
+                      <span className="font-semibold text-[#DD4B4E]">Launch workshop</span> button at the top of the page.
+                    </p>
+                  )}
                 </>
               )}
             </div>
@@ -1258,7 +1301,6 @@ function WorkshopDashboard({ workshop: initialWorkshop, adminSecret }: { worksho
               challenges={challenges}
               solutions={solutions}
               boards={boards}
-              onLaunch={launchWorkshop}
             />
           )}
 

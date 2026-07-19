@@ -34,8 +34,8 @@ npm run dev
 2. **See each participant's survey answers** inline (expand "survey" next to their name).
 3. **Mark facilitators** — a fixed property of the person.
 4. **Create groups manually** — max 7 participants (facilitator included), **max 1 facilitator per group**. Groups can be edited after creation — add or remove members any time before launch.
-5. **Generate challenges for all groups at once** — one button, C-level/boardroom framing, editable after generation. Either the admin or the group's facilitator can select which option the group works on.
-6. **Launch workshop** — once at least one group has a challenge selected. This unlocks every group's first activity and switches you to the Workshop tab. From here on, each group runs itself — you generally won't need to intervene until the Presentation tab.
+5. **Generate challenges for all groups at once** — one button, C-level/boardroom framing, editable after generation. Picking which option a group works on is the **facilitator's call, on their own link** — the admin can edit wording but doesn't select for them.
+6. **Launch workshop** — a button in the top-right of the header, next to the link-copy buttons, enabled once at least one group has a facilitator-picked challenge. This unlocks every group's first activity and switches you to the Workshop tab. From here on, each group runs itself — you generally won't need to intervene until the Presentation tab.
 
 ### Workshop tab — 3 group activities, driven by the facilitator
 Each group moves through this sequence on its own, at its own pace — the facilitator advances with a "Submit & continue" button whenever they're ready:
