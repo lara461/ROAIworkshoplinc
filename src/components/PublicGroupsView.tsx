@@ -3,14 +3,14 @@ import { onSnapshot, query, where } from "firebase/firestore";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { col, docIn } from "../firebase";
 import { GROUP_STEP_LABELS } from "../types";
-import { Card, ROAILogo, Tag } from "../ui";
+import { Card, GradientHero, ROAILogo, Tag } from "../ui";
 import type { BoardChallenge, Challenge, Group, GroupSolution, Participant, Workshop } from "../types";
 
 function Waiting({ message }: { message: string }) {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#F4F6FB] px-6">
+    <div className="min-h-screen flex items-center justify-center bg-[#F7F5FB] px-6">
       <div className="max-w-md text-center space-y-4">
-        <Loader2 className="animate-spin w-6 h-6 mx-auto text-[#E8503A]" />
+        <Loader2 className="animate-spin w-6 h-6 mx-auto text-[#FF6B4A]" />
         <p className="text-gray-500">{message}</p>
       </div>
     </div>
@@ -34,12 +34,12 @@ function GroupDetail({
 }) {
   return (
     <div className="max-w-2xl mx-auto space-y-6 py-10 px-4">
-      <button onClick={onBack} className="text-[#E8503A] font-bold text-sm inline-flex items-center gap-1.5">
+      <button onClick={onBack} className="text-[#FF6B4A] font-bold text-sm inline-flex items-center gap-1.5">
         <ArrowLeft className="w-4 h-4" /> All groups
       </button>
 
       <div>
-        <h1 className="text-2xl font-black text-[#0A0E2A]">{group.name}</h1>
+        <h1 className="text-2xl font-black text-[#140F2D]">{group.name}</h1>
         <p className="text-gray-400 text-sm">{members.map((m) => m.name + (m.role === "facilitator" ? " ★" : "")).join(" · ")}</p>
         <div className="mt-2">
           <Tag color={group.currentStep === "done" ? "green" : "coral"}>{GROUP_STEP_LABELS[group.currentStep || "initial"]}</Tag>
@@ -50,8 +50,8 @@ function GroupDetail({
 
       {challenge && (
         <Card>
-          <p className="text-[10px] font-bold uppercase tracking-widest text-[#E8503A] mb-1">Challenge</p>
-          <p className="font-bold text-[#0A0E2A]">{challenge.title}</p>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-[#FF6B4A] mb-1">Challenge</p>
+          <p className="font-bold text-[#140F2D]">{challenge.title}</p>
           <p className="text-sm text-gray-500 mt-1">{challenge.description}</p>
         </Card>
       )}
@@ -62,17 +62,17 @@ function GroupDetail({
             <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Initial answer</p>
             {solution.initialSubmitted && <Tag color="green">submitted</Tag>}
           </div>
-          <p className="text-sm text-[#0A0E2A] whitespace-pre-wrap">{solution.initialSolution}</p>
+          <p className="text-sm text-[#140F2D] whitespace-pre-wrap">{solution.initialSolution}</p>
         </Card>
       )}
 
       {board && (
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-widest text-[#E8503A] mb-2">The C-level board's challenge</p>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-[#FF6B4A] mb-2">The C-level board's challenge</p>
           <div className="grid sm:grid-cols-2 gap-2">
             {board.personaChallenges.map((pc, i) => (
-              <div key={i} className="bg-[#0A0E2A] rounded-xl p-3 text-sm">
-                <div className="text-[#E8503A] font-bold text-xs uppercase tracking-widest mb-1">{pc.role}</div>
+              <div key={i} className="bg-[#140F2D] rounded-xl p-3 text-sm">
+                <div className="text-[#FF6B4A] font-bold text-xs uppercase tracking-widest mb-1">{pc.role}</div>
                 <div className="text-white/90">{pc.objection}</div>
               </div>
             ))}
@@ -86,7 +86,7 @@ function GroupDetail({
             <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Revised answer</p>
             {solution.revisedSubmitted && <Tag color="green">submitted</Tag>}
           </div>
-          <p className="text-sm text-[#0A0E2A] whitespace-pre-wrap">{solution.revisedSolution}</p>
+          <p className="text-sm text-[#140F2D] whitespace-pre-wrap">{solution.revisedSolution}</p>
         </Card>
       )}
 
@@ -94,9 +94,9 @@ function GroupDetail({
         <Card>
           <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2">30 / 60 / 90-day actions</p>
           <div className="grid sm:grid-cols-3 gap-3 text-sm">
-            <div><p className="text-[10px] font-bold uppercase tracking-widest text-[#E8503A] mb-1">30 days</p><p className="text-gray-600 whitespace-pre-wrap">{solution.action30}</p></div>
-            <div><p className="text-[10px] font-bold uppercase tracking-widest text-[#E8503A] mb-1">60 days</p><p className="text-gray-600 whitespace-pre-wrap">{solution.action60}</p></div>
-            <div><p className="text-[10px] font-bold uppercase tracking-widest text-[#E8503A] mb-1">90 days</p><p className="text-gray-600 whitespace-pre-wrap">{solution.action90}</p></div>
+            <div><p className="text-[10px] font-bold uppercase tracking-widest text-[#FF6B4A] mb-1">30 days</p><p className="text-gray-600 whitespace-pre-wrap">{solution.action30}</p></div>
+            <div><p className="text-[10px] font-bold uppercase tracking-widest text-[#FF6B4A] mb-1">60 days</p><p className="text-gray-600 whitespace-pre-wrap">{solution.action60}</p></div>
+            <div><p className="text-[10px] font-bold uppercase tracking-widest text-[#FF6B4A] mb-1">90 days</p><p className="text-gray-600 whitespace-pre-wrap">{solution.action90}</p></div>
           </div>
         </Card>
       )}
@@ -137,7 +137,7 @@ export default function PublicGroupsView({ workshopId }: { workshopId: string })
   if (loading) return <Waiting message="Loading..." />;
   if (!workshop) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#F4F6FB] px-6">
+      <div className="min-h-screen flex items-center justify-center bg-[#F7F5FB] px-6">
         <p className="text-gray-500">This link isn't valid.</p>
       </div>
     );
@@ -148,7 +148,7 @@ export default function PublicGroupsView({ workshopId }: { workshopId: string })
   if (selectedGroup) {
     const members = selectedGroup.participantIds.map((id) => participants.find((p) => p.id === id)).filter(Boolean) as Participant[];
     return (
-      <div className="min-h-screen bg-[#F4F6FB]">
+      <div className="min-h-screen bg-[#F7F5FB]">
         <GroupDetail
           group={selectedGroup}
           members={members}
@@ -162,35 +162,33 @@ export default function PublicGroupsView({ workshopId }: { workshopId: string })
   }
 
   return (
-    <div className="min-h-screen bg-[#F4F6FB] py-10 px-4">
-      <div className="max-w-2xl mx-auto space-y-6">
-        <div className="text-center space-y-2">
-          <div className="flex justify-center"><ROAILogo size="lg" /></div>
-          <h1 className="text-2xl font-black text-[#0A0E2A]">{workshop.name}</h1>
-          <p className="text-gray-400 text-sm">Tap a group to see their progress.</p>
-        </div>
+    <div className="min-h-screen bg-[#F7F5FB]">
+      <GradientHero compact>
+        <div className="flex justify-center mb-4"><ROAILogo dark size="lg" /></div>
+        <h1 className="text-3xl font-black text-white">{workshop.name}</h1>
+        <p className="text-white/50 text-sm mt-2">Tap a group to see their progress.</p>
+      </GradientHero>
 
-        <div className="space-y-3">
-          {groups.map((g) => {
-            const members = g.participantIds.map((id) => participants.find((p) => p.id === id)).filter(Boolean) as Participant[];
-            return (
-              <button
-                key={g.id}
-                onClick={() => setSelectedGroupId(g.id)}
-                className="w-full text-left bg-white border border-gray-200 hover:border-[#E8503A]/40 rounded-2xl p-5 transition-all"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="font-bold text-[#0A0E2A]">{g.name}</div>
-                  <Tag color={g.currentStep === "done" ? "green" : "coral"}>{GROUP_STEP_LABELS[g.currentStep || "initial"]}</Tag>
-                </div>
-                <p className="text-sm text-gray-500 mt-1">
-                  {members.map((m) => m.name + (m.role === "facilitator" ? " ★" : "")).join(" · ") || "No members yet"}
-                </p>
-              </button>
-            );
-          })}
-          {groups.length === 0 && <p className="text-gray-400 text-sm text-center">No groups yet.</p>}
-        </div>
+      <div className="max-w-2xl mx-auto px-4 py-8 space-y-3">
+        {groups.map((g) => {
+          const members = g.participantIds.map((id) => participants.find((p) => p.id === id)).filter(Boolean) as Participant[];
+          return (
+            <button
+              key={g.id}
+              onClick={() => setSelectedGroupId(g.id)}
+              className="w-full text-left bg-white border border-gray-200 hover:border-[#FF6B4A]/40 rounded-[28px] p-5 transition-all"
+            >
+              <div className="flex items-center justify-between">
+                <div className="font-bold text-[#140F2D]">{g.name}</div>
+                <Tag color={g.currentStep === "done" ? "green" : "coral"}>{GROUP_STEP_LABELS[g.currentStep || "initial"]}</Tag>
+              </div>
+              <p className="text-sm text-gray-500 mt-1">
+                {members.map((m) => m.name + (m.role === "facilitator" ? " ★" : "")).join(" · ") || "No members yet"}
+              </p>
+            </button>
+          );
+        })}
+        {groups.length === 0 && <p className="text-gray-400 text-sm text-center">No groups yet.</p>}
       </div>
     </div>
   );

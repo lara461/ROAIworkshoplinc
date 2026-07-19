@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { onSnapshot, query, setDoc, updateDoc, where } from "firebase/firestore";
 import { LogOut, Loader2 } from "lucide-react";
 import { col, docIn } from "../firebase";
-import { Btn, Card, ROAILogo, Tag } from "../ui";
+import { Btn, Card, GradientHero, ROAILogo, Tag } from "../ui";
 import { GROUP_STEP_LABELS } from "../types";
 import type {
   BoardChallenge,
@@ -33,9 +33,9 @@ async function generateBoardChallenge(challenge: Challenge, solution: string, gr
 
 function Waiting({ message }: { message: string }) {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#F4F6FB] px-6">
+    <div className="min-h-screen flex items-center justify-center bg-[#F7F5FB] px-6">
       <div className="max-w-md text-center space-y-4">
-        <Loader2 className="animate-spin w-6 h-6 mx-auto text-[#E8503A]" />
+        <Loader2 className="animate-spin w-6 h-6 mx-auto text-[#FF6B4A]" />
         <p className="text-gray-500">{message}</p>
       </div>
     </div>
@@ -83,41 +83,45 @@ function Login({
   }
 
   return (
-    <div className="min-h-screen bg-[#F4F6FB] flex items-center justify-center px-6">
-      <div className="max-w-sm w-full space-y-6">
-        <div className="flex justify-center"><ROAILogo size="lg" /></div>
-        <Card className="space-y-4">
-          <div className="text-center space-y-1">
-            <h1 className="text-xl font-black text-[#0A0E2A]">{workshop.name}</h1>
-            <p className="text-gray-400 text-sm">Facilitator access — find your name to enter your group.</p>
-          </div>
-          <div>
-            <label className="block text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1.5">Your name</label>
-            <select
-              value={selectedId}
-              onChange={(e) => setSelectedId(e.target.value)}
-              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#E8503A]"
-            >
-              <option value="">Select your name...</option>
-              {sorted.map((p) => (
-                <option key={p.id} value={p.id}>{p.name}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1.5">Your email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && submit()}
-              placeholder="you@company.com"
-              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#E8503A]"
-            />
-          </div>
-          {error && <p className="text-red-500 text-sm font-medium">{error}</p>}
-          <Btn variant="coral" onClick={submit} loading={submitting} className="w-full justify-center">Enter</Btn>
-        </Card>
+    <div className="min-h-screen bg-[#F7F5FB] flex flex-col">
+      <GradientHero compact>
+        <div className="flex justify-center"><ROAILogo dark size="lg" /></div>
+      </GradientHero>
+      <div className="flex-1 flex items-center justify-center px-6 -mt-10">
+        <div className="max-w-sm w-full">
+          <Card className="space-y-4">
+            <div className="text-center space-y-1">
+              <h1 className="text-xl font-black text-[#140F2D]">{workshop.name}</h1>
+              <p className="text-gray-400 text-sm">Facilitator access — find your name to enter your group.</p>
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1.5">Your name</label>
+              <select
+                value={selectedId}
+                onChange={(e) => setSelectedId(e.target.value)}
+                className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm outline-none focus:border-[#FF6B4A]"
+              >
+                <option value="">Select your name...</option>
+                {sorted.map((p) => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1.5">Your email</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && submit()}
+                placeholder="you@company.com"
+                className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 text-sm outline-none focus:border-[#FF6B4A]"
+              />
+            </div>
+            {error && <p className="text-red-500 text-sm font-medium">{error}</p>}
+            <Btn variant="coral" onClick={submit} loading={submitting} className="w-full justify-center">Enter</Btn>
+          </Card>
+        </div>
       </div>
     </div>
   );
@@ -140,11 +144,11 @@ function ChallengePicker({
   }
 
   return (
-    <div className="min-h-screen bg-[#F4F6FB] py-10 px-4">
+    <div className="min-h-screen bg-[#F7F5FB] py-10 px-4">
       <div className="max-w-2xl mx-auto space-y-6">
         <div className="text-center space-y-3">
           <div className="flex justify-center"><ROAILogo size="md" /></div>
-          <h1 className="text-2xl font-black text-[#0A0E2A]">Pick your challenge</h1>
+          <h1 className="text-2xl font-black text-[#140F2D]">Pick your challenge</h1>
           <p className="text-gray-400 text-sm">
             {canSelect
               ? "As facilitator, choose the challenge your group will work on."
@@ -154,7 +158,7 @@ function ChallengePicker({
         <div className="space-y-3">
           {challenges.map((c) => (
             <div key={c.id} className="rounded-2xl border p-5 bg-white border-gray-200">
-              <div className="font-bold text-[#0A0E2A]">{c.title}</div>
+              <div className="font-bold text-[#140F2D]">{c.title}</div>
               <p className="text-sm text-gray-500 mt-1">{c.description}</p>
               {canSelect && (
                 <Btn variant="coral" className="mt-3 text-xs px-3 py-1.5" onClick={() => select(c.id)}>Select this challenge</Btn>
@@ -291,7 +295,7 @@ function GroupWorkspace({
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
           <Tag color="coral">Your group</Tag>
-          <h2 className="text-xl font-black text-[#0A0E2A] mt-2">{group.name}</h2>
+          <h2 className="text-xl font-black text-[#140F2D] mt-2">{group.name}</h2>
           {challenge && <p className="text-gray-500 text-sm mt-1">{challenge.description}</p>}
         </div>
         {step !== "done" && (
@@ -314,7 +318,7 @@ function GroupWorkspace({
                 value={initialSolution}
                 onChange={(e) => saveField("initialSolution", e.target.value, setInitialSolution)}
                 rows={7}
-                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#E8503A] resize-none"
+                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#FF6B4A] resize-none"
                 placeholder="Write your group's answer here..."
               />
               <Btn variant="coral" onClick={submitInitial} loading={saving} disabled={!initialSolution.trim()}>
@@ -322,7 +326,7 @@ function GroupWorkspace({
               </Btn>
             </div>
           ) : (
-            <p className="text-sm text-[#0A0E2A] bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 whitespace-pre-wrap min-h-[3rem]">
+            <p className="text-sm text-[#140F2D] bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 whitespace-pre-wrap min-h-[3rem]">
               {initialSolution || "Your facilitator hasn't written an answer yet."}
             </p>
           )}
@@ -334,18 +338,18 @@ function GroupWorkspace({
         <>
           <div>
             <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1.5">Your initial answer</p>
-            <p className="text-sm text-[#0A0E2A] bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 whitespace-pre-wrap">{initialSolution}</p>
+            <p className="text-sm text-[#140F2D] bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 whitespace-pre-wrap">{initialSolution}</p>
           </div>
 
           {!board ? (
             <p className="text-sm text-gray-400 flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> The board is reviewing your answer...</p>
           ) : (
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-[#E8503A] mb-2">The C-level board is challenging your answer</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-[#FF6B4A] mb-2">The C-level board is challenging your answer</p>
               <div className="grid sm:grid-cols-2 gap-2">
                 {board.personaChallenges.map((pc, i) => (
-                  <div key={i} className="bg-[#0A0E2A] rounded-xl p-3 text-sm">
-                    <div className="text-[#E8503A] font-bold text-xs uppercase tracking-widest mb-1">{pc.role}</div>
+                  <div key={i} className="bg-[#140F2D] rounded-xl p-3 text-sm">
+                    <div className="text-[#FF6B4A] font-bold text-xs uppercase tracking-widest mb-1">{pc.role}</div>
                     <div className="text-white/90">{pc.objection}</div>
                   </div>
                 ))}
@@ -363,7 +367,7 @@ function GroupWorkspace({
                     value={revisedSolution}
                     onChange={(e) => saveField("revisedSolution", e.target.value, setRevisedSolution)}
                     rows={6}
-                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#E8503A] resize-none"
+                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#FF6B4A] resize-none"
                     placeholder="How does your group respond to the board's pushback?"
                   />
                   <Btn variant="coral" onClick={submitRevised} loading={saving} disabled={!revisedSolution.trim()}>
@@ -371,7 +375,7 @@ function GroupWorkspace({
                   </Btn>
                 </div>
               ) : (
-                <p className="text-sm text-[#0A0E2A] bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 whitespace-pre-wrap min-h-[3rem]">
+                <p className="text-sm text-[#140F2D] bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 whitespace-pre-wrap min-h-[3rem]">
                   {revisedSolution || "Your facilitator hasn't written a revised answer yet."}
                 </p>
               )}
@@ -399,10 +403,10 @@ function GroupWorkspace({
                   value={f.value}
                   onChange={(e) => saveField(f.id, e.target.value, f.setter)}
                   rows={3}
-                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#E8503A] resize-none"
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#FF6B4A] resize-none"
                 />
               ) : (
-                <p className="text-sm text-[#0A0E2A] bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 whitespace-pre-wrap min-h-[2.5rem]">
+                <p className="text-sm text-[#140F2D] bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 whitespace-pre-wrap min-h-[2.5rem]">
                   {f.value || "Not written yet."}
                 </p>
               )}
@@ -489,7 +493,7 @@ export default function ParticipantApp({ workshopId }: { workshopId: string }) {
   if (loading) return <Waiting message="Loading your workshop..." />;
   if (!workshop) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#F4F6FB] px-6">
+      <div className="min-h-screen flex items-center justify-center bg-[#F7F5FB] px-6">
         <p className="text-gray-500">This workshop link isn't valid.</p>
       </div>
     );
@@ -527,14 +531,14 @@ export default function ParticipantApp({ workshopId }: { workshopId: string }) {
   const challenge = groupChallenges.find((c) => c.id === myGroup.challengeId);
 
   return (
-    <div className="min-h-screen bg-[#F4F6FB] py-10 px-4">
+    <div className="min-h-screen bg-[#F7F5FB] py-10 px-4">
       <div className="max-w-2xl mx-auto space-y-6">
         <div className="text-center space-y-2">
           <div className="flex justify-center"><ROAILogo size="md" /></div>
-          <h1 className="text-2xl font-black text-[#0A0E2A]">{workshop.name}</h1>
+          <h1 className="text-2xl font-black text-[#140F2D]">{workshop.name}</h1>
           <p className="text-gray-400 text-sm flex items-center justify-center gap-2">
             Welcome back, {participant.name}.
-            <button onClick={logOut} className="text-[#E8503A] font-bold inline-flex items-center gap-1">
+            <button onClick={logOut} className="text-[#FF6B4A] font-bold inline-flex items-center gap-1">
               <LogOut className="w-3.5 h-3.5" /> Log out
             </button>
           </p>
