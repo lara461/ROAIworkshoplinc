@@ -31,7 +31,7 @@ import { col, docIn } from "../firebase";
 import { cn } from "../utils";
 import { downloadTemplate, parseParticipantsFile } from "../csvImport";
 import type { ImportedRow } from "../csvImport";
-import { Accordion, Btn, Card, Field, PageHeader, ROAILogo, Tag, TextArea } from "../ui";
+import { Accordion, Btn, Card, Field, PageHeader, ROAILogo, StepTabs, Tag, TextArea } from "../ui";
 import { GROUP_STEP_LABELS } from "../types";
 import type {
   BoardChallenge,
@@ -80,17 +80,6 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
       <h2 className="text-base font-bold text-[#14121F]">{title}</h2>
       {children}
     </Card>
-  );
-}
-
-function StepHeader({ step, label }: { step: number; label: string }) {
-  return (
-    <div className="flex items-center gap-2 mb-3">
-      <span className="w-6 h-6 rounded-full roai-mark text-white text-xs font-bold flex items-center justify-center shrink-0">
-        {step}
-      </span>
-      <h2 className="text-sm font-bold text-[#14121F] uppercase tracking-wide">{label}</h2>
-    </div>
   );
 }
 
@@ -915,6 +904,7 @@ function PresentationTab({ workshop, groups }: { workshop: Workshop; groups: Gro
 // ── Workshop Dashboard ───────────────────────────────────────────────────
 function WorkshopDashboard({ workshop: initialWorkshop, adminSecret }: { workshop: Workshop; adminSecret: string }) {
   const [tab, setTab] = useState<"pre" | "workshop" | "presentation">("pre");
+  const [preStep, setPreStep] = useState<"participants" | "groups" | "challenges">("participants");
   const [workshop, setWorkshop] = useState<Workshop>(initialWorkshop);
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [responses, setResponses] = useState<SurveyResponse[]>([]);
@@ -1079,30 +1069,47 @@ function WorkshopDashboard({ workshop: initialWorkshop, adminSecret }: { worksho
 
           {tab === "pre" && (
             <div className="space-y-6">
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
-                <div>
-                  <StepHeader step={1} label="Participants" />
-                  <div className="space-y-4">
-                    <ImportSection workshop={workshop} />
-                    <ParticipantsSection workshop={workshop} participants={participants} responses={responses} />
-                  </div>
+              <StepTabs
+                steps={[
+                  { key: "participants", label: "Participants" },
+                  {
+                    key: "groups",
+                    label: "Groups",
+                    locked: participants.length === 0,
+                    lockedReason: "Add at least one participant first.",
+                  },
+                  {
+                    key: "challenges",
+                    label: "Challenges",
+                    locked: groups.length === 0,
+                    lockedReason: "Create at least one group first.",
+                  },
+                ]}
+                active={preStep}
+                onChange={(k) => setPreStep(k as typeof preStep)}
+              />
+
+              {preStep === "participants" && (
+                <div className="space-y-4">
+                  <ImportSection workshop={workshop} />
+                  <ParticipantsSection workshop={workshop} participants={participants} responses={responses} />
                 </div>
-                <div>
-                  <StepHeader step={2} label="Groups" />
-                  <CreateGroupsSection workshop={workshop} participants={participants} groups={groups} />
-                </div>
-                <div>
-                  <StepHeader step={3} label="Challenges" />
-                  <ChallengesSection
-                    workshop={workshop}
-                    adminSecret={adminSecret}
-                    participants={participants}
-                    responses={responses}
-                    groups={groups}
-                    challenges={challenges}
-                  />
-                </div>
-              </div>
+              )}
+
+              {preStep === "groups" && (
+                <CreateGroupsSection workshop={workshop} participants={participants} groups={groups} />
+              )}
+
+              {preStep === "challenges" && (
+                <ChallengesSection
+                  workshop={workshop}
+                  adminSecret={adminSecret}
+                  participants={participants}
+                  responses={responses}
+                  groups={groups}
+                  challenges={challenges}
+                />
+              )}
 
               <Section title="Ready?">
                 {workshop.status === "setup" ? (

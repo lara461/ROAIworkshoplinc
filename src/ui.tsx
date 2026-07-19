@@ -124,6 +124,44 @@ export const Card = ({ children, className = "" }: { children: ReactNode; classN
   <div className={cn("bg-white rounded-xl border border-gray-200 p-6", className)}>{children}</div>
 );
 
+// Simple underline tabs for step-by-step flows. A step can be `locked` —
+// e.g. because a prior step isn't done yet — in which case it can't be
+// clicked. Reusable anywhere a section has this kind of ordered sub-flow.
+export const StepTabs = ({
+  steps,
+  active,
+  onChange,
+}: {
+  steps: { key: string; label: string; locked?: boolean; lockedReason?: string }[];
+  active: string;
+  onChange: (key: string) => void;
+}) => (
+  <div className="flex gap-6 border-b border-gray-200 mb-6">
+    {steps.map((s, i) => {
+      const isActive = s.key === active;
+      return (
+        <button
+          key={s.key}
+          onClick={() => !s.locked && onChange(s.key)}
+          disabled={s.locked}
+          title={s.locked ? s.lockedReason : undefined}
+          className={cn(
+            "pb-3 -mb-px text-sm font-semibold border-b-2 transition-colors flex items-center gap-1.5",
+            isActive
+              ? "border-[#DD4B4E] text-[#14121F]"
+              : s.locked
+              ? "border-transparent text-gray-300 cursor-not-allowed"
+              : "border-transparent text-gray-400 hover:text-gray-600 cursor-pointer"
+          )}
+        >
+          <span className="text-xs text-gray-400">{i + 1}.</span>
+          {s.label}
+        </button>
+      );
+    })}
+  </div>
+);
+
 // A single collapsible row/panel — header always visible, body toggles.
 // Use for lists where each item has more detail than fits inline
 // (participants, groups) so the list stays scannable by default.
