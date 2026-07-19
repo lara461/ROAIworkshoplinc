@@ -1267,13 +1267,38 @@ function ReportTab({
 }) {
   const [reports, setReports] = useState<GroupReport[]>([]);
   const [generating, setGenerating] = useState<string | null>(null);
+  const [activeGroupId, setActiveGroupId] = useState<string | null>(groups[0]?.id ?? null);
+  const [editing, setEditing] = useState(false);
+  const [editSummary, setEditSummary] = useState("");
+  const [editInsight, setEditInsight] = useState("");
+  const [editEvolution, setEditEvolution] = useState("");
+  const [editSteps, setEditSteps] = useState("");
 
   useEffect(() => onSnapshot(query(col.groupReports, where("workshopId", "==", workshop.id)), (s) =>
     setReports(s.docs.map((d) => ({ id: d.id, ...d.data() } as GroupReport)))
   ), [workshop.id]);
 
+  useEffect(() => {
+    if (!activeGroupId && groups.length > 0) setActiveGroupId(groups[0].id);
+  }, [groups, activeGroupId]);
+
+  const activeGroup = groups.find((g) => g.id === activeGroupId);
+  const activeReport = activeGroup ? reports.find((r) => r.groupId === activeGroup.id) : undefined;
+
+  useEffect(() => {
+    setEditing(false);
+    setEditSummary(activeReport?.executiveSummary || "");
+    setEditInsight(activeReport?.keyInsight || "");
+    setEditEvolution(activeReport?.evolution || "");
+    setEditSteps((activeReport?.recommendedNextSteps || []).join("\n"));
+  }, [activeGroup?.id, activeReport?.id]);
+
   async function closeWorkshop() {
     await updateDoc(docIn("workshops", workshop.id), { status: "closed" });
+  }
+
+  async function reopenWorkshop() {
+    await updateDoc(docIn("workshops", workshop.id), { status: "working" });
   }
 
   async function generateReport(g: Group) {
@@ -1303,51 +1328,91 @@ function ReportTab({
     }
   }
 
-  if (workshop.status !== "closed") {
-    return (
-      <Section title="Report">
-        <p className="text-sm text-gray-500">
-          Once the workshop is over, mark it as closed — then you can generate a report for each group here.
-        </p>
-        <Btn variant="coral" onClick={closeWorkshop}>Mark workshop as closed</Btn>
-      </Section>
-    );
+  async function saveEdits() {
+    if (!activeGroup) return;
+    await setDoc(docIn("groupReports", activeGroup.id), {
+      groupId: activeGroup.id,
+      workshopId: workshop.id,
+      executiveSummary: editSummary,
+      keyInsight: editInsight,
+      evolution: editEvolution,
+      recommendedNextSteps: editSteps.split("\n").map((s) => s.trim()).filter(Boolean),
+      createdAt: activeReport?.createdAt || new Date().toISOString(),
+    }, { merge: true });
+    setEditing(false);
+  }
+
+  if (groups.length === 0) {
+    return <Section title="Report"><p className="text-gray-400 text-sm">No groups.</p></Section>;
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-1.5 text-emerald-600 text-sm font-medium">
-        <CheckCircle2 className="w-4 h-4" /> Workshop closed.
-      </div>
-      {groups.map((g) => {
-        const challenge = challenges.find((c) => c.id === g.challengeId);
-        const report = reports.find((r) => r.groupId === g.id);
-        return (
-          <Section key={g.id} title={g.name}>
-            <Btn variant="outline" onClick={() => generateReport(g)} loading={generating === g.id} disabled={!challenge}>
-              {report && <RefreshCw className="w-3.5 h-3.5" />}
-              {report ? "Regenerate report" : "Generate report"}
+    <div>
+      <StepTabs
+        steps={groups.map((g) => ({ key: g.id, label: g.name }))}
+        active={activeGroupId || groups[0].id}
+        onChange={setActiveGroupId}
+        right={
+          workshop.status === "closed" ? (
+            <div className="flex items-center gap-2">
+              <Tag color="green">Workshop closed</Tag>
+              <Btn variant="outline" onClick={reopenWorkshop} className="text-xs px-3 py-1.5">
+                Reopen workshop
+              </Btn>
+            </div>
+          ) : (
+            <Btn variant="coral" onClick={closeWorkshop} className="text-xs px-3 py-1.5">
+              Mark workshop as closed
             </Btn>
-            {report && (
-              <div className="space-y-3 pt-2">
-                <p className="text-gray-600 text-sm">{report.executiveSummary}</p>
-                <div className="border-l-4 border-[#3545A3] bg-[#3545A3]/5 rounded-r-lg p-3">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-[#3545A3] mb-1">Key insight</p>
-                  <p className="text-sm text-[#14121F]">{report.keyInsight}</p>
-                </div>
-                <div className="border-l-4 border-[#1FA398] bg-[#1FA398]/5 rounded-r-lg p-3">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-[#1FA398] mb-1">How their thinking evolved</p>
-                  <p className="text-sm text-gray-700">{report.evolution}</p>
-                </div>
-                <ul className="list-disc list-inside text-sm text-gray-600">
-                  {report.recommendedNextSteps?.map((s, i) => <li key={i}>{s}</li>)}
-                </ul>
-              </div>
+          )
+        }
+      />
+
+      {activeGroup && (
+        <Section title={activeGroup.name}>
+          <div className="flex items-center gap-2">
+            <Btn variant="outline" onClick={() => generateReport(activeGroup)} loading={generating === activeGroup.id} disabled={!activeGroup.challengeId}>
+              {activeReport && <RefreshCw className="w-3.5 h-3.5" />}
+              {activeReport ? "Regenerate report" : "Generate report"}
+            </Btn>
+            {activeReport && !editing && (
+              <Btn variant="outline" onClick={() => setEditing(true)}>
+                <Pencil className="w-3.5 h-3.5" /> Edit
+              </Btn>
             )}
-          </Section>
-        );
-      })}
-      {groups.length === 0 && <Section title="Report"><p className="text-gray-400 text-sm">No groups.</p></Section>}
+          </div>
+
+          {activeReport && editing && (
+            <div className="space-y-3 pt-2">
+              <TextArea label="Executive summary" value={editSummary} onChange={setEditSummary} rows={3} />
+              <TextArea label="Key insight" value={editInsight} onChange={setEditInsight} rows={2} />
+              <TextArea label="How their thinking evolved" value={editEvolution} onChange={setEditEvolution} rows={3} />
+              <TextArea label="Recommended next steps (one per line)" value={editSteps} onChange={setEditSteps} rows={4} />
+              <div className="flex items-center gap-2">
+                <Btn variant="coral" onClick={saveEdits}>Save changes</Btn>
+                <Btn variant="outline" onClick={() => setEditing(false)}>Cancel</Btn>
+              </div>
+            </div>
+          )}
+
+          {activeReport && !editing && (
+            <div className="space-y-3 pt-2">
+              <p className="text-gray-600 text-sm">{activeReport.executiveSummary}</p>
+              <div className="border-l-4 border-[#3545A3] bg-[#3545A3]/5 rounded-r-lg p-3">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[#3545A3] mb-1">Key insight</p>
+                <p className="text-sm text-[#14121F]">{activeReport.keyInsight}</p>
+              </div>
+              <div className="border-l-4 border-[#1FA398] bg-[#1FA398]/5 rounded-r-lg p-3">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[#1FA398] mb-1">How their thinking evolved</p>
+                <p className="text-sm text-gray-700">{activeReport.evolution}</p>
+              </div>
+              <ul className="list-disc list-inside text-sm text-gray-600">
+                {activeReport.recommendedNextSteps?.map((s, i) => <li key={i}>{s}</li>)}
+              </ul>
+            </div>
+          )}
+        </Section>
+      )}
     </div>
   );
 }

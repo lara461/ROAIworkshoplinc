@@ -59,7 +59,7 @@ The admin's Workshop tab is a live 3-column board (Question 1 / Board & revised 
 Open `/present/:workshopId` on the room screen. Pick which group is presenting, then reveal only the part(s) they're actually talking about (Challenge / Their solution / Board feedback / Reviewed solution / 30/60/90 actions) — no group ever covers everything in their readout, so show just what's relevant as they go, one or more sections at a time.
 
 ### Report tab
-Mark the workshop as closed here once it's over — then generate a report for each group: executive summary, key insight, how their thinking evolved from their solution to their reviewed solution, and recommended next steps.
+Groups appear as tabs, same as elsewhere — pick one, generate its report (executive summary, key insight, how their thinking evolved, recommended next steps), and edit any field by hand afterward if needed. Mark the workshop as closed when it's over, right from the same tab row; if you close it by mistake before everyone's done, **Reopen workshop** puts it back into active mode without touching any reports you've already generated.
 
 ## Access — two separate links
 

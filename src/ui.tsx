@@ -193,14 +193,14 @@ export const Modal = ({
 }) => (
   <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50" onClick={onClose}>
     <div
-      className="bg-white rounded-xl border border-gray-200 max-w-lg w-full max-h-[85vh] overflow-y-auto p-6"
+      className="bg-white rounded-xl border border-gray-200 max-w-3xl w-full max-h-[90vh] overflow-y-auto p-8"
       onClick={(e) => e.stopPropagation()}
     >
       {title && (
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-base font-bold text-[#14121F]">{title}</h2>
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-lg font-bold text-[#14121F]">{title}</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 shrink-0">
-            <X className="w-4 h-4" />
+            <X className="w-5 h-5" />
           </button>
         </div>
       )}
