@@ -1,4 +1,4 @@
-import { ChevronDown, Loader2 } from "lucide-react";
+import { ChevronDown, Loader2, Star } from "lucide-react";
 import { useState } from "react";
 import type { ReactNode } from "react";
 import { cn } from "./utils";
@@ -122,6 +122,18 @@ export const Tag = ({
 
 export const Card = ({ children, className = "" }: { children: ReactNode; className?: string }) => (
   <div className={cn("bg-white rounded-xl border border-gray-200 p-6", className)}>{children}</div>
+);
+
+// Small, consistent marker for "this person is the facilitator" — used
+// inline next to a name. Same visual language as Tag (coral, small,
+// bordered) instead of a bare unicode star.
+export const FacilitatorBadge = () => (
+  <span
+    title="Facilitator"
+    className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-[#DD4B4E]/10 text-[#DD4B4E] shrink-0"
+  >
+    <Star className="w-2.5 h-2.5 fill-current" />
+  </span>
 );
 
 // Simple underline tabs for step-by-step flows. A step can be `locked` —

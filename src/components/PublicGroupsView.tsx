@@ -3,7 +3,7 @@ import { onSnapshot, query, where } from "firebase/firestore";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { col, docIn } from "../firebase";
 import { GROUP_STEP_LABELS } from "../types";
-import { Card, PageHeader, ROAILogo, Tag } from "../ui";
+import { Card, FacilitatorBadge, PageHeader, ROAILogo, Tag } from "../ui";
 import type { BoardChallenge, Challenge, Group, GroupSolution, Participant, Workshop } from "../types";
 
 function Waiting({ message }: { message: string }) {
@@ -40,7 +40,15 @@ function GroupDetail({
 
       <div>
         <h1 className="text-2xl font-black text-[#14121F]">{group.name}</h1>
-        <p className="text-gray-400 text-sm">{members.map((m) => m.name + (m.role === "facilitator" ? " ★" : "")).join(" · ")}</p>
+        <p className="text-gray-400 text-sm flex items-center flex-wrap gap-x-1.5">
+          {members.map((m, i) => (
+            <span key={m.id} className="inline-flex items-center gap-1">
+              {i > 0 && <span>·</span>}
+              {m.name}
+              {m.role === "facilitator" && <FacilitatorBadge />}
+            </span>
+          ))}
+        </p>
         <div className="mt-2">
           <Tag color={group.currentStep === "done" ? "green" : "coral"}>{GROUP_STEP_LABELS[group.currentStep || "initial"]}</Tag>
         </div>
@@ -186,8 +194,18 @@ export default function PublicGroupsView({ workshopId }: { workshopId: string })
                   <div className="font-bold text-[#14121F]">{g.name}</div>
                   <Tag color={g.currentStep === "done" ? "green" : "coral"}>{GROUP_STEP_LABELS[g.currentStep || "initial"]}</Tag>
                 </div>
-                <p className="text-sm text-gray-500 mt-1">
-                  {members.map((m) => m.name + (m.role === "facilitator" ? " ★" : "")).join(" · ") || "No members yet"}
+                <p className="text-sm text-gray-500 mt-1 flex items-center flex-wrap gap-x-1.5">
+                  {members.length === 0 ? (
+                    "No members yet"
+                  ) : (
+                    members.map((m, i) => (
+                      <span key={m.id} className="inline-flex items-center gap-1">
+                        {i > 0 && <span>·</span>}
+                        {m.name}
+                        {m.role === "facilitator" && <FacilitatorBadge />}
+                      </span>
+                    ))
+                  )}
                 </p>
               </button>
             );

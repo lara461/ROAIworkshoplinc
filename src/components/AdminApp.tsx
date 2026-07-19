@@ -31,7 +31,7 @@ import { col, docIn } from "../firebase";
 import { cn } from "../utils";
 import { downloadTemplate, parseParticipantsFile } from "../csvImport";
 import type { ImportedRow } from "../csvImport";
-import { Accordion, Btn, Card, Field, PageHeader, ROAILogo, StepTabs, Tag, TextArea } from "../ui";
+import { Accordion, Btn, Card, FacilitatorBadge, Field, PageHeader, ROAILogo, StepTabs, Tag, TextArea } from "../ui";
 import { GROUP_STEP_LABELS } from "../types";
 import type {
   BoardChallenge,
@@ -417,7 +417,7 @@ function ParticipantsSection({
           <option value="participant">Participant</option>
           <option value="facilitator">Facilitator</option>
         </select>
-        <Btn variant="coral" onClick={addParticipant}>ADD</Btn>
+        <Btn variant="coral" onClick={addParticipant}>Add</Btn>
       </div>
 
       <p className="text-sm text-gray-500 flex items-center gap-1.5">
@@ -478,7 +478,7 @@ function CreateGroupsSection({
   participants: Participant[];
   groups: Group[];
 }) {
-  const MAX_PER_GROUP = 6;
+  const MAX_PER_GROUP = 7;
   const [groupName, setGroupName] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [showCreate, setShowCreate] = useState(false);
@@ -529,6 +529,18 @@ function CreateGroupsSection({
     });
   }
 
+  async function addMember(group: Group, participantId: string) {
+    if (group.participantIds.length >= MAX_PER_GROUP) return;
+    const p = participants.find((pp) => pp.id === participantId);
+    if (p?.role === "facilitator" && group.participantIds.some((id) => participants.find((pp) => pp.id === id)?.role === "facilitator")) {
+      alert("A group can have at most 1 facilitator.");
+      return;
+    }
+    await updateDoc(docIn("groups", group.id), {
+      participantIds: [...group.participantIds, participantId],
+    });
+  }
+
   const activeGroup = groups.find((g) => g.id === activeGroupId);
 
   return (
@@ -551,20 +563,20 @@ function CreateGroupsSection({
             <button
               key={g.id}
               onClick={() => { setActiveGroupId(activeGroupId === g.id ? null : g.id); setShowCreate(false); }}
-              className={`aspect-square border rounded-lg p-3 flex flex-col justify-between text-left transition-colors ${
+              className={`min-h-[4.5rem] border rounded-lg p-3 flex flex-col justify-between text-left transition-colors ${
                 activeGroupId === g.id ? "border-[#DD4B4E] bg-[#DD4B4E]/5" : "bg-white border-gray-200 hover:border-gray-300"
               }`}
             >
-              <div className="font-bold text-[#14121F] text-sm leading-snug line-clamp-3">{g.name}</div>
+              <div className="font-bold text-[#14121F] text-sm leading-snug">{g.name}</div>
               <div className="text-xs text-gray-400">{members.length}/{MAX_PER_GROUP} members</div>
             </button>
           );
         })}
         <button
           onClick={() => { setShowCreate((v) => !v); setActiveGroupId(null); }}
-          className="aspect-square border border-dashed border-gray-300 hover:border-[#DD4B4E] rounded-lg flex flex-col items-center justify-center gap-1.5 text-gray-400 hover:text-[#DD4B4E] transition-colors"
+          className="min-h-[4.5rem] border border-dashed border-gray-300 hover:border-[#DD4B4E] rounded-lg flex flex-col items-center justify-center gap-1 text-gray-400 hover:text-[#DD4B4E] transition-colors"
         >
-          <Plus className="w-6 h-6" />
+          <Plus className="w-5 h-5" />
           <span className="text-xs font-semibold">New group</span>
         </button>
       </div>
@@ -578,10 +590,10 @@ function CreateGroupsSection({
           <div className="flex flex-wrap gap-2">
             {unassigned.map((p) => (
               <button key={p.id} onClick={() => toggle(p.id)}
-                className={`text-xs px-3 py-1.5 rounded-md border font-medium transition-all ${
+                className={`inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border font-medium transition-all ${
                   selectedIds.includes(p.id) ? "bg-[#DD4B4E]/10 border-[#DD4B4E] text-[#DD4B4E]" : "bg-white border-gray-200 text-gray-600 hover:border-[#DD4B4E]/40"
                 }`}>
-                {p.name}{p.role === "facilitator" ? " ★" : ""}
+                {p.name}{p.role === "facilitator" && <FacilitatorBadge />}
               </button>
             ))}
             {unassigned.length === 0 && <p className="text-gray-400 text-xs">All participants are already assigned to a group.</p>}
@@ -600,20 +612,44 @@ function CreateGroupsSection({
               <Trash2 className="w-3.5 h-3.5" /> Delete group
             </button>
           </div>
-          <div className="flex flex-wrap gap-1.5">
-            {activeGroup.participantIds.map((id) => {
-              const m = participants.find((p) => p.id === id);
-              if (!m) return null;
-              return (
-                <span key={m.id} className="inline-flex items-center gap-1 text-xs bg-white border border-gray-200 rounded-md pl-2 pr-1 py-0.5">
-                  {m.name}{m.role === "facilitator" && <span className="text-[#DD4B4E] font-bold">★</span>}
-                  <button onClick={() => removeMember(activeGroup.id, m.id, activeGroup.participantIds)} className="text-gray-300 hover:text-red-500">
-                    <X className="w-3 h-3" />
-                  </button>
-                </span>
-              );
-            })}
+
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1.5">
+              Members ({activeGroup.participantIds.length}/{MAX_PER_GROUP})
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {activeGroup.participantIds.map((id) => {
+                const m = participants.find((p) => p.id === id);
+                if (!m) return null;
+                return (
+                  <span key={m.id} className="inline-flex items-center gap-1.5 text-xs bg-white border border-gray-200 rounded-md pl-2 pr-1 py-0.5">
+                    {m.name}{m.role === "facilitator" && <FacilitatorBadge />}
+                    <button onClick={() => removeMember(activeGroup.id, m.id, activeGroup.participantIds)} className="text-gray-300 hover:text-red-500">
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                );
+              })}
+            </div>
           </div>
+
+          {activeGroup.participantIds.length < MAX_PER_GROUP && (
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1.5">Add a member</p>
+              <div className="flex flex-wrap gap-1.5">
+                {unassigned.map((p) => (
+                  <button
+                    key={p.id}
+                    onClick={() => addMember(activeGroup, p.id)}
+                    className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-dashed border-gray-300 text-gray-500 hover:border-[#DD4B4E] hover:text-[#DD4B4E] transition-colors"
+                  >
+                    <Plus className="w-3 h-3" /> {p.name}{p.role === "facilitator" && <FacilitatorBadge />}
+                  </button>
+                ))}
+                {unassigned.length === 0 && <p className="text-gray-400 text-xs">Everyone else is already assigned to a group.</p>}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
