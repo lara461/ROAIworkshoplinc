@@ -38,7 +38,7 @@ import { cn } from "../utils";
 import { downloadTemplate, parseParticipantsFile } from "../csvImport";
 import { extractPdfText } from "../pdfExtract";
 import type { ImportedRow } from "../csvImport";
-import { Accordion, Btn, Card, FacilitatorBadge, Field, Modal, PageHeader, ROAILogo, StepTabs, Tag, TabIntro, TextArea } from "../ui";
+import { Accordion, Btn, Card, FacilitatorBadge, Field, Modal, PageHeader, ROAILogo, StepTabs, Tag, TabIntro, TextArea, Toast } from "../ui";
 import { PRESENTATION_SECTIONS } from "../types";
 import type {
   BoardChallenge,
@@ -1495,6 +1495,13 @@ function WorkshopDashboard({ workshop: initialWorkshop, adminSecret, onBackToLis
 
   const [editingDetails, setEditingDetails] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+
+  function copyLink(text: string, label: string) {
+    navigator.clipboard.writeText(text);
+    setToast(`${label} copied!`);
+    setTimeout(() => setToast(null), 2000);
+  }
   const [editName, setEditName] = useState(workshop.name);
   const [editDescription, setEditDescription] = useState(workshop.description || "");
   const [editDate, setEditDate] = useState(workshop.date);
@@ -1628,15 +1635,15 @@ function WorkshopDashboard({ workshop: initialWorkshop, adminSecret, onBackToLis
               <div className="relative">
                 {/* Desktop — unchanged */}
                 <div className="hidden lg:flex items-center gap-2 flex-wrap justify-end">
-                  <button onClick={() => navigator.clipboard.writeText(facilitatorLink)}
+                  <button onClick={() => copyLink(facilitatorLink, "Facilitator link")}
                     className="text-[#DD4B4E] hover:bg-[#DD4B4E]/5 flex items-center gap-1.5 font-semibold text-xs bg-white border border-[#DD4B4E]/20 rounded-lg px-3 py-1.5">
                     <Copy className="w-3.5 h-3.5" /> Facilitator link
                   </button>
-                  <button onClick={() => navigator.clipboard.writeText(publicLink)}
+                  <button onClick={() => copyLink(publicLink, "Public groups link")}
                     className="text-[#14121F] hover:bg-gray-50 flex items-center gap-1.5 font-semibold text-xs bg-white border border-gray-200 rounded-lg px-3 py-1.5">
                     <Copy className="w-3.5 h-3.5" /> Public groups link
                   </button>
-                  <button onClick={() => navigator.clipboard.writeText(presentationLink)}
+                  <button onClick={() => copyLink(presentationLink, "Presentation link")}
                     className="text-[#14121F] hover:bg-gray-50 flex items-center gap-1.5 font-semibold text-xs bg-white border border-gray-200 rounded-lg px-3 py-1.5">
                     <Copy className="w-3.5 h-3.5" /> Presentation link
                   </button>
@@ -1650,15 +1657,15 @@ function WorkshopDashboard({ workshop: initialWorkshop, adminSecret, onBackToLis
                   </button>
                   {showMobileMenu && (
                     <div className="absolute right-0 mt-1 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-30 overflow-hidden">
-                      <button onClick={() => { navigator.clipboard.writeText(facilitatorLink); setShowMobileMenu(false); }}
+                      <button onClick={() => { copyLink(facilitatorLink, "Facilitator link"); setShowMobileMenu(false); }}
                         className="w-full text-left px-3 py-2.5 text-sm text-[#DD4B4E] hover:bg-gray-50 flex items-center gap-2">
                         <Copy className="w-3.5 h-3.5" /> Facilitator link
                       </button>
-                      <button onClick={() => { navigator.clipboard.writeText(publicLink); setShowMobileMenu(false); }}
+                      <button onClick={() => { copyLink(publicLink, "Public groups link"); setShowMobileMenu(false); }}
                         className="w-full text-left px-3 py-2.5 text-sm text-gray-600 hover:bg-gray-50 flex items-center gap-2">
                         <Copy className="w-3.5 h-3.5" /> Public groups link
                       </button>
-                      <button onClick={() => { navigator.clipboard.writeText(presentationLink); setShowMobileMenu(false); }}
+                      <button onClick={() => { copyLink(presentationLink, "Presentation link"); setShowMobileMenu(false); }}
                         className="w-full text-left px-3 py-2.5 text-sm text-gray-600 hover:bg-gray-50 flex items-center gap-2">
                         <Copy className="w-3.5 h-3.5" /> Presentation link
                       </button>
@@ -1789,6 +1796,7 @@ function WorkshopDashboard({ workshop: initialWorkshop, adminSecret, onBackToLis
           )}
         </div>
       </main>
+      <Toast message={toast} />
     </div>
   );
 }

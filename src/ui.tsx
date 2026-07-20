@@ -182,6 +182,17 @@ export const StepTabs = ({
 // Simple centered overlay for drill-into-detail views (e.g. a group's
 // progress) that should keep the board/list behind visible in context
 // rather than navigating away from it.
+// Brief bottom-center confirmation message (e.g. "Link copied!") — pass null
+// to render nothing. Caller is responsible for clearing it after a timeout.
+export const Toast = ({ message }: { message: string | null }) => {
+  if (!message) return null;
+  return (
+    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] bg-[#14121F] text-white text-xs font-semibold px-4 py-2 rounded-full shadow-lg pointer-events-none">
+      {message}
+    </div>
+  );
+};
+
 export const Modal = ({
   title,
   onClose,

@@ -3,7 +3,7 @@ import type { CSSProperties } from "react";
 import { onSnapshot, query, setDoc, updateDoc, where } from "firebase/firestore";
 import { CheckCircle2, Copy, FileBarChart, HelpCircle, LogOut, Loader2, Pencil, PlayCircle, Sparkles, Users, X } from "lucide-react";
 import { col, docIn } from "../firebase";
-import { Btn, Card, FacilitatorBadge, ROAILogo, StepTabs, Tag, TabIntro } from "../ui";
+import { Btn, Card, FacilitatorBadge, ROAILogo, StepTabs, Tag, TabIntro, Toast } from "../ui";
 import { cn } from "../utils";
 import type {
   BoardChallenge,
@@ -612,7 +612,15 @@ function NextStepsField({
   disabled?: boolean;
 }) {
   const [editing, setEditing] = useState(false);
+  const editRef = useRef<HTMLTextAreaElement>(null);
   const items = value.split("\n").map((s) => s.trim()).filter(Boolean);
+
+  useEffect(() => {
+    if (editing && editRef.current) {
+      editRef.current.style.height = "auto";
+      editRef.current.style.height = editRef.current.scrollHeight + "px";
+    }
+  }, [editing, value]);
 
   if (disabled) {
     return (
@@ -636,14 +644,6 @@ function NextStepsField({
       </div>
     );
   }
-
-  const editRef = useRef<HTMLTextAreaElement>(null);
-  useEffect(() => {
-    if (editing && editRef.current) {
-      editRef.current.style.height = "auto";
-      editRef.current.style.height = editRef.current.scrollHeight + "px";
-    }
-  }, [editing, value]);
 
   return (
     <textarea
@@ -1056,6 +1056,13 @@ export default function ParticipantApp({ workshopId }: { workshopId: string }) {
   const [loading, setLoading] = useState(true);
   const [section, setSection] = useState<"myGroup" | "workshop" | "report">("workshop");
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+
+  function copyLink(text: string, label: string) {
+    navigator.clipboard.writeText(text);
+    setToast(`${label} copied!`);
+    setTimeout(() => setToast(null), 2000);
+  }
   const [workshopForcedStep, setWorkshopForcedStep] = useState<"initial" | "board" | "actions" | null>(null);
 
   useEffect(() => {
@@ -1163,7 +1170,7 @@ export default function ParticipantApp({ workshopId }: { workshopId: string }) {
         <div className="flex items-center gap-3">
           <button
             data-tour="publicLink"
-            onClick={() => navigator.clipboard.writeText(`${window.location.origin}/groups/${workshopId}`)}
+            onClick={() => copyLink(`${window.location.origin}/groups/${workshopId}`, "Public groups link")}
             className="text-gray-400 hover:text-[#DD4B4E]"
             title="Copy the public groups link"
           >
@@ -1182,7 +1189,7 @@ export default function ParticipantApp({ workshopId }: { workshopId: string }) {
       <div className="hidden lg:flex fixed top-4 right-4 z-30 items-center gap-2">
         <button
           data-tour="publicLink"
-          onClick={() => navigator.clipboard.writeText(`${window.location.origin}/groups/${workshopId}`)}
+          onClick={() => copyLink(`${window.location.origin}/groups/${workshopId}`, "Public groups link")}
           title="Copy the public groups link"
           className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 bg-white border border-gray-200 rounded-full px-3 py-1.5 hover:border-[#DD4B4E]/40 hover:text-[#DD4B4E]"
         >
@@ -1282,6 +1289,7 @@ export default function ParticipantApp({ workshopId }: { workshopId: string }) {
           }}
         />
       )}
+      <Toast message={toast} />
     </div>
   );
 }
