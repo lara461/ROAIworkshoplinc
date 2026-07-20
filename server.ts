@@ -85,7 +85,9 @@ async function startServer() {
     ).join("\n---\n");
 
     const prompt =
-      "You are an expert facilitator for the ROAI Institute, designing challenge options for ONE small group of C-level executives in a workshop on AI and the future of work.\n" +
+      "You are an expert facilitator for a workshop on AI, leadership, and the future of work. The whole point of this workshop " +
+      "is to get C-level executives to grapple with the human side of AI adoption — trust, transparency, workforce impact, " +
+      "organizational culture, and staying mission-aligned while innovating. That's not a side topic here; it's the actual subject.\n" +
       "Synthesize the pre-work survey answers of THIS GROUP's members below into EXACTLY " + n + " candidate challenge options. The group (or the facilitator on their behalf) will pick ONE to work on.\n\n" +
       "WORKSHOP: " + workshop.name + "\n" +
       "GROUP: " + groupName + "\n" +
@@ -95,7 +97,8 @@ async function startServer() {
         : "") +
       "RULES:\n" +
       "- Generate EXACTLY " + n + " options, no more no less.\n" +
-      "- Pitch these at C-LEVEL / BOARDROOM altitude: strategic, decision-forcing questions about AI, organizational redesign, or the future of work — the kind of question a CEO or CHRO would want a real answer to, not a tactical or how-to question.\n" +
+      "- Pitch these at C-LEVEL / BOARDROOM altitude: real, concrete business decisions about AI, organizational redesign, or the future of work — the kind of decision a CEO or CHRO actually has to make, not a tactical or how-to question.\n" +
+      "- Every single option must, at the same time, put one of these four themes genuinely to the test — woven into the substance of the decision itself, not tacked on as an extra sentence: (a) how the decision affects frontline employees and teams, (b) how leaders build trust and transparency as they roll it out, (c) how the organization's values and culture should shape it, (d) how to stay mission-aligned while still innovating. Vary which of the four each option foregrounds, so across all " + n + " options, all four themes get exercised.\n" +
       "- Ground each option in patterns you actually see across THIS group's responses (their AI relationship stage, their vision for how AI changes their work, and the opportunities/challenges they named)." +
       (kb ? " Each option must also be at least tangentially connected to the workshop reference materials above — don't invent challenges unrelated to what this workshop is actually about." : "") + "\n" +
       "- The " + n + " options must be genuinely distinct from each other, each offering a different strategic angle, so the group has a real choice.\n" +
@@ -106,7 +109,7 @@ async function startServer() {
       '  "challenges": [\n' +
       "    {\n" +
       '      "title": "Short, boardroom-level challenge title (max 12 words), phrased as something the group must decide or solve",\n' +
-      '      "description": "2-3 sentence description of the strategic challenge and why it matters, grounded in the group\'s survey patterns",\n' +
+      '      "description": "2-3 sentence description of the business decision AND the human/cultural theme it tests, grounded in the group\'s survey patterns",\n' +
       '      "themes": ["theme 1", "theme 2"]\n' +
       "    }\n" +
       "  ]\n" +
@@ -133,30 +136,36 @@ async function startServer() {
     const kb = capKnowledgeBase(knowledgeBase);
 
     const prompt =
-      "You are simulating a panel of 4 governance committee members challenging a proposed answer from a workshop group at a C-level executive workshop.\n" +
+      "You are simulating four senior executives reacting to a workshop group's proposed answer to a business challenge. " +
+      "This workshop is specifically about the human side of AI adoption and leadership — trust, transparency, workforce impact, " +
+      "organizational culture, and staying mission-aligned while innovating are the actual subject of the conversation, not an " +
+      "afterthought bolted onto a business discussion.\n" +
       (kb
-        ? "Ground every objection in SPECIFICS from the workshop's own reference materials below — cite or clearly reference concrete points from them, don't rely on generic AI-strategy talk.\n\n" +
+        ? "Ground every reaction in SPECIFICS from the workshop's own reference materials below — cite or clearly reference concrete points from them, don't rely on generic AI-strategy talk.\n\n" +
           "WORKSHOP REFERENCE MATERIALS:\n" + kb + "\n\n"
-        : "No specific workshop reference materials were provided — challenge them on solid general executive/strategic judgment instead.\n\n") +
+        : "No specific workshop reference materials were provided — ground the reactions in solid general executive judgment instead.\n\n") +
       "CHALLENGE: " + challenge.title + "\n" +
       challenge.description + "\n\n" +
       "GROUP ANSWER by " + groupName + ":\n" +
       solution + "\n\n" +
-      "The four committee perspectives to simulate:\n" +
-      "- Board Committee Member: overall strategy, growth, competitive positioning, and accountability to shareholders/stakeholders.\n" +
-      "- Finance Committee Member: cost, ROI, budget discipline, measurable value.\n" +
-      "- Technology Committee Member: feasibility, data readiness, technical risk, architecture.\n" +
-      "- Talent Committee Member: people impact — both the workforce/frontline experience AND the HR/people-strategy implications (hiring, training, culture, change management).\n\n" +
-      "Write ONE short punchy challenge per committee member — maximum 1-2 sentences. Be blunt and direct, the way a real executive would push back in a room.\n\n" +
+      "Pick FOUR senior executive titles that genuinely make sense for THIS specific challenge (e.g. Chief Financial Officer, " +
+      "Chief People Officer, Chief Strategy Officer, General Counsel, Chief Risk Officer, Chief Technology Officer, Chief Operating " +
+      "Officer — choose whichever four fit best each time; they don't need to be the same four for every challenge).\n\n" +
+      "For each of the four, write ONE reaction (1-2 sentences) that fuses, in a single thought, BOTH of these — never as two " +
+      "separate sentences bolted together:\n" +
+      "- A real, concrete angle from their seat (cost, risk, feasibility, execution, legal exposure, strategy, etc. — vary this across the four)\n" +
+      "- One of these four themes, tied genuinely to that angle (vary which theme across the four, so together the panel touches all four): " +
+      "how this affects frontline employees and teams; how leaders build trust and transparency as they roll this out; how the " +
+      "organization's values and culture should shape this decision; how to stay mission-aligned while still innovating\n\n" +
+      "Tone: thoughtful and pointed enough to prompt real reflection — the question that's actually been nagging at this person — " +
+      "not a hostile pile-on. The goal is to make the group think, not to attack them.\n\n" +
       "Return ONLY valid JSON:\n" +
       "{\n" +
       '  "personaChallenges": [\n' +
-      '    { "role": "Board Committee Member", "objection": "One sharp sentence." },\n' +
-      '    { "role": "Finance Committee Member", "objection": "One sharp sentence." },\n' +
-      '    { "role": "Technology Committee Member", "objection": "One sharp sentence." },\n' +
-      '    { "role": "Talent Committee Member", "objection": "One sharp sentence." }\n' +
+      '    { "role": "Executive title", "objection": "One or two sentences." }\n' +
       "  ]\n" +
-      "}";
+      "}\n" +
+      "(exactly 4 entries in personaChallenges)";
 
     try {
       const raw = await callClaude(prompt);
@@ -186,7 +195,7 @@ async function startServer() {
       "You are briefing a workshop facilitator on the group they're about to run, based on their members' pre-work survey answers.\n\n" +
       "GROUP: " + groupName + "\n" +
       "MEMBERS' SURVEY RESPONSES:\n" + responseLines + "\n\n" +
-      "Write a very short briefing (maximum 2 sentences, no headers or bullet points) that helps the facilitator understand " +
+      "Write a short briefing (3-4 sentences, one paragraph, no headers or bullet points) that helps the facilitator understand " +
       "who's in the room: where the group broadly stands on AI maturity, where views converge or diverge, and anything " +
       "notably useful to know before facilitating this specific group. Be specific to what's actually in their answers, not generic.\n\n" +
       "Return ONLY valid JSON:\n" +

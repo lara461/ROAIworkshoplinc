@@ -211,17 +211,12 @@ function MyGroupSection({
       </TabIntro>
 
       <div data-tour="groupInsight" className="border-l-4 border-[#3545A3] bg-[#3545A3]/5 rounded-r-lg p-4 mb-4">
-        <div className="flex items-center justify-between mb-1.5">
-          <div className="flex items-center gap-1.5">
-            <Sparkles className="w-3.5 h-3.5 text-[#3545A3]" />
-            <p className="text-xs font-bold uppercase tracking-widest text-[#3545A3]">AI briefing on this group</p>
-          </div>
-          <button onClick={runInsight} disabled={generatingInsight} className="text-xs text-gray-400 hover:text-[#3545A3] disabled:opacity-50">
-            {generatingInsight ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Regenerate"}
-          </button>
+        <div className="flex items-center gap-1.5 mb-1.5">
+          <Sparkles className="w-3.5 h-3.5 text-[#3545A3]" />
+          <p className="text-xs font-bold uppercase tracking-widest text-[#3545A3]">AI briefing on this group</p>
         </div>
         {group.groupInsight ? (
-          <p className="text-sm text-[#14121F] line-clamp-2">{group.groupInsight}</p>
+          <p className="text-sm text-[#14121F]">{group.groupInsight}</p>
         ) : generatingInsight ? (
           <p className="text-sm text-gray-400 flex items-center gap-2"><Loader2 className="w-3.5 h-3.5 animate-spin" /> Putting together a briefing on your group...</p>
         ) : (
@@ -811,7 +806,7 @@ const ONBOARDING_SLIDES: { icon: any; title: string; body: string; target?: Tour
   {
     icon: Sparkles,
     title: "AI briefing on this group",
-    body: "We use AI to read through their survey answers and give you a quick sense of how the group feels about AI as a whole, before you even start facilitating.",
+    body: "AI reads their survey answers and sums up how the group feels about AI, before you even start.",
     target: "groupInsight",
   },
   {
@@ -891,28 +886,60 @@ function OnboardingWizard({
   const Icon = slide.icon;
   const isLast = step === ONBOARDING_SLIDES.length - 1;
 
+  // Freeze background scrolling for the whole tour — each step scrolls its
+  // own target into view instead, so nothing can drift out of place under
+  // the spotlight because the user scrolled the page underneath it.
+  useEffect(() => {
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prevOverflow;
+    };
+  }, []);
+
   useEffect(() => {
     onStepTarget(slide.target);
     if (!slide.target) {
       setRect(null);
       return;
     }
-    function measure() {
+    let cancelled = false;
+    let attempts = 0;
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
+
+    function tryMeasure() {
+      if (cancelled) return;
+      const el = findVisibleTourTarget(slide.target!);
+      if (el) {
+        // bring it into view first (harmless no-op for fixed-position nav
+        // chrome, essential for content further down the scrollable page)
+        el.scrollIntoView({ block: "center", behavior: "auto" });
+        requestAnimationFrame(() => {
+          if (!cancelled) setRect(el.getBoundingClientRect());
+        });
+        return; // found — the resize listener below keeps it accurate from here
+      }
+      // Some targets (like the report document) depend on data that arrives
+      // asynchronously from Firestore and may not exist in the DOM yet —
+      // keep trying for a few seconds instead of giving up after one look.
+      attempts++;
+      if (attempts < 20) retryTimer = setTimeout(tryMeasure, 100);
+    }
+
+    // Wait a frame for the section/step switch triggered by onStepTarget to
+    // actually paint before the first attempt, to avoid reading stale DOM.
+    const raf = requestAnimationFrame(tryMeasure);
+
+    function onResize() {
       const el = findVisibleTourTarget(slide.target!);
       if (el) setRect(el.getBoundingClientRect());
     }
-    // Wait for the section/step switch triggered by onStepTarget to actually
-    // paint before measuring — measuring synchronously here would read the
-    // still-stale DOM from the previous step and cause a visible jump/flash.
-    let raf2 = 0;
-    const raf1 = requestAnimationFrame(() => {
-      raf2 = requestAnimationFrame(measure);
-    });
-    window.addEventListener("resize", measure);
+    window.addEventListener("resize", onResize);
     return () => {
-      cancelAnimationFrame(raf1);
-      cancelAnimationFrame(raf2);
-      window.removeEventListener("resize", measure);
+      cancelled = true;
+      cancelAnimationFrame(raf);
+      clearTimeout(retryTimer);
+      window.removeEventListener("resize", onResize);
     };
   }, [step]);
 
