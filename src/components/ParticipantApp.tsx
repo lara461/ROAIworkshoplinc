@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
-import { deleteDoc, onSnapshot, query, setDoc, updateDoc, where } from "firebase/firestore";
+import { onSnapshot, query, setDoc, updateDoc, where } from "firebase/firestore";
 import { CheckCircle2, Copy, FileBarChart, HelpCircle, LogOut, Loader2, Pencil, PlayCircle, Sparkles, Users, X } from "lucide-react";
 import { col, docIn } from "../firebase";
 import { Accordion, Btn, Card, ROAILogo, StepTabs, Tag, TabIntro, Toast } from "../ui";
@@ -346,15 +346,12 @@ function WorkshopSection({
     });
   }, [group.id]);
 
-  // The facilitator explicitly pushes the answer to the board (button in the
-  // "board" step UI below) rather than this happening automatically — they
-  // should feel like they're sending it, not have it happen behind their back.
-  async function pushToBoard() {
-    if (!challenge || !solutionDoc?.initialSolution || !kbLoaded) return;
+  async function generateAndSaveBoard(answerText: string) {
+    if (!challenge || !kbLoaded) return;
     setGeneratingBoard(true);
     const knowledgeBase = knowledgeDocs.map((d) => `--- ${d.name} ---\n${d.content}`).join("\n\n");
     try {
-      const { personaChallenges } = await generateBoardChallenge(challenge, solutionDoc.initialSolution, group.name, knowledgeBase);
+      const { personaChallenges } = await generateBoardChallenge(challenge, answerText, group.name, knowledgeBase);
       await setDoc(docIn("boardChallenges", group.id), {
         groupId: group.id,
         workshopId: workshop.id,
@@ -366,6 +363,14 @@ function WorkshopSection({
     } finally {
       setGeneratingBoard(false);
     }
+  }
+
+  // The facilitator explicitly pushes the answer to the board (button in the
+  // "board" step UI below) rather than this happening automatically — they
+  // should feel like they're sending it, not have it happen behind their back.
+  async function pushToBoard() {
+    if (!solutionDoc?.initialSolution) return;
+    await generateAndSaveBoard(solutionDoc.initialSolution);
   }
 
   async function saveField(field: string, value: string, setter: (v: string) => void) {
@@ -381,6 +386,7 @@ function WorkshopSection({
     setSaving(true);
     try {
       const contentChanged = (solutionDoc?.initialSolution || "") !== initialSolution;
+      const needsRegeneration = contentChanged && !!board;
       const updates: Record<string, any> = {
         groupId: group.id,
         workshopId: workshop.id,
@@ -391,18 +397,22 @@ function WorkshopSection({
       // The board's feedback (and anything written in response to it) was
       // grounded in the old answer — if the admin reopened this step and the
       // facilitator actually changed the content, that downstream work is now
-      // stale and needs to be redone. Resubmitting the same text leaves it alone.
-      if (contentChanged && board) {
+      // stale. Since they already committed to pushing once before, we just
+      // regenerate it fresh rather than asking them to press the push button
+      // again — resubmitting the same text leaves everything alone.
+      if (needsRegeneration) {
         updates.revisedSolution = "";
         updates.revisedSubmitted = false;
         updates.action30 = "";
         updates.action60 = "";
         updates.action90 = "";
         updates.actionsSubmitted = false;
-        await deleteDoc(docIn("boardChallenges", group.id));
       }
       await setDoc(docIn("groupSolutions", group.id), updates, { merge: true });
       await updateDoc(docIn("groups", group.id), { currentStep: "board", stepStartedAt: new Date().toISOString() });
+      if (needsRegeneration) {
+        await generateAndSaveBoard(initialSolution);
+      }
     } finally {
       setSaving(false);
     }
@@ -503,7 +513,7 @@ function WorkshopSection({
             <>
               <p className="text-sm text-gray-500">
                 {board
-                  ? "The admin reopened this step. If you change the answer, the board's feedback (and anything written after it) will be regenerated once you push again — leave it as-is and nothing downstream changes."
+                  ? "The admin reopened this step. If you change the answer and save, the board's feedback (and anything written after it) gets regenerated automatically — leave it as-is and nothing downstream changes."
                   : <>Write your group's first answer to the challenge above, then save and continue to the next tab.{currentStep !== "initial" && " You can keep editing it here"} — once you push it to the C-level board (next tab), it locks and can't be changed, so make sure the group agrees on the final wording before you push.</>}
               </p>
               <textarea
