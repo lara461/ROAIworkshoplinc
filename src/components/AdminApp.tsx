@@ -26,6 +26,7 @@ import {
   Presentation as PresentationIcon,
   RefreshCw,
   Rocket,
+  RotateCcw,
   Target,
   Trash2,
   Upload,
@@ -988,6 +989,7 @@ function WorkshopTab({
 }) {
   const [regenerating, setRegenerating] = useState<string | null>(null);
   const [openGroupId, setOpenGroupId] = useState<string | null>(null);
+  const [resettingWorkshop, setResettingWorkshop] = useState(false);
   const knowledgeBase = knowledgeDocs.map((d) => `--- ${d.name} ---\n${d.content}`).join("\n\n");
 
   // Lets the admin manually move a group forward or back through its steps —
@@ -1002,6 +1004,40 @@ function WorkshopTab({
       currentStep: GROUP_STEP_ORDER[nextIdx],
       stepStartedAt: new Date().toISOString(),
     });
+  }
+
+  // Lets the admin run a full test with real facilitators (e.g. the day
+  // before the actual workshop) and then wipe everyone's answers, board
+  // feedback, and closing reports to start clean — without touching the
+  // groups, who's in them, or the challenges already generated/picked.
+  async function resetWorkshopProgress() {
+    if (
+      !confirm(
+        `Reset "${workshop.name}"'s progress? Every group goes back to Question 1 and loses their answers, board feedback, and any closing reports. Groups, participants, and challenges stay exactly as they are. This can't be undone.`
+      )
+    ) {
+      return;
+    }
+    setResettingWorkshop(true);
+    try {
+      await Promise.all(
+        groups.map(async (g) => {
+          await updateDoc(docIn("groups", g.id), { currentStep: "initial", stepStartedAt: new Date().toISOString() });
+          await deleteDoc(docIn("groupSolutions", g.id));
+          await deleteDoc(docIn("boardChallenges", g.id));
+          await deleteDoc(docIn("groupReports", g.id));
+        })
+      );
+      await updateDoc(docIn("workshops", workshop.id), {
+        status: "working",
+        presentationGroupId: null,
+        presentationSections: [],
+      });
+    } catch (e: any) {
+      alert(e.message);
+    } finally {
+      setResettingWorkshop(false);
+    }
   }
 
   async function regenerateBoard(group: Group, challenge: Challenge | undefined, solution: GroupSolution | undefined) {
@@ -1061,7 +1097,12 @@ function WorkshopTab({
 
   return (
     <div>
-      <TabIntro>Every group, at a glance. Tap a group to see what it's done so far.</TabIntro>
+      <div className="flex items-center justify-between gap-3 mb-2">
+        <TabIntro>Every group, at a glance. Tap a group to see what it's done so far.</TabIntro>
+        <Btn variant="outline" onClick={resetWorkshopProgress} loading={resettingWorkshop} className="text-xs px-3 py-1.5 shrink-0">
+          <RotateCcw className="w-3.5 h-3.5" /> Reset progress
+        </Btn>
+      </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {WORKSHOP_COLUMNS.map((col) => {
