@@ -167,6 +167,40 @@ async function startServer() {
     }
   });
 
+  // A short AI briefing on how the group is composed, from their pre-work
+  // survey answers — shown to the facilitator in "My group" so they walk in
+  // with a sense of who they've got, not just a list of names.
+  app.post("/api/generate-group-insight", async (req, res) => {
+    if (!ANTHROPIC_API_KEY) { res.status(500).json({ error: "ANTHROPIC_API_KEY not configured" }); return; }
+    const { groupName, responses } = req.body;
+    if (!responses?.length) { res.status(400).json({ error: "No survey responses provided for this group" }); return; }
+
+    const responseLines = (responses || []).map((r: any) =>
+      "Participant: " + r.participantName +
+      " | Current AI relationship: " + r.aiRelationship +
+      " | Future-of-work vision: " + r.futureVision +
+      " | Opportunities/challenges they see: " + r.opportunitiesChallenges
+    ).join("\n---\n");
+
+    const prompt =
+      "You are briefing a workshop facilitator on the group they're about to run, based on their members' pre-work survey answers.\n\n" +
+      "GROUP: " + groupName + "\n" +
+      "MEMBERS' SURVEY RESPONSES:\n" + responseLines + "\n\n" +
+      "Write a short briefing (3-4 sentences, one paragraph, no headers or bullet points) that helps the facilitator understand " +
+      "who's in the room: where the group broadly stands on AI maturity, where views converge or diverge, and anything " +
+      "notably useful to know before facilitating this specific group. Be specific to what's actually in their answers, not generic.\n\n" +
+      "Return ONLY valid JSON:\n" +
+      '{ "insight": "the paragraph" }';
+
+    try {
+      const raw = await callClaude(prompt);
+      const parsed = JSON.parse(raw.replace(/```json|```/g, "").trim());
+      res.json(parsed);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // Report tab — one report PER GROUP, generated after the workshop is
   // marked closed: how their thinking evolved from the initial answer
   // through the board's challenge to their revised answer, plus their

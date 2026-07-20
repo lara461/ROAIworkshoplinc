@@ -159,6 +159,10 @@
           "type": "string",
           "format": "date-time",
           "description": "Start of the current 15-minute activity, for the countdown timer"
+        },
+        "groupInsight": {
+          "type": "string",
+          "description": "AI-generated briefing on the group's composition (from members' survey answers), shown to the facilitator in 'My group'. Auto-generated once, regenerable on demand."
         }
       },
       "required": [

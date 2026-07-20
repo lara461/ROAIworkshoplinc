@@ -82,6 +82,7 @@ export interface Group {
   challengeId?: string | null; // selected Challenge id, once chosen
   currentStep?: GroupStep; // drives the facilitator's 3-activity stepper, set when the workshop is launched
   stepStartedAt?: string; // ISO timestamp — start of the current 15-minute activity
+  groupInsight?: string; // AI-generated briefing on the group's composition, shown to the facilitator in "My group"
   createdAt: string;
 }
 

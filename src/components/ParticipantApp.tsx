@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { onSnapshot, query, setDoc, updateDoc, where } from "firebase/firestore";
-import { CheckCircle2, FileBarChart, LogOut, Loader2, PlayCircle, Users } from "lucide-react";
+import { CheckCircle2, FileBarChart, LogOut, Loader2, PlayCircle, Sparkles, Users } from "lucide-react";
 import { col, docIn } from "../firebase";
-import { Accordion, Btn, Card, FacilitatorBadge, ROAILogo, StepTabs, Tag, TabIntro, TextArea } from "../ui";
+import { Btn, Card, FacilitatorBadge, ROAILogo, StepTabs, Tag, TabIntro } from "../ui";
 import { cn } from "../utils";
 import type {
   BoardChallenge,
@@ -163,30 +163,84 @@ function MyGroupSection({
   participants: Participant[];
   responses: SurveyResponse[];
 }) {
+  const [generatingInsight, setGeneratingInsight] = useState(false);
   const members = group.participantIds
     .map((id) => participants.find((p) => p.id === id))
     .filter(Boolean) as Participant[];
+
+  async function runInsight() {
+    const responsePayload = members.map((m) => {
+      const r = responses.find((r) => r.participantId === m.id);
+      return {
+        participantName: m.name,
+        aiRelationship: r?.aiRelationship || "",
+        futureVision: r?.futureVision || "",
+        opportunitiesChallenges: r?.opportunitiesChallenges || "",
+      };
+    });
+    setGeneratingInsight(true);
+    try {
+      const res = await fetch("/api/generate-group-insight", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ groupName: group.name, responses: responsePayload }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error || "Request failed");
+      const { insight } = await res.json();
+      await updateDoc(docIn("groups", group.id), { groupInsight: insight });
+    } catch (e: any) {
+      // quiet failure — the briefing is a nice-to-have, not blocking
+      console.error(e);
+    } finally {
+      setGeneratingInsight(false);
+    }
+  }
+
+  useEffect(() => {
+    if (group.groupInsight || generatingInsight) return;
+    const hasAnySurvey = members.some((m) => responses.some((r) => r.participantId === m.id));
+    if (!hasAnySurvey) return;
+    runInsight();
+  }, [group.id, group.groupInsight]);
 
   return (
     <div>
       <TabIntro>
         Your group's members and the survey answers they gave before the workshop — useful background before you dive in.
       </TabIntro>
-      <div className="space-y-2">
+
+      <div className="border-l-4 border-[#3545A3] bg-[#3545A3]/5 rounded-r-lg p-4 mb-4">
+        <div className="flex items-center justify-between mb-1.5">
+          <div className="flex items-center gap-1.5">
+            <Sparkles className="w-3.5 h-3.5 text-[#3545A3]" />
+            <p className="text-xs font-bold uppercase tracking-widest text-[#3545A3]">AI briefing on this group</p>
+          </div>
+          <button onClick={runInsight} disabled={generatingInsight} className="text-xs text-gray-400 hover:text-[#3545A3] disabled:opacity-50">
+            {generatingInsight ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Regenerate"}
+          </button>
+        </div>
+        {group.groupInsight ? (
+          <p className="text-sm text-[#14121F]">{group.groupInsight}</p>
+        ) : generatingInsight ? (
+          <p className="text-sm text-gray-400 flex items-center gap-2"><Loader2 className="w-3.5 h-3.5 animate-spin" /> Putting together a briefing on your group...</p>
+        ) : (
+          <p className="text-sm text-gray-400">No survey answers on file yet to brief from.</p>
+        )}
+      </div>
+
+      <div className="space-y-3">
         {members.map((m) => {
           const r = responses.find((r) => r.participantId === m.id);
           return (
-            <Accordion
-              key={m.id}
-              title={
-                <span className="flex items-center gap-2">
+            <Card key={m.id}>
+              <div className="flex items-center justify-between mb-2">
+                <span className="font-bold text-[#14121F] flex items-center gap-2">
                   {m.name}
                   {m.role === "facilitator" && <FacilitatorBadge />}
                 </span>
-              }
-              subtitle={m.email || undefined}
-              right={r ? <Tag color="green">survey on file</Tag> : <Tag>no survey</Tag>}
-            >
+                {r ? <Tag color="green">survey on file</Tag> : <Tag>no survey</Tag>}
+              </div>
+              {m.email && <p className="text-xs text-gray-400 mb-2">{m.email}</p>}
               {r ? (
                 <div className="space-y-2 text-xs text-gray-600">
                   <div><span className="font-semibold text-gray-400 uppercase tracking-wide text-[10px]">AI relationship: </span>{r.aiRelationship}</div>
@@ -196,7 +250,7 @@ function MyGroupSection({
               ) : (
                 <p className="text-xs text-gray-400">No survey answers on file for this participant.</p>
               )}
-            </Accordion>
+            </Card>
           );
         })}
         {members.length === 0 && <p className="text-gray-400 text-sm">No members in your group yet.</p>}
@@ -361,7 +415,16 @@ function WorkshopSection({
 
   return (
     <div>
-      <TabIntro>{challenge?.description}</TabIntro>
+      <TabIntro>
+        Move between the tabs below to work through your group's 3 activities. You can tab back anytime to review
+        what you've already written, but you can only edit the activity you're currently on.
+      </TabIntro>
+
+      <div className="border-l-4 border-[#3545A3] bg-[#3545A3]/5 rounded-r-lg p-4 mb-6">
+        <p className="text-xs font-bold uppercase tracking-widest text-[#3545A3] mb-1">Your challenge</p>
+        <p className="font-bold text-[#14121F]">{challenge?.title}</p>
+        <p className="text-sm text-gray-600 mt-1">{challenge?.description}</p>
+      </div>
 
       <StepTabs
         steps={[
@@ -492,6 +555,99 @@ function WorkshopSection({
 }
 
 // ── "Report" section: view/edit the group's closing report, then submit ──
+// A borderless, auto-growing text field that reads like plain document text
+// until you click into it — no separate "edit mode", just click and type,
+// like editing a paragraph in a Google Doc. Saves happen on every change.
+function DocField({
+  id,
+  value,
+  onChange,
+  placeholder,
+  disabled,
+  className = "",
+}: {
+  id: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  disabled?: boolean;
+  className?: string;
+}) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    if (ref.current) {
+      ref.current.style.height = "auto";
+      ref.current.style.height = ref.current.scrollHeight + "px";
+    }
+  }, [value]);
+  return (
+    <textarea
+      ref={ref}
+      id={id}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+      disabled={disabled}
+      rows={1}
+      className={cn(
+        "w-full bg-transparent border-none outline-none resize-none overflow-hidden px-1.5 -mx-1.5 py-0.5 rounded-md transition-colors",
+        disabled ? "cursor-not-allowed" : "hover:bg-gray-50 focus:bg-gray-50 focus:ring-2 focus:ring-[#DD4B4E]/30",
+        className
+      )}
+    />
+  );
+}
+
+// Next steps render as a real numbered list until clicked, then swap to a
+// plain textarea (one step per line) for editing — reverts to the list on blur.
+function NextStepsField({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  disabled?: boolean;
+}) {
+  const [editing, setEditing] = useState(false);
+  const items = value.split("\n").map((s) => s.trim()).filter(Boolean);
+
+  if (disabled) {
+    return (
+      <ol className="list-decimal list-inside text-sm text-gray-700 space-y-1">
+        {items.map((s, i) => <li key={i}>{s}</li>)}
+        {items.length === 0 && <p className="text-gray-400 text-sm">No next steps written yet.</p>}
+      </ol>
+    );
+  }
+
+  if (!editing) {
+    return (
+      <div onClick={() => setEditing(true)} className="cursor-text rounded-md px-1.5 -mx-1.5 py-0.5 hover:bg-gray-50 transition-colors">
+        {items.length > 0 ? (
+          <ol className="list-decimal list-inside text-sm text-gray-700 space-y-1">
+            {items.map((s, i) => <li key={i}>{s}</li>)}
+          </ol>
+        ) : (
+          <p className="text-gray-400 text-sm">Click to add recommended next steps, one per line...</p>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <textarea
+      autoFocus
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      onBlur={() => setEditing(false)}
+      rows={4}
+      placeholder="One next step per line..."
+      className="w-full bg-gray-50 border border-gray-200 rounded-md px-3 py-2 text-sm outline-none focus:border-[#DD4B4E] resize-none"
+    />
+  );
+}
+
 function ReportSection({ group }: { group: Group }) {
   const [report, setReport] = useState<GroupReport | null>(null);
   const [summary, setSummary] = useState("");
@@ -506,7 +662,7 @@ function ReportSection({ group }: { group: Group }) {
       if (document.activeElement?.id !== "report-summary-box") setSummary(data?.executiveSummary || "");
       if (document.activeElement?.id !== "report-insight-box") setInsight(data?.keyInsight || "");
       if (document.activeElement?.id !== "report-evolution-box") setEvolution(data?.evolution || "");
-      if (document.activeElement?.id !== "report-steps-box") setSteps((data?.recommendedNextSteps || []).join("\n"));
+      setSteps((data?.recommendedNextSteps || []).join("\n"));
     });
   }, [group.id]);
 
@@ -537,7 +693,8 @@ function ReportSection({ group }: { group: Group }) {
   return (
     <div>
       <TabIntro>
-        Review your group's closing report and edit anything that needs a tweak, then submit it for the admin's approval.
+        This is your group's report, ready to edit right here — click into any line to change it, it saves as you go.
+        Submit it for the admin's approval once it looks right.
       </TabIntro>
 
       <div className="flex items-center gap-2 mb-4">
@@ -547,35 +704,48 @@ function ReportSection({ group }: { group: Group }) {
         {locked && <span className="text-xs text-gray-400">This report is approved and can no longer be edited.</span>}
       </div>
 
-      <Card className="space-y-3">
-        <TextArea
-          label="Executive summary"
-          value={summary}
-          onChange={(v) => saveField("executiveSummary", v, setSummary)}
-          rows={3}
-          disabled={locked}
-        />
-        <TextArea
-          label="Key insight"
-          value={insight}
-          onChange={(v) => saveField("keyInsight", v, setInsight)}
-          rows={2}
-          disabled={locked}
-        />
-        <TextArea
-          label="How your thinking evolved"
-          value={evolution}
-          onChange={(v) => saveField("evolution", v, setEvolution)}
-          rows={3}
-          disabled={locked}
-        />
-        <TextArea
-          label="Recommended next steps (one per line)"
-          value={steps}
-          onChange={saveSteps}
-          rows={4}
-          disabled={locked}
-        />
+      <Card className="space-y-6">
+        <div>
+          <h2 className="text-xl font-black text-[#14121F]">{group.name} — Workshop Report</h2>
+          <DocField
+            id="report-summary-box"
+            value={summary}
+            onChange={(v) => saveField("executiveSummary", v, setSummary)}
+            placeholder="Executive summary..."
+            disabled={locked}
+            className="text-base text-gray-700 mt-2"
+          />
+        </div>
+
+        <div className="border-l-4 border-[#3545A3] bg-[#3545A3]/5 rounded-r-lg p-4">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-[#3545A3] mb-1">Key insight</p>
+          <DocField
+            id="report-insight-box"
+            value={insight}
+            onChange={(v) => saveField("keyInsight", v, setInsight)}
+            placeholder="The core strategic takeaway..."
+            disabled={locked}
+            className="text-sm text-[#14121F]"
+          />
+        </div>
+
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">How their thinking evolved</p>
+          <DocField
+            id="report-evolution-box"
+            value={evolution}
+            onChange={(v) => saveField("evolution", v, setEvolution)}
+            placeholder="How the board's feedback changed (or didn't) the group's answer..."
+            disabled={locked}
+            className="text-sm text-gray-700"
+          />
+        </div>
+
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1.5">Recommended next steps</p>
+          <NextStepsField value={steps} onChange={saveSteps} disabled={locked} />
+        </div>
+
         {!locked && report.status === "draft" && (
           <Btn variant="coral" onClick={submitForApproval}>Submit for approval</Btn>
         )}

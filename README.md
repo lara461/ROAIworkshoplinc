@@ -43,9 +43,9 @@ Upload or paste the material this workshop is actually about — briefs, prior r
 ### Workshop tab — 3 group activities, driven by the facilitator
 The facilitator's own experience (at `/w/:workshopId`, after logging in with name + email) mirrors the admin's — a sidebar on desktop, a bottom tab bar on mobile — with three sections:
 
-- **My group** — the group's members and the survey answers they gave beforehand, as background before diving in.
-- **Workshop** — the actual activity, navigated with step tabs (Question 1 / Board & revised answer / 30/60/90 actions). Steps not yet reached are locked, but once reached the facilitator can tab back to review earlier ones — nothing is hidden once it's been done.
-- **Report** — appears once the admin has generated it (see below); the facilitator can review, edit, and submit it for approval.
+- **My group** — an AI-generated briefing on the group's composition (from their pre-work survey answers — where they broadly stand on AI maturity, where views converge or diverge), auto-generated once and regenerable, plus each member shown as an always-open card (name, email, survey answers) — nothing to click through, all visible at a glance.
+- **Workshop** — a short line on how to use the section, then the challenge itself in its own highlighted box, then the actual activity navigated with step tabs (Question 1 / Board & revised answer / 30/60/90 actions). Steps not yet reached are locked, but once reached the facilitator can tab back to review earlier ones — nothing is hidden once it's been done.
+- **Report** — appears once the admin has generated it (see below), rendered as a single continuous document (title, lead summary, a highlighted key-insight callout, an evolution section, a numbered next-steps list) that's directly click-to-edit, Google-Doc style — no separate "edit mode," just click a line and type, it saves as you go. Submittable for the admin's approval.
 
 Each group moves through the Workshop section's 3 activities on its own, at its own pace — the facilitator advances with a "Submit & continue" button whenever they're ready:
 
