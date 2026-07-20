@@ -221,7 +221,7 @@ function MyGroupSection({
           </button>
         </div>
         {group.groupInsight ? (
-          <p className="text-sm text-[#14121F]">{group.groupInsight}</p>
+          <p className="text-sm text-[#14121F] line-clamp-2">{group.groupInsight}</p>
         ) : generatingInsight ? (
           <p className="text-sm text-gray-400 flex items-center gap-2"><Loader2 className="w-3.5 h-3.5 animate-spin" /> Putting together a briefing on your group...</p>
         ) : (
@@ -266,11 +266,13 @@ function WorkshopSection({
   challenge,
   groupChallenges,
   workshop,
+  forceActiveStep,
 }: {
   group: Group;
   challenge: Challenge | undefined;
   groupChallenges: Challenge[];
   workshop: Workshop;
+  forceActiveStep?: "initial" | "board" | "actions" | null;
 }) {
   const [initialSolution, setInitialSolution] = useState("");
   const [revisedSolution, setRevisedSolution] = useState("");
@@ -298,6 +300,8 @@ function WorkshopSection({
     const idx = reachedIndex(group.currentStep);
     setActiveStep(idx === 0 ? "initial" : idx === 1 ? "board" : "actions");
   }, [group.id, group.currentStep]);
+
+  const displayedStep = forceActiveStep ?? activeStep;
 
   useEffect(() => {
     return onSnapshot(query(col.knowledgeDocs, where("workshopId", "==", workshop.id)), (snap) => {
@@ -427,18 +431,20 @@ function WorkshopSection({
         <p className="text-sm text-gray-600 mt-1">{challenge?.description}</p>
       </div>
 
-      <StepTabs
-        steps={[
-          { key: "initial", label: "Question 1" },
-          { key: "board", label: "Board & revised answer", locked: reached < 1 },
-          { key: "actions", label: "30/60/90 actions", locked: reached < 2 },
-        ]}
-        active={activeStep}
-        onChange={(k) => setActiveStep(k as typeof activeStep)}
-      />
+      <div data-tour="workshopSteps">
+        <StepTabs
+          steps={[
+            { key: "initial", label: "Question 1" },
+            { key: "board", label: "Board & revised answer", locked: reached < 1 },
+            { key: "actions", label: "30/60/90 actions", locked: reached < 2 },
+          ]}
+          active={displayedStep}
+          onChange={(k) => setActiveStep(k as typeof activeStep)}
+        />
+      </div>
 
-      {activeStep === "initial" && (
-        <Card className="space-y-3">
+      {displayedStep === "initial" && (
+        <Card data-tour="step1Input" className="space-y-3">
           <p className="text-sm text-gray-500">
             Write your group's first answer to the challenge above. Once you submit, the C-level board will weigh in —
             you won't be able to edit this afterward, so make sure the group agrees before submitting.
@@ -463,7 +469,7 @@ function WorkshopSection({
         </Card>
       )}
 
-      {activeStep === "board" && (
+      {displayedStep === "board" && (
         <Card className="space-y-4">
           <div>
             <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1.5">Your initial answer</p>
@@ -473,7 +479,7 @@ function WorkshopSection({
           {!board ? (
             <p className="text-sm text-gray-400 flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> The board is reviewing your answer...</p>
           ) : (
-            <div>
+            <div data-tour="step2Board">
               <p className="text-[10px] font-bold uppercase tracking-widest text-[#DD4B4E] mb-2">The C-level board is challenging your answer</p>
               <div className="grid sm:grid-cols-2 gap-2">
                 {board.personaChallenges.map((pc, i) => (
@@ -514,7 +520,7 @@ function WorkshopSection({
         </Card>
       )}
 
-      {activeStep === "actions" && (
+      {displayedStep === "actions" && (
         <Card className="space-y-4">
           <p className="text-sm text-gray-500">
             Turn the discussion into action: what will your organization actually do next? Split it across three horizons.
@@ -636,15 +642,24 @@ function NextStepsField({
     );
   }
 
+  const editRef = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    if (editing && editRef.current) {
+      editRef.current.style.height = "auto";
+      editRef.current.style.height = editRef.current.scrollHeight + "px";
+    }
+  }, [editing, value]);
+
   return (
     <textarea
+      ref={editRef}
       autoFocus
       value={value}
       onChange={(e) => onChange(e.target.value)}
       onBlur={() => setEditing(false)}
-      rows={4}
+      rows={1}
       placeholder="One next step per line..."
-      className="w-full bg-gray-50 border border-gray-200 rounded-md px-3 py-2 text-sm outline-none focus:border-[#DD4B4E] resize-none"
+      className="w-full bg-gray-50 border border-gray-200 rounded-md px-3 py-2 text-sm outline-none focus:border-[#DD4B4E] resize-none overflow-hidden min-h-[6rem]"
     />
   );
 }
@@ -705,7 +720,7 @@ function ReportSection({ group }: { group: Group }) {
         {locked && <span className="text-xs text-gray-400">This report is approved and can no longer be edited.</span>}
       </div>
 
-      <Card className="space-y-6">
+      <Card data-tour="reportDoc" className="space-y-6">
         <div>
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-black text-[#14121F]">{group.name} — Workshop Report</h2>
@@ -769,7 +784,17 @@ function onboardingKey(workshopId: string, participantId: string) {
   return `fow_onboarded_${workshopId}_${participantId}`;
 }
 
-type TourTarget = "help" | "publicLink" | "myGroup" | "groupInsight" | "workshop" | "report";
+type TourTarget =
+  | "help"
+  | "publicLink"
+  | "myGroup"
+  | "groupInsight"
+  | "workshop"
+  | "workshopSteps"
+  | "step1Input"
+  | "step2Board"
+  | "report"
+  | "reportDoc";
 
 const ONBOARDING_SLIDES: { icon: any; title: string; body: string; target?: TourTarget }[] = [
   {
@@ -799,16 +824,19 @@ const ONBOARDING_SLIDES: { icon: any; title: string; body: string; target?: Tour
     icon: PlayCircle,
     title: "Moving between the steps",
     body: "Use the tabs at the top of this section to move between the 3 activities. A step you haven't reached yet stays locked, but once you're past one you can always tab back to review what was written.",
+    target: "workshopSteps",
   },
   {
     icon: Pencil,
     title: "Step 1 — writing your answer",
     body: "Write your group's first answer to the challenge, then hit \u201cSubmit & continue\u201d once everyone agrees — you won't be able to change it after that, so make sure the group's on the same page first.",
+    target: "step1Input",
   },
   {
     icon: Sparkles,
     title: "Step 2 — the board's response",
     body: "Once you submit, the C-level board's feedback is generated automatically — nothing to click. Just read their pushback and write your revised answer in response.",
+    target: "step2Board",
   },
   {
     icon: FileBarChart,
@@ -820,6 +848,7 @@ const ONBOARDING_SLIDES: { icon: any; title: string; body: string; target?: Tour
     icon: Pencil,
     title: "Editing the report",
     body: "The report reads like a normal document, but click any line and it becomes editable right there — like a Google Doc, it saves as you type. Submit it for the admin's approval once it's ready.",
+    target: "reportDoc",
   },
   {
     icon: Copy,
@@ -872,11 +901,19 @@ function OnboardingWizard({
       const el = findVisibleTourTarget(slide.target!);
       if (el) setRect(el.getBoundingClientRect());
     }
-    measure();
-    // small delay lets the section switch (and any layout shift) settle first
-    const t = setTimeout(measure, 60);
+    // Wait for the section/step switch triggered by onStepTarget to actually
+    // paint before measuring — measuring synchronously here would read the
+    // still-stale DOM from the previous step and cause a visible jump/flash.
+    let raf2 = 0;
+    const raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(measure);
+    });
     window.addEventListener("resize", measure);
-    return () => { clearTimeout(t); window.removeEventListener("resize", measure); };
+    return () => {
+      cancelAnimationFrame(raf1);
+      cancelAnimationFrame(raf2);
+      window.removeEventListener("resize", measure);
+    };
   }, [step]);
 
   const PAD = 6;
@@ -885,18 +922,26 @@ function OnboardingWizard({
     const TOOLTIP_W = 380;
     const spaceRight = window.innerWidth - rect.right;
     const spaceBelow = window.innerHeight - rect.bottom;
-    if (spaceRight > TOOLTIP_W) {
+    const sideCallout = window.innerWidth >= 640 && spaceRight > TOOLTIP_W;
+
+    if (sideCallout) {
       // plenty of room to the side (e.g. desktop sidebar items) — classic side callout
       tooltipStyle.top = Math.max(16, Math.min(rect.top, window.innerHeight - 280));
       tooltipStyle.left = rect.right + 16;
-    } else if (spaceBelow > 240) {
-      // anchor below, right-aligned to the target so it never spills off a
-      // right-edge target (like the help button) or a narrow mobile tab
-      tooltipStyle.top = rect.bottom + 12;
-      tooltipStyle.right = Math.max(16, window.innerWidth - rect.right);
     } else {
-      tooltipStyle.bottom = Math.max(16, window.innerHeight - rect.top + 12);
-      tooltipStyle.right = Math.max(16, window.innerWidth - rect.right);
+      // stack above or below the target, whichever has more room
+      if (spaceBelow > 240) tooltipStyle.top = rect.bottom + 12;
+      else tooltipStyle.bottom = Math.max(16, window.innerHeight - rect.top + 12);
+
+      // horizontally, center directly under/over the target's actual midpoint
+      // (not a coarse left/center/right bucket, which misjudges anything that
+      // isn't near a screen edge — e.g. a button with other buttons to its
+      // right isn't "in the right third" even though it visually sits right-of-center)
+      // then clamp so the tooltip itself never spills off either edge.
+      const tooltipWidth = Math.min(window.innerWidth - 32, 384);
+      const targetCenterX = rect.left + rect.width / 2;
+      const left = Math.max(16, Math.min(targetCenterX - tooltipWidth / 2, window.innerWidth - tooltipWidth - 16));
+      tooltipStyle.left = left;
     }
   }
 
@@ -984,6 +1029,7 @@ export default function ParticipantApp({ workshopId }: { workshopId: string }) {
   const [loading, setLoading] = useState(true);
   const [section, setSection] = useState<"myGroup" | "workshop" | "report">("workshop");
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [workshopForcedStep, setWorkshopForcedStep] = useState<"initial" | "board" | "actions" | null>(null);
 
   useEffect(() => {
     if (!participant) return;
@@ -995,6 +1041,7 @@ export default function ParticipantApp({ workshopId }: { workshopId: string }) {
   function dismissOnboarding() {
     if (participant) localStorage.setItem(onboardingKey(workshopId, participant.id), "1");
     setShowOnboarding(false);
+    setWorkshopForcedStep(null);
   }
 
   useEffect(() => {
@@ -1188,7 +1235,7 @@ export default function ParticipantApp({ workshopId }: { workshopId: string }) {
 
           {section === "myGroup" && <MyGroupSection group={myGroup} participants={participants} responses={responses} />}
           {section === "workshop" && (
-            <WorkshopSection group={myGroup} challenge={challenge} groupChallenges={groupChallenges} workshop={workshop} />
+            <WorkshopSection group={myGroup} challenge={challenge} groupChallenges={groupChallenges} workshop={workshop} forceActiveStep={workshopForcedStep} />
           )}
           {section === "report" && <ReportSection group={myGroup} />}
         </div>
@@ -1199,8 +1246,12 @@ export default function ParticipantApp({ workshopId }: { workshopId: string }) {
           name={participant.name.split(" ")[0]}
           onClose={dismissOnboarding}
           onStepTarget={(target) => {
-            if (target === "groupInsight") setSection("myGroup");
-            else if (target === "myGroup" || target === "workshop" || target === "report") setSection(target);
+            if (target === "groupInsight") { setSection("myGroup"); setWorkshopForcedStep(null); }
+            else if (target === "myGroup") { setSection("myGroup"); setWorkshopForcedStep(null); }
+            else if (target === "workshop" || target === "workshopSteps") { setSection("workshop"); setWorkshopForcedStep(null); }
+            else if (target === "step1Input") { setSection("workshop"); setWorkshopForcedStep("initial"); }
+            else if (target === "step2Board") { setSection("workshop"); setWorkshopForcedStep("board"); }
+            else if (target === "report" || target === "reportDoc") { setSection("report"); setWorkshopForcedStep(null); }
           }}
         />
       )}

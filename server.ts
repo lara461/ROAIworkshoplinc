@@ -186,7 +186,7 @@ async function startServer() {
       "You are briefing a workshop facilitator on the group they're about to run, based on their members' pre-work survey answers.\n\n" +
       "GROUP: " + groupName + "\n" +
       "MEMBERS' SURVEY RESPONSES:\n" + responseLines + "\n\n" +
-      "Write a short briefing (3-4 sentences, one paragraph, no headers or bullet points) that helps the facilitator understand " +
+      "Write a very short briefing (maximum 2 sentences, no headers or bullet points) that helps the facilitator understand " +
       "who's in the room: where the group broadly stands on AI maturity, where views converge or diverge, and anything " +
       "notably useful to know before facilitating this specific group. Be specific to what's actually in their answers, not generic.\n\n" +
       "Return ONLY valid JSON:\n" +
