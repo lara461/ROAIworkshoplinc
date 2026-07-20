@@ -1013,7 +1013,7 @@ function WorkshopTab({
   async function resetWorkshopProgress() {
     if (
       !confirm(
-        `Reset "${workshop.name}"'s progress? Every group goes back to Question 1 and loses their answers, board feedback, and any closing reports. Groups, participants, and challenges stay exactly as they are. This can't be undone.`
+        `Reset "${workshop.name}"'s progress? Every group goes back to picking a challenge, and loses their answers, board feedback, and any closing reports. Participants and the generated challenge options stay exactly as they are — only which one each group had picked gets cleared. This can't be undone.`
       )
     ) {
       return;
@@ -1022,10 +1022,15 @@ function WorkshopTab({
     try {
       await Promise.all(
         groups.map(async (g) => {
-          await updateDoc(docIn("groups", g.id), { currentStep: "initial", stepStartedAt: new Date().toISOString() });
+          await updateDoc(docIn("groups", g.id), { currentStep: "initial", challengeId: null, stepStartedAt: new Date().toISOString() });
           await deleteDoc(docIn("groupSolutions", g.id));
           await deleteDoc(docIn("boardChallenges", g.id));
           await deleteDoc(docIn("groupReports", g.id));
+          await Promise.all(
+            challenges
+              .filter((c) => c.groupId === g.id)
+              .map((c) => updateDoc(docIn("challenges", c.id), { status: "option" }))
+          );
         })
       );
       await updateDoc(docIn("workshops", workshop.id), {
