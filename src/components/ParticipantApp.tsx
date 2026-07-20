@@ -176,7 +176,7 @@ function MyGroupSection({
   const displayMembers = members.filter((m) => m.id !== currentParticipantId);
 
   async function runInsight() {
-    const responsePayload = members.map((m) => {
+    const responsePayload = displayMembers.map((m) => {
       const r = responses.find((r) => r.participantId === m.id);
       return {
         participantName: m.name,
@@ -205,7 +205,7 @@ function MyGroupSection({
 
   useEffect(() => {
     if (group.groupInsight || generatingInsight) return;
-    const hasAnySurvey = members.some((m) => responses.some((r) => r.participantId === m.id));
+    const hasAnySurvey = displayMembers.some((m) => responses.some((r) => r.participantId === m.id));
     if (!hasAnySurvey) return;
     runInsight();
   }, [group.id, group.groupInsight]);
@@ -241,7 +241,7 @@ function MyGroupSection({
             </div>
             {/* Desktop — unchanged, always open. The tour is desktop-only, so
                 the tour target lives here, not on the mobile accordion above. */}
-            <div data-tour="groupInsight" className="hidden lg:block border-l-4 border-[#3545A3] bg-[#3545A3]/5 rounded-r-lg p-4 mb-4">
+            <div className="hidden lg:block border-l-4 border-[#3545A3] bg-[#3545A3]/5 rounded-r-lg p-4 mb-4">
               <div className="flex items-center gap-1.5 mb-1.5">
                 <Sparkles className="w-3.5 h-3.5 text-[#3545A3]" />
                 <p className="text-xs font-bold uppercase tracking-widest text-[#3545A3]">AI briefing on this group</p>
@@ -286,13 +286,11 @@ function WorkshopSection({
   challenge,
   groupChallenges,
   workshop,
-  forceActiveStep,
 }: {
   group: Group;
   challenge: Challenge | undefined;
   groupChallenges: Challenge[];
   workshop: Workshop;
-  forceActiveStep?: "initial" | "board" | "actions" | null;
 }) {
   const [initialSolution, setInitialSolution] = useState("");
   const [revisedSolution, setRevisedSolution] = useState("");
@@ -321,7 +319,7 @@ function WorkshopSection({
     setActiveStep(idx === 0 ? "initial" : idx === 1 ? "board" : "actions");
   }, [group.id, group.currentStep]);
 
-  const displayedStep = forceActiveStep ?? activeStep;
+  const displayedStep = activeStep;
 
   useEffect(() => {
     return onSnapshot(query(col.knowledgeDocs, where("workshopId", "==", workshop.id)), (snap) => {
@@ -504,20 +502,18 @@ function WorkshopSection({
         <p className="text-sm text-gray-600 mt-1">{challenge?.description}</p>
       </div>
 
-      <div data-tour="workshopSteps">
-        <StepTabs
-          steps={[
-            { key: "initial", label: "Question 1" },
-            { key: "board", label: "Board Feedback", locked: reached < 1 },
-            { key: "actions", label: "30/60/90 actions", locked: reached < 2 },
-          ]}
-          active={displayedStep}
-          onChange={(k) => setActiveStep(k as typeof activeStep)}
-        />
-      </div>
+      <StepTabs
+        steps={[
+          { key: "initial", label: "Question 1" },
+          { key: "board", label: "Board Feedback", locked: reached < 1 },
+          { key: "actions", label: "30/60/90 actions", locked: reached < 2 },
+        ]}
+        active={displayedStep}
+        onChange={(k) => setActiveStep(k as typeof activeStep)}
+      />
 
       {displayedStep === "initial" && (
-        <Card data-tour="step1Input" className="space-y-3">
+        <Card className="space-y-3">
           {!board || currentStep === "initial" ? (
             <>
               <p className="text-sm text-gray-500">
@@ -551,6 +547,15 @@ function WorkshopSection({
 
       {displayedStep === "board" && (
         <Card className="space-y-4">
+          {generatingBoard && (
+            <div className="bg-[#3545A3]/5 border border-[#3545A3]/20 rounded-lg px-3 py-2.5 flex items-center gap-2 text-sm text-[#3545A3] font-medium">
+              <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+              {board
+                ? "Your answer changed — regenerating the board's feedback to match. This can take a few seconds."
+                : "The board is reviewing your answer..."}
+            </div>
+          )}
+
           {!board ? (
             <div className="space-y-2">
               <p className="text-sm text-gray-500">
@@ -562,7 +567,7 @@ function WorkshopSection({
               </Btn>
             </div>
           ) : (
-            <div data-tour="step2Board">
+            <div className={cn(generatingBoard && "opacity-50 pointer-events-none transition-opacity")}>
               <div className="flex items-center justify-between gap-2 mb-2">
                 <p className="text-[10px] font-bold uppercase tracking-widest text-[#DD4B4E]">The C-level board is challenging your answer</p>
                 <button
@@ -810,7 +815,7 @@ function ReportSection({ group }: { group: Group }) {
         {locked && <span className="text-xs text-gray-400">This report is approved and can no longer be edited.</span>}
       </div>
 
-      <Card data-tour="reportDoc" className="space-y-6">
+      <Card className="space-y-6">
         <div>
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-black text-[#14121F]">{group.name} — Workshop Report</h2>
@@ -874,35 +879,19 @@ function onboardingKey(workshopId: string, participantId: string) {
   return `fow_onboarded_${workshopId}_${participantId}`;
 }
 
-type TourTarget =
-  | "help"
-  | "publicLink"
-  | "myGroup"
-  | "groupInsight"
-  | "workshop"
-  | "workshopSteps"
-  | "step1Input"
-  | "step2Board"
-  | "report"
-  | "reportDoc";
+type TourTarget = "help" | "publicLink" | "myGroup" | "workshop" | "report";
 
 const ONBOARDING_SLIDES: { icon: LucideIcon; title: string; body: string; target?: TourTarget }[] = [
   {
     icon: Sparkles,
     title: "Welcome, facilitator",
-    body: "Quick tour of everything you'll use here — takes about a minute.",
+    body: "Quick tour of the three sections you'll use here — takes a few seconds.",
   },
   {
     icon: Users,
     title: "My group",
-    body: "Tap here to see your group's members — who they are, what they told us in the pre-workshop survey, and how they're generally feeling about AI.",
+    body: "Your group's members, who they are, and what they told us in the pre-workshop survey — useful background before you dive in.",
     target: "myGroup",
-  },
-  {
-    icon: Sparkles,
-    title: "AI briefing on this group",
-    body: "AI reads their survey answers and sums up how the group feels about AI, before you even start.",
-    target: "groupInsight",
   },
   {
     icon: PlayCircle,
@@ -911,34 +900,10 @@ const ONBOARDING_SLIDES: { icon: LucideIcon; title: string; body: string; target
     target: "workshop",
   },
   {
-    icon: PlayCircle,
-    title: "Moving between the steps",
-    body: "Use the tabs at the top of this section to move between the 3 activities. A step you haven't reached yet stays locked, but once you're past one you can always tab back to review what was written.",
-    target: "workshopSteps",
-  },
-  {
-    icon: Pencil,
-    title: "Step 1 — writing your answer",
-    body: "Write your group's first answer to the challenge, then hit \u201cSubmit & continue\u201d once everyone agrees — you won't be able to change it after that, so make sure the group's on the same page first.",
-    target: "step1Input",
-  },
-  {
-    icon: Sparkles,
-    title: "Step 2 — the board's response",
-    body: "When you're ready, push your answer to the C-level board — they'll react to it, and then you reply below.",
-    target: "step2Board",
-  },
-  {
     icon: FileBarChart,
     title: "Report",
-    body: "Tap here once your group is done — the admin generates a closing report,",
+    body: "Tap here once your group is done — the admin generates a closing report, which you can edit and submit for approval.",
     target: "report",
-  },
-  {
-    icon: Pencil,
-    title: "Editing the report",
-    body: "The report reads like a normal document, but click any line and it becomes editable right there — like a Google Doc, it saves as you type. Submit it for the admin's approval once it's ready.",
-    target: "reportDoc",
   },
   {
     icon: Copy,
@@ -1177,7 +1142,6 @@ export default function ParticipantApp({ workshopId }: { workshopId: string }) {
     setToast(`${label} copied!`);
     setTimeout(() => setToast(null), 2000);
   }
-  const [workshopForcedStep, setWorkshopForcedStep] = useState<"initial" | "board" | "actions" | null>(null);
 
   useEffect(() => {
     if (!participant) return;
@@ -1190,7 +1154,6 @@ export default function ParticipantApp({ workshopId }: { workshopId: string }) {
   function dismissOnboarding() {
     if (participant) localStorage.setItem(onboardingKey(workshopId, participant.id), "1");
     setShowOnboarding(false);
-    setWorkshopForcedStep(null);
   }
 
   useEffect(() => {
@@ -1379,7 +1342,7 @@ export default function ParticipantApp({ workshopId }: { workshopId: string }) {
 
           {section === "myGroup" && <MyGroupSection group={myGroup} participants={participants} responses={responses} currentParticipantId={participant.id} />}
           {section === "workshop" && (
-            <WorkshopSection group={myGroup} challenge={challenge} groupChallenges={groupChallenges} workshop={workshop} forceActiveStep={workshopForcedStep} />
+            <WorkshopSection group={myGroup} challenge={challenge} groupChallenges={groupChallenges} workshop={workshop} />
           )}
           {section === "report" && <ReportSection group={myGroup} />}
         </div>
@@ -1390,12 +1353,7 @@ export default function ParticipantApp({ workshopId }: { workshopId: string }) {
           name={participant.name.split(" ")[0]}
           onClose={dismissOnboarding}
           onStepTarget={(target) => {
-            if (target === "groupInsight") { setSection("myGroup"); setWorkshopForcedStep(null); }
-            else if (target === "myGroup") { setSection("myGroup"); setWorkshopForcedStep(null); }
-            else if (target === "workshop" || target === "workshopSteps") { setSection("workshop"); setWorkshopForcedStep(null); }
-            else if (target === "step1Input") { setSection("workshop"); setWorkshopForcedStep("initial"); }
-            else if (target === "step2Board") { setSection("workshop"); setWorkshopForcedStep("board"); }
-            else if (target === "report" || target === "reportDoc") { setSection("report"); setWorkshopForcedStep(null); }
+            if (target === "myGroup" || target === "workshop" || target === "report") setSection(target);
           }}
         />
       )}
