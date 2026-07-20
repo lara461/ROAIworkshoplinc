@@ -813,6 +813,7 @@ function ChallengesSection({
   const [generatingAll, setGeneratingAll] = useState(false);
   const [editing, setEditing] = useState<Record<string, { title: string; description: string }>>({});
   const [numOptions, setNumOptions] = useState(3);
+  const [downloadingChallenges, setDownloadingChallenges] = useState(false);
 
   const knowledgeBase = knowledgeDocs.map((d) => `--- ${d.name} ---\n${d.content}`).join("\n\n");
 
@@ -899,6 +900,22 @@ function ChallengesSection({
         <span className="text-xs text-gray-400">options/group</span>
         <Btn variant="coral" onClick={generateAllChallenges} loading={generatingAll} disabled={groupsWithoutChallenges === 0}>
           <Rocket className="w-4 h-4" /> Generate for {groupsWithoutChallenges || "all"}
+        </Btn>
+        <Btn
+          variant="outline"
+          loading={downloadingChallenges}
+          disabled={challenges.length === 0}
+          onClick={async () => {
+            setDownloadingChallenges(true);
+            try {
+              const { downloadChallengesPdf } = await import("../challengesPdf");
+              await downloadChallengesPdf(workshop.name, groups, challenges);
+            } finally {
+              setDownloadingChallenges(false);
+            }
+          }}
+        >
+          <Download className="w-4 h-4" /> Download PDF
         </Btn>
       </div>
 
