@@ -442,41 +442,44 @@ function WorkshopSection({
 
       {displayedStep === "initial" && (
         <Card data-tour="step1Input" className="space-y-3">
-          <p className="text-sm text-gray-500">
-            Write your group's first answer to the challenge above. Once you submit, the C-level board will weigh in —
-            you won't be able to edit this afterward, so make sure the group agrees before submitting.
-          </p>
-          <textarea
-            id="initial-box"
-            value={initialSolution}
-            onChange={(e) => saveField("initialSolution", e.target.value, setInitialSolution)}
-            rows={8}
-            disabled={currentStep !== "initial"}
-            className={cn(
-              "w-full bg-gray-50 border border-gray-200 rounded-md px-4 py-2.5 text-sm outline-none resize-none",
-              currentStep !== "initial" ? "opacity-60 cursor-not-allowed" : "focus:border-[#DD4B4E]"
-            )}
-            placeholder="Write your group's answer here..."
-          />
-          {currentStep === "initial" && (
-            <Btn variant="coral" onClick={submitInitial} loading={saving} disabled={!initialSolution.trim()}>
-              Submit & continue
-            </Btn>
+          {!board ? (
+            <>
+              <p className="text-sm text-gray-500">
+                Write your group's first answer to the challenge above, then save and continue to the next tab.
+                {currentStep !== "initial" && " You can keep editing it here"} — once you push it to the C-level board (next
+                tab), it locks and can't be changed, so make sure the group agrees on the final wording before you push.
+              </p>
+              <textarea
+                id="initial-box"
+                value={initialSolution}
+                onChange={(e) => saveField("initialSolution", e.target.value, setInitialSolution)}
+                rows={8}
+                className="w-full bg-gray-50 border border-gray-200 rounded-md px-4 py-2.5 text-sm outline-none resize-none focus:border-[#DD4B4E]"
+                placeholder="Write your group's answer here..."
+              />
+              <Btn variant="coral" onClick={submitInitial} loading={saving} disabled={!initialSolution.trim()}>
+                {currentStep === "initial" ? "Save & continue" : "Save changes"}
+              </Btn>
+            </>
+          ) : (
+            <>
+              <div className="flex items-center justify-between mb-1">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Your answer</p>
+                <Tag color="green">Pushed to the board — locked</Tag>
+              </div>
+              <p className="text-sm text-[#14121F] bg-gray-50 border border-gray-200 rounded-md px-4 py-3 whitespace-pre-wrap">{initialSolution}</p>
+            </>
           )}
         </Card>
       )}
 
       {displayedStep === "board" && (
         <Card className="space-y-4">
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1.5">Your initial answer</p>
-            <p className="text-sm text-[#14121F] bg-gray-50 border border-gray-200 rounded-md px-4 py-3 whitespace-pre-wrap">{initialSolution}</p>
-          </div>
-
           {!board ? (
             <div className="space-y-2">
               <p className="text-sm text-gray-500">
                 When you're ready, push your answer to the C-level board — they'll react to it, and then you can respond below.
+                Need to check what you wrote? It's in the <span className="font-semibold text-[#14121F]">Question 1</span> tab.
               </p>
               <Btn variant="coral" onClick={pushToBoard} loading={generatingBoard} disabled={currentStep !== "board"}>
                 Push to the C-level board

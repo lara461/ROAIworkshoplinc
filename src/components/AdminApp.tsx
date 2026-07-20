@@ -964,6 +964,14 @@ function columnForGroup(step: Group["currentStep"]): "initial" | "board" | "acti
   return "initial";
 }
 
+const GROUP_STEP_ORDER: Group["currentStep"][] = ["initial", "board", "actions", "done"];
+const GROUP_STEP_DISPLAY: Record<string, string> = {
+  initial: "Question 1",
+  board: "Board & revised answer",
+  actions: "30/60/90 actions",
+  done: "Done",
+};
+
 function WorkshopTab({
   workshop,
   groups,
@@ -982,6 +990,20 @@ function WorkshopTab({
   const [regenerating, setRegenerating] = useState<string | null>(null);
   const [openGroupId, setOpenGroupId] = useState<string | null>(null);
   const knowledgeBase = knowledgeDocs.map((d) => `--- ${d.name} ---\n${d.content}`).join("\n\n");
+
+  // Lets the admin manually move a group forward or back through its steps —
+  // e.g. to unstick a facilitator, or undo a step taken too early. This only
+  // changes which activity is "open" for the group; it doesn't delete any
+  // answers or board feedback already on file.
+  async function moveGroupStep(group: Group, direction: 1 | -1) {
+    const currentIdx = GROUP_STEP_ORDER.indexOf(group.currentStep || "initial");
+    const nextIdx = Math.max(0, Math.min(GROUP_STEP_ORDER.length - 1, currentIdx + direction));
+    if (nextIdx === currentIdx) return;
+    await updateDoc(docIn("groups", group.id), {
+      currentStep: GROUP_STEP_ORDER[nextIdx],
+      stepStartedAt: new Date().toISOString(),
+    });
+  }
 
   async function regenerateBoard(group: Group, challenge: Challenge | undefined, solution: GroupSolution | undefined) {
     if (!challenge || !solution?.initialSolution) return alert("This group hasn't submitted an initial answer yet.");
@@ -1081,6 +1103,26 @@ function WorkshopTab({
 
       {openGroup && (
         <Modal title={openGroup.name} onClose={() => setOpenGroupId(null)}>
+          <div className="flex items-center justify-between gap-2 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 mb-4">
+            <button
+              onClick={() => moveGroupStep(openGroup, -1)}
+              disabled={(openGroup.currentStep || "initial") === "initial"}
+              className="text-xs font-semibold text-gray-500 hover:text-[#14121F] disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-1"
+            >
+              ← Move back
+            </button>
+            <Tag color={openGroup.currentStep === "done" ? "green" : "coral"}>
+              {GROUP_STEP_DISPLAY[openGroup.currentStep || "initial"]}
+            </Tag>
+            <button
+              onClick={() => moveGroupStep(openGroup, 1)}
+              disabled={(openGroup.currentStep || "initial") === "done"}
+              className="text-xs font-semibold text-gray-500 hover:text-[#14121F] disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-1"
+            >
+              Move forward →
+            </button>
+          </div>
+
           {!openChallenge ? (
             <p className="text-sm text-gray-400">No challenge selected yet — waiting on the facilitator.</p>
           ) : (
