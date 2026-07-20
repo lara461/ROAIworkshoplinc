@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { onSnapshot, query, setDoc, updateDoc, where } from "firebase/firestore";
-import { CheckCircle2, FileBarChart, HelpCircle, LogOut, Loader2, Pencil, PlayCircle, Sparkles, Users, X } from "lucide-react";
+import { CheckCircle2, Copy, FileBarChart, HelpCircle, LogOut, Loader2, Pencil, PlayCircle, Sparkles, Users, X } from "lucide-react";
 import { col, docIn } from "../firebase";
 import { Btn, Card, FacilitatorBadge, ROAILogo, StepTabs, Tag, TabIntro } from "../ui";
 import { cn } from "../utils";
@@ -769,19 +769,13 @@ function onboardingKey(workshopId: string, participantId: string) {
   return `fow_onboarded_${workshopId}_${participantId}`;
 }
 
-type TourTarget = "help" | "myGroup" | "groupInsight" | "workshop" | "report";
+type TourTarget = "help" | "publicLink" | "myGroup" | "groupInsight" | "workshop" | "report";
 
 const ONBOARDING_SLIDES: { icon: any; title: string; body: string; target?: TourTarget }[] = [
   {
     icon: Sparkles,
     title: "Welcome, facilitator",
-    body: "Quick tour of everything you'll use here — takes about a minute. You can reopen it anytime with the ? button.",
-  },
-  {
-    icon: HelpCircle,
-    title: "Come back anytime",
-    body: "This button reopens the tour whenever you want a refresher — nothing to remember, it's always right here.",
-    target: "help",
+    body: "Quick tour of everything you'll use here — takes about a minute.",
   },
   {
     icon: Users,
@@ -827,6 +821,18 @@ const ONBOARDING_SLIDES: { icon: any; title: string; body: string; target?: Tour
     title: "Editing the report",
     body: "The report reads like a normal document, but click any line and it becomes editable right there — like a Google Doc, it saves as you type. Submit it for the admin's approval once it's ready.",
   },
+  {
+    icon: Copy,
+    title: "The public link",
+    body: "This link works from anyone's phone, no login needed — if participants want to follow the challenge on their own, or just watch answers update live, they can open it and pick their own group by name.",
+    target: "publicLink",
+  },
+  {
+    icon: HelpCircle,
+    title: "One last thing",
+    body: "If you ever want to see this tour again, just tap here — nothing to remember, it's always right where you found it.",
+    target: "help",
+  },
 ];
 
 // Finds the on-screen (visible) element for a data-tour key — there are two
@@ -855,7 +861,6 @@ function OnboardingWizard({
   const slide = ONBOARDING_SLIDES[step];
   const Icon = slide.icon;
   const isLast = step === ONBOARDING_SLIDES.length - 1;
-  const isDesktop = window.innerWidth >= 1024;
 
   useEffect(() => {
     onStepTarget(slide.target);
@@ -877,14 +882,30 @@ function OnboardingWizard({
   const PAD = 6;
   const tooltipStyle: CSSProperties = {};
   if (rect) {
-    if (isDesktop) {
-      tooltipStyle.top = Math.min(rect.top, window.innerHeight - 260);
+    const TOOLTIP_W = 380;
+    const spaceRight = window.innerWidth - rect.right;
+    const spaceBelow = window.innerHeight - rect.bottom;
+    if (spaceRight > TOOLTIP_W) {
+      // plenty of room to the side (e.g. desktop sidebar items) — classic side callout
+      tooltipStyle.top = Math.max(16, Math.min(rect.top, window.innerHeight - 280));
       tooltipStyle.left = rect.right + 16;
+    } else if (spaceBelow > 240) {
+      // anchor below, right-aligned to the target so it never spills off a
+      // right-edge target (like the help button) or a narrow mobile tab
+      tooltipStyle.top = rect.bottom + 12;
+      tooltipStyle.right = Math.max(16, window.innerWidth - rect.right);
     } else {
-      tooltipStyle.bottom = window.innerHeight - rect.top + 12;
-      tooltipStyle.left = "50%";
-      tooltipStyle.transform = "translateX(-50%)";
+      tooltipStyle.bottom = Math.max(16, window.innerHeight - rect.top + 12);
+      tooltipStyle.right = Math.max(16, window.innerWidth - rect.right);
     }
+  }
+
+  // Skipping (or closing early) always lands on the final "you can always
+  // find this again" reminder first, rather than dismissing outright —
+  // that message should reach everyone, not just people who finish the tour.
+  function skipToEnd() {
+    if (isLast) onClose();
+    else setStep(ONBOARDING_SLIDES.length - 1);
   }
 
   return (
@@ -914,7 +935,7 @@ function OnboardingWizard({
         )}
         style={rect ? { position: "fixed", ...tooltipStyle } : undefined}
       >
-        <button onClick={onClose} className="absolute top-3 right-3 text-gray-300 hover:text-gray-500">
+        <button onClick={skipToEnd} className="absolute top-3 right-3 text-gray-300 hover:text-gray-500">
           <X className="w-4 h-4" />
         </button>
 
@@ -934,9 +955,11 @@ function OnboardingWizard({
         </div>
 
         <div className="flex items-center justify-between">
-          <button onClick={onClose} className="text-xs font-semibold text-gray-400 hover:text-gray-600">
-            Skip
-          </button>
+          {!isLast && (
+            <button onClick={skipToEnd} className="text-xs font-semibold text-gray-400 hover:text-gray-600">
+              Skip
+            </button>
+          )}
           <div className="flex items-center gap-2">
             {step > 0 && (
               <Btn variant="outline" onClick={() => setStep((s) => s - 1)} className="text-xs px-3 py-1.5">Back</Btn>
@@ -1064,6 +1087,14 @@ export default function ParticipantApp({ workshopId }: { workshopId: string }) {
       <div className="lg:hidden fixed top-0 left-0 right-0 z-40 bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
         <ROAILogo size="sm" />
         <div className="flex items-center gap-3">
+          <button
+            data-tour="publicLink"
+            onClick={() => navigator.clipboard.writeText(`${window.location.origin}/groups/${workshopId}`)}
+            className="text-gray-400 hover:text-[#DD4B4E]"
+            title="Copy the public groups link"
+          >
+            <Copy className="w-4 h-4" />
+          </button>
           <button data-tour="help" onClick={() => setShowOnboarding(true)} className="text-gray-400 hover:text-[#DD4B4E]" title="Show the quick tour">
             <HelpCircle className="w-4 h-4" />
           </button>
@@ -1073,15 +1104,25 @@ export default function ParticipantApp({ workshopId }: { workshopId: string }) {
         </div>
       </div>
 
-      {/* Desktop help button — floating top-right of the screen */}
-      <button
-        data-tour="help"
-        onClick={() => setShowOnboarding(true)}
-        title="Show the quick tour"
-        className="hidden lg:flex fixed top-4 right-4 z-30 items-center justify-center w-8 h-8 rounded-full bg-white border border-gray-200 text-gray-400 hover:text-[#DD4B4E] hover:border-[#DD4B4E]/40"
-      >
-        <HelpCircle className="w-4 h-4" />
-      </button>
+      {/* Desktop help + public-link buttons — floating top-right of the screen */}
+      <div className="hidden lg:flex fixed top-4 right-4 z-30 items-center gap-2">
+        <button
+          data-tour="publicLink"
+          onClick={() => navigator.clipboard.writeText(`${window.location.origin}/groups/${workshopId}`)}
+          title="Copy the public groups link"
+          className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 bg-white border border-gray-200 rounded-full px-3 py-1.5 hover:border-[#DD4B4E]/40 hover:text-[#DD4B4E]"
+        >
+          <Copy className="w-3.5 h-3.5" /> Public link
+        </button>
+        <button
+          data-tour="help"
+          onClick={() => setShowOnboarding(true)}
+          title="Show the quick tour"
+          className="flex items-center justify-center w-8 h-8 rounded-full bg-white border border-gray-200 text-gray-400 hover:text-[#DD4B4E] hover:border-[#DD4B4E]/40"
+        >
+          <HelpCircle className="w-4 h-4" />
+        </button>
+      </div>
 
       {/* Sidebar — desktop only */}
       <aside className="hidden lg:flex w-56 shrink-0 border-r border-gray-200 flex-col h-screen sticky top-0">
