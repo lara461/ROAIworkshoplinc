@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { onSnapshot, query, setDoc, updateDoc, where } from "firebase/firestore";
 import { CheckCircle2, Copy, FileBarChart, HelpCircle, LogOut, Loader2, Pencil, PlayCircle, Sparkles, Users, X } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { col, docIn } from "../firebase";
 import { Accordion, Btn, Card, ROAILogo, StepTabs, Tag, TabIntro, Toast } from "../ui";
 import { cn } from "../utils";
@@ -226,7 +227,7 @@ function MyGroupSection({
         return (
           <>
             {/* Mobile — collapsible, so it doesn't push the member list below the fold */}
-            <div data-tour="groupInsight" className="lg:hidden mb-4">
+            <div className="lg:hidden mb-4">
               <Accordion
                 title={
                   <span className="flex items-center gap-1.5">
@@ -238,8 +239,9 @@ function MyGroupSection({
                 {briefingBody}
               </Accordion>
             </div>
-            {/* Desktop — unchanged, always open */}
-            <div className="hidden lg:block border-l-4 border-[#3545A3] bg-[#3545A3]/5 rounded-r-lg p-4 mb-4">
+            {/* Desktop — unchanged, always open. The tour is desktop-only, so
+                the tour target lives here, not on the mobile accordion above. */}
+            <div data-tour="groupInsight" className="hidden lg:block border-l-4 border-[#3545A3] bg-[#3545A3]/5 rounded-r-lg p-4 mb-4">
               <div className="flex items-center gap-1.5 mb-1.5">
                 <Sparkles className="w-3.5 h-3.5 text-[#3545A3]" />
                 <p className="text-xs font-bold uppercase tracking-widest text-[#3545A3]">AI briefing on this group</p>
@@ -884,7 +886,7 @@ type TourTarget =
   | "report"
   | "reportDoc";
 
-const ONBOARDING_SLIDES: { icon: any; title: string; body: string; target?: TourTarget }[] = [
+const ONBOARDING_SLIDES: { icon: LucideIcon; title: string; body: string; target?: TourTarget }[] = [
   {
     icon: Sparkles,
     title: "Welcome, facilitator",

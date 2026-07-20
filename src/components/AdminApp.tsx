@@ -10,7 +10,6 @@ import {
   updateDoc,
   where,
 } from "firebase/firestore";
-import { nanoid } from "nanoid";
 import {
   BookOpen,
   CheckCircle2,
