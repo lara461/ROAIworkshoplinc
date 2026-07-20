@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { onSnapshot, query, setDoc, updateDoc, where } from "firebase/firestore";
-import { CheckCircle2, FileBarChart, LogOut, Loader2, PlayCircle, Sparkles, Users } from "lucide-react";
+import { CheckCircle2, FileBarChart, HelpCircle, LogOut, Loader2, PlayCircle, Sparkles, Users, X } from "lucide-react";
 import { col, docIn } from "../firebase";
 import { Btn, Card, FacilitatorBadge, ROAILogo, StepTabs, Tag, TabIntro } from "../ui";
 import { cn } from "../utils";
@@ -757,6 +757,79 @@ function ReportSection({ group }: { group: Group }) {
   );
 }
 
+function onboardingKey(workshopId: string, participantId: string) {
+  return `fow_onboarded_${workshopId}_${participantId}`;
+}
+
+const ONBOARDING_SLIDES = [
+  {
+    icon: Sparkles,
+    title: "Welcome, facilitator",
+    body: "Quick tour of the three things you'll use here — takes 30 seconds. You can reopen this anytime with the ? button.",
+  },
+  {
+    icon: Users,
+    title: "My group",
+    body: "Your group's members, their emails, and the survey answers they gave before the workshop — all visible at a glance, no clicking through. There's also a short AI briefing on how the group is composed, to help you walk in with a sense of who you've got.",
+  },
+  {
+    icon: PlayCircle,
+    title: "Workshop",
+    body: "This is where you do the work: Question 1, then the C-level board's feedback with a revised answer, then 30/60/90-day actions. Move through the tabs at your own pace — once you submit a step you can still tab back to review it, but only the current step is editable.",
+  },
+  {
+    icon: FileBarChart,
+    title: "Report",
+    body: "Once your group is done, the admin generates a closing report here. You'll be able to edit it right in the page — click any line and type, like a Google Doc — then submit it for the admin's approval when it's ready.",
+  },
+];
+
+function OnboardingWizard({ name, onClose }: { name: string; onClose: () => void }) {
+  const [step, setStep] = useState(0);
+  const slide = ONBOARDING_SLIDES[step];
+  const Icon = slide.icon;
+  const isLast = step === ONBOARDING_SLIDES.length - 1;
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-xl border border-gray-200 max-w-md w-full p-8 relative">
+        <button onClick={onClose} className="absolute top-4 right-4 text-gray-300 hover:text-gray-500">
+          <X className="w-4 h-4" />
+        </button>
+
+        <div className="w-12 h-12 rounded-lg roai-mark flex items-center justify-center mb-4">
+          <Icon className="w-6 h-6 text-white" />
+        </div>
+
+        <h2 className="text-lg font-black text-[#14121F] mb-2">
+          {step === 0 ? slide.title.replace("facilitator", name) : slide.title}
+        </h2>
+        <p className="text-sm text-gray-600 leading-relaxed">{slide.body}</p>
+
+        <div className="flex items-center justify-center gap-1.5 mt-6 mb-4">
+          {ONBOARDING_SLIDES.map((_, i) => (
+            <span key={i} className={cn("w-1.5 h-1.5 rounded-full", i === step ? "bg-[#DD4B4E]" : "bg-gray-200")} />
+          ))}
+        </div>
+
+        <div className="flex items-center justify-between">
+          <button onClick={onClose} className="text-xs font-semibold text-gray-400 hover:text-gray-600">
+            Skip
+          </button>
+          <div className="flex items-center gap-2">
+            {step > 0 && (
+              <Btn variant="outline" onClick={() => setStep((s) => s - 1)} className="text-xs px-3 py-1.5">Back</Btn>
+            )}
+            <Btn variant="coral" onClick={() => (isLast ? onClose() : setStep((s) => s + 1))} className="text-xs px-3 py-1.5">
+              {isLast ? "Get started" : "Next"}
+            </Btn>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ParticipantApp({ workshopId }: { workshopId: string }) {
   const [workshop, setWorkshop] = useState<Workshop | null>(null);
   const [participants, setParticipants] = useState<Participant[]>([]);
@@ -766,6 +839,19 @@ export default function ParticipantApp({ workshopId }: { workshopId: string }) {
   const [myGroup, setMyGroup] = useState<Group | null>(null);
   const [loading, setLoading] = useState(true);
   const [section, setSection] = useState<"myGroup" | "workshop" | "report">("workshop");
+  const [showOnboarding, setShowOnboarding] = useState(false);
+
+  useEffect(() => {
+    if (!participant) return;
+    if (!localStorage.getItem(onboardingKey(workshopId, participant.id))) {
+      setShowOnboarding(true);
+    }
+  }, [participant?.id, workshopId]);
+
+  function dismissOnboarding() {
+    if (participant) localStorage.setItem(onboardingKey(workshopId, participant.id), "1");
+    setShowOnboarding(false);
+  }
 
   useEffect(() => {
     return onSnapshot(docIn("workshops", workshopId), (s) => {
@@ -856,15 +942,23 @@ export default function ParticipantApp({ workshopId }: { workshopId: string }) {
       {/* Mobile top bar */}
       <div className="lg:hidden fixed top-0 left-0 right-0 z-40 bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
         <ROAILogo size="sm" />
-        <button onClick={logOut} className="text-xs font-semibold text-gray-500 hover:text-[#14121F] flex items-center gap-1">
-          <LogOut className="w-3.5 h-3.5" /> Log out
-        </button>
+        <div className="flex items-center gap-3">
+          <button onClick={() => setShowOnboarding(true)} className="text-gray-400 hover:text-[#DD4B4E]" title="Show the quick tour">
+            <HelpCircle className="w-4 h-4" />
+          </button>
+          <button onClick={logOut} className="text-xs font-semibold text-gray-500 hover:text-[#14121F] flex items-center gap-1">
+            <LogOut className="w-3.5 h-3.5" /> Log out
+          </button>
+        </div>
       </div>
 
       {/* Sidebar — desktop only */}
       <aside className="hidden lg:flex w-56 shrink-0 border-r border-gray-200 flex-col h-screen sticky top-0">
-        <div className="p-5 border-b border-gray-200">
+        <div className="p-5 border-b border-gray-200 flex items-center justify-between">
           <ROAILogo size="sm" />
+          <button onClick={() => setShowOnboarding(true)} className="text-gray-300 hover:text-[#DD4B4E]" title="Show the quick tour">
+            <HelpCircle className="w-4 h-4" />
+          </button>
         </div>
         <nav className="flex-1 p-3 space-y-1">
           {navItems.map((item) => {
@@ -928,6 +1022,8 @@ export default function ParticipantApp({ workshopId }: { workshopId: string }) {
           {section === "report" && <ReportSection group={myGroup} />}
         </div>
       </main>
+
+      {showOnboarding && <OnboardingWizard name={participant.name.split(" ")[0]} onClose={dismissOnboarding} />}
     </div>
   );
 }
