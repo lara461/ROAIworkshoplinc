@@ -1,16 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
 import { onSnapshot, query, setDoc, updateDoc, where } from "firebase/firestore";
-import { LogOut, Loader2 } from "lucide-react";
+import { CheckCircle2, FileBarChart, LogOut, Loader2, PlayCircle, Users } from "lucide-react";
 import { col, docIn } from "../firebase";
-import { Btn, Card, ROAILogo, Tag } from "../ui";
-import { GROUP_STEP_LABELS } from "../types";
+import { Accordion, Btn, Card, FacilitatorBadge, ROAILogo, StepTabs, Tag, TabIntro, TextArea } from "../ui";
+import { cn } from "../utils";
 import type {
   BoardChallenge,
   Challenge,
   Group,
+  GroupReport,
   GroupSolution,
   KnowledgeDoc,
   Participant,
+  SurveyResponse,
   Workshop,
 } from "../types";
 
@@ -127,15 +129,7 @@ function Login({
   );
 }
 
-function ChallengePicker({
-  group,
-  challenges,
-  canSelect,
-}: {
-  group: Group;
-  challenges: Challenge[];
-  canSelect: boolean;
-}) {
+function ChallengePicker({ group, challenges }: { group: Group; challenges: Challenge[] }) {
   async function select(challengeId: string) {
     for (const c of challenges) {
       await updateDoc(docIn("challenges", c.id), { status: c.id === challengeId ? "selected" : "option" });
@@ -144,43 +138,84 @@ function ChallengePicker({
   }
 
   return (
-    <div className="min-h-screen bg-[#FAFAFA] py-10 px-4">
-      <div className="max-w-2xl mx-auto space-y-6">
-        <div className="text-center space-y-3">
-          <div className="flex justify-center"><ROAILogo size="md" /></div>
-          <h1 className="text-2xl font-black text-[#14121F]">Pick your challenge</h1>
-          <p className="text-gray-400 text-sm">
-            {canSelect
-              ? "As facilitator, choose the challenge your group will work on."
-              : "Your facilitator is choosing the challenge your group will work on."}
-          </p>
-        </div>
-        <div className="space-y-3">
-          {challenges.map((c) => (
-            <div key={c.id} className="rounded-md border p-5 bg-white border-gray-200">
-              <div className="font-bold text-[#14121F]">{c.title}</div>
-              <p className="text-sm text-gray-500 mt-1">{c.description}</p>
-              {canSelect && (
-                <Btn variant="coral" className="mt-3 text-xs px-3 py-1.5" onClick={() => select(c.id)}>Select this challenge</Btn>
-              )}
-            </div>
-          ))}
-        </div>
+    <div>
+      <TabIntro>Pick which of these your group will work on for the rest of the workshop. Choose carefully — you can't change it later.</TabIntro>
+      <div className="space-y-3">
+        {challenges.map((c) => (
+          <div key={c.id} className="rounded-md border p-5 bg-white border-gray-200">
+            <div className="font-bold text-[#14121F]">{c.title}</div>
+            <p className="text-sm text-gray-500 mt-1">{c.description}</p>
+            <Btn variant="coral" className="mt-3 text-xs px-3 py-1.5" onClick={() => select(c.id)}>Select this challenge</Btn>
+          </div>
+        ))}
       </div>
     </div>
   );
 }
 
-function GroupWorkspace({
+// ── "My group" section: members + the survey answers they gave beforehand ─
+function MyGroupSection({
+  group,
+  participants,
+  responses,
+}: {
+  group: Group;
+  participants: Participant[];
+  responses: SurveyResponse[];
+}) {
+  const members = group.participantIds
+    .map((id) => participants.find((p) => p.id === id))
+    .filter(Boolean) as Participant[];
+
+  return (
+    <div>
+      <TabIntro>
+        Your group's members and the survey answers they gave before the workshop — useful background before you dive in.
+      </TabIntro>
+      <div className="space-y-2">
+        {members.map((m) => {
+          const r = responses.find((r) => r.participantId === m.id);
+          return (
+            <Accordion
+              key={m.id}
+              title={
+                <span className="flex items-center gap-2">
+                  {m.name}
+                  {m.role === "facilitator" && <FacilitatorBadge />}
+                </span>
+              }
+              subtitle={m.email || undefined}
+              right={r ? <Tag color="green">survey on file</Tag> : <Tag>no survey</Tag>}
+            >
+              {r ? (
+                <div className="space-y-2 text-xs text-gray-600">
+                  <div><span className="font-semibold text-gray-400 uppercase tracking-wide text-[10px]">AI relationship: </span>{r.aiRelationship}</div>
+                  <div><span className="font-semibold text-gray-400 uppercase tracking-wide text-[10px]">Future vision: </span>{r.futureVision}</div>
+                  <div><span className="font-semibold text-gray-400 uppercase tracking-wide text-[10px]">Opportunities/challenges: </span>{r.opportunitiesChallenges}</div>
+                </div>
+              ) : (
+                <p className="text-xs text-gray-400">No survey answers on file for this participant.</p>
+              )}
+            </Accordion>
+          );
+        })}
+        {members.length === 0 && <p className="text-gray-400 text-sm">No members in your group yet.</p>}
+      </div>
+    </div>
+  );
+}
+
+// ── "Workshop" section: the 3 timed activities, navigable via step tabs ──
+function WorkshopSection({
   group,
   challenge,
+  groupChallenges,
   workshop,
-  isFacilitator,
 }: {
   group: Group;
   challenge: Challenge | undefined;
+  groupChallenges: Challenge[];
   workshop: Workshop;
-  isFacilitator: boolean;
 }) {
   const [initialSolution, setInitialSolution] = useState("");
   const [revisedSolution, setRevisedSolution] = useState("");
@@ -193,8 +228,21 @@ function GroupWorkspace({
   const [generatingBoard, setGeneratingBoard] = useState(false);
   const [knowledgeDocs, setKnowledgeDocs] = useState<KnowledgeDoc[]>([]);
   const [kbLoaded, setKbLoaded] = useState(false);
+  const [activeStep, setActiveStep] = useState<"initial" | "board" | "actions">("initial");
 
-  const step = group.currentStep || "initial";
+  const currentStep = group.currentStep || "initial";
+
+  function reachedIndex(step: Group["currentStep"]) {
+    if (step === "board") return 1;
+    if (step === "actions" || step === "done") return 2;
+    return 0;
+  }
+  const reached = reachedIndex(currentStep);
+
+  useEffect(() => {
+    const idx = reachedIndex(group.currentStep);
+    setActiveStep(idx === 0 ? "initial" : idx === 1 ? "board" : "actions");
+  }, [group.id, group.currentStep]);
 
   useEffect(() => {
     return onSnapshot(query(col.knowledgeDocs, where("workshopId", "==", workshop.id)), (snap) => {
@@ -224,7 +272,7 @@ function GroupWorkspace({
   // Auto-generate the board challenge once the group enters the "board"
   // step, so the facilitator doesn't need the admin to trigger it.
   useEffect(() => {
-    if (step !== "board" || !isFacilitator || board || generatingBoard || !challenge || !kbLoaded) return;
+    if (currentStep !== "board" || board || generatingBoard || !challenge || !kbLoaded) return;
     if (!solutionDoc?.initialSolution) return;
     setGeneratingBoard(true);
     const knowledgeBase = knowledgeDocs.map((d) => `--- ${d.name} ---\n${d.content}`).join("\n\n");
@@ -239,7 +287,7 @@ function GroupWorkspace({
       )
       .catch((e) => alert(e.message))
       .finally(() => setGeneratingBoard(false));
-  }, [step, isFacilitator, board, challenge, solutionDoc?.initialSolution, kbLoaded]);
+  }, [currentStep, board, challenge, solutionDoc?.initialSolution, kbLoaded]);
 
   async function saveField(field: string, value: string, setter: (v: string) => void) {
     setter(value);
@@ -300,52 +348,59 @@ function GroupWorkspace({
     }
   }
 
-  return (
-    <Card className="space-y-4">
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <div>
-          <Tag color="coral">Your group</Tag>
-          <h2 className="text-xl font-black text-[#14121F] mt-2">{group.name}</h2>
-          {challenge && <p className="text-gray-500 text-sm mt-1">{challenge.description}</p>}
-        </div>
-        {step !== "done" && (
-          <div className="text-right">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">{GROUP_STEP_LABELS[step]}</p>
-          </div>
-        )}
-      </div>
+  if (workshop.status === "setup") {
+    return <TabIntro>The workshop hasn't started yet. Sit tight — you'll pick your challenge as soon as it launches.</TabIntro>;
+  }
 
-      {/* Step 1: Initial answer */}
-      {step === "initial" && (
-        <div>
-          <div className="flex items-center justify-between mb-1.5">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Question 1 — Initial answer</p>
-          </div>
-          {isFacilitator ? (
-            <div className="space-y-2">
-              <textarea
-                id="initial-box"
-                value={initialSolution}
-                onChange={(e) => saveField("initialSolution", e.target.value, setInitialSolution)}
-                rows={7}
-                className="w-full bg-gray-50 border border-gray-200 rounded-md px-4 py-2.5 text-sm outline-none focus:border-[#DD4B4E] resize-none"
-                placeholder="Write your group's answer here..."
-              />
-              <Btn variant="coral" onClick={submitInitial} loading={saving} disabled={!initialSolution.trim()}>
-                Submit & continue
-              </Btn>
-            </div>
-          ) : (
-            <p className="text-sm text-[#14121F] bg-gray-50 border border-gray-200 rounded-md px-4 py-3 whitespace-pre-wrap min-h-[3rem]">
-              {initialSolution || "Your facilitator hasn't written an answer yet."}
-            </p>
+  if (!group.challengeId) {
+    if (groupChallenges.length === 0) {
+      return <TabIntro>Your challenge options are being prepared by the admin. Check back shortly.</TabIntro>;
+    }
+    return <ChallengePicker group={group} challenges={groupChallenges} />;
+  }
+
+  return (
+    <div>
+      <TabIntro>{challenge?.description}</TabIntro>
+
+      <StepTabs
+        steps={[
+          { key: "initial", label: "Question 1" },
+          { key: "board", label: "Board & revised answer", locked: reached < 1 },
+          { key: "actions", label: "30/60/90 actions", locked: reached < 2 },
+        ]}
+        active={activeStep}
+        onChange={(k) => setActiveStep(k as typeof activeStep)}
+      />
+
+      {activeStep === "initial" && (
+        <Card className="space-y-3">
+          <p className="text-sm text-gray-500">
+            Write your group's first answer to the challenge above. Once you submit, the C-level board will weigh in —
+            you won't be able to edit this afterward, so make sure the group agrees before submitting.
+          </p>
+          <textarea
+            id="initial-box"
+            value={initialSolution}
+            onChange={(e) => saveField("initialSolution", e.target.value, setInitialSolution)}
+            rows={8}
+            disabled={currentStep !== "initial"}
+            className={cn(
+              "w-full bg-gray-50 border border-gray-200 rounded-md px-4 py-2.5 text-sm outline-none resize-none",
+              currentStep !== "initial" ? "opacity-60 cursor-not-allowed" : "focus:border-[#DD4B4E]"
+            )}
+            placeholder="Write your group's answer here..."
+          />
+          {currentStep === "initial" && (
+            <Btn variant="coral" onClick={submitInitial} loading={saving} disabled={!initialSolution.trim()}>
+              Submit & continue
+            </Btn>
           )}
-        </div>
+        </Card>
       )}
 
-      {/* Step 2: Board challenge + revised answer */}
-      {step === "board" && (
-        <>
+      {activeStep === "board" && (
+        <Card className="space-y-4">
           <div>
             <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1.5">Your initial answer</p>
             <p className="text-sm text-[#14121F] bg-gray-50 border border-gray-200 rounded-md px-4 py-3 whitespace-pre-wrap">{initialSolution}</p>
@@ -369,34 +424,34 @@ function GroupWorkspace({
 
           {board && (
             <div>
+              <p className="text-sm text-gray-500 mb-1.5">
+                How does your group respond to the board's pushback? Update your answer in light of their feedback.
+              </p>
               <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1.5">Revised answer</p>
-              {isFacilitator ? (
-                <div className="space-y-2">
-                  <textarea
-                    id="revised-box"
-                    value={revisedSolution}
-                    onChange={(e) => saveField("revisedSolution", e.target.value, setRevisedSolution)}
-                    rows={6}
-                    className="w-full bg-gray-50 border border-gray-200 rounded-md px-4 py-2.5 text-sm outline-none focus:border-[#DD4B4E] resize-none"
-                    placeholder="How does your group respond to the board's pushback?"
-                  />
-                  <Btn variant="coral" onClick={submitRevised} loading={saving} disabled={!revisedSolution.trim()}>
-                    Submit & continue
-                  </Btn>
-                </div>
-              ) : (
-                <p className="text-sm text-[#14121F] bg-gray-50 border border-gray-200 rounded-md px-4 py-3 whitespace-pre-wrap min-h-[3rem]">
-                  {revisedSolution || "Your facilitator hasn't written a revised answer yet."}
-                </p>
+              <textarea
+                id="revised-box"
+                value={revisedSolution}
+                onChange={(e) => saveField("revisedSolution", e.target.value, setRevisedSolution)}
+                rows={6}
+                disabled={currentStep !== "board"}
+                className={cn(
+                  "w-full bg-gray-50 border border-gray-200 rounded-md px-4 py-2.5 text-sm outline-none resize-none",
+                  currentStep !== "board" ? "opacity-60 cursor-not-allowed" : "focus:border-[#DD4B4E]"
+                )}
+                placeholder="How does your group respond to the board's pushback?"
+              />
+              {currentStep === "board" && (
+                <Btn variant="coral" onClick={submitRevised} loading={saving} disabled={!revisedSolution.trim()} className="mt-2">
+                  Submit & continue
+                </Btn>
               )}
             </div>
           )}
-        </>
+        </Card>
       )}
 
-      {/* Step 3: 30/60/90-day actions */}
-      {step === "actions" && (
-        <div className="space-y-4">
+      {activeStep === "actions" && (
+        <Card className="space-y-4">
           <p className="text-sm text-gray-500">
             Turn the discussion into action: what will your organization actually do next? Split it across three horizons.
           </p>
@@ -407,43 +462,128 @@ function GroupWorkspace({
           ].map((f) => (
             <div key={f.id}>
               <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1.5">{f.label}</p>
-              {isFacilitator ? (
-                <textarea
-                  id={`${f.id}-box`}
-                  value={f.value}
-                  onChange={(e) => saveField(f.id, e.target.value, f.setter)}
-                  rows={3}
-                  className="w-full bg-gray-50 border border-gray-200 rounded-md px-4 py-2.5 text-sm outline-none focus:border-[#DD4B4E] resize-none"
-                />
-              ) : (
-                <p className="text-sm text-[#14121F] bg-gray-50 border border-gray-200 rounded-md px-4 py-3 whitespace-pre-wrap min-h-[2.5rem]">
-                  {f.value || "Not written yet."}
-                </p>
-              )}
+              <textarea
+                id={`${f.id}-box`}
+                value={f.value}
+                onChange={(e) => saveField(f.id, e.target.value, f.setter)}
+                rows={3}
+                disabled={currentStep !== "actions"}
+                className={cn(
+                  "w-full bg-gray-50 border border-gray-200 rounded-md px-4 py-2.5 text-sm outline-none resize-none",
+                  currentStep !== "actions" ? "opacity-60 cursor-not-allowed" : "focus:border-[#DD4B4E]"
+                )}
+              />
             </div>
           ))}
-          {isFacilitator && (
+          {currentStep === "actions" && (
             <Btn variant="coral" onClick={submitActions} loading={saving} disabled={!action30.trim() && !action60.trim() && !action90.trim()}>
               Submit & finish
             </Btn>
           )}
-        </div>
+          {currentStep === "done" && (
+            <p className="text-emerald-600 text-sm font-medium flex items-center gap-1.5">
+              <CheckCircle2 className="w-4 h-4" /> Your group has completed all the activities. Nice work!
+            </p>
+          )}
+        </Card>
       )}
+    </div>
+  );
+}
 
-      {/* Done */}
-      {step === "done" && (
-        <div className="space-y-4">
-          <p className="text-green-600 text-sm font-medium">Your group has completed all the activities. Nice work!</p>
-          <div className="space-y-3 text-sm">
-            <div><p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">Initial answer</p><p className="text-gray-600 whitespace-pre-wrap">{initialSolution}</p></div>
-            <div><p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">Revised answer</p><p className="text-gray-600 whitespace-pre-wrap">{revisedSolution}</p></div>
-            <div><p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">30 days</p><p className="text-gray-600 whitespace-pre-wrap">{action30}</p></div>
-            <div><p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">60 days</p><p className="text-gray-600 whitespace-pre-wrap">{action60}</p></div>
-            <div><p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">90 days</p><p className="text-gray-600 whitespace-pre-wrap">{action90}</p></div>
-          </div>
-        </div>
-      )}
-    </Card>
+// ── "Report" section: view/edit the group's closing report, then submit ──
+function ReportSection({ group }: { group: Group }) {
+  const [report, setReport] = useState<GroupReport | null>(null);
+  const [summary, setSummary] = useState("");
+  const [insight, setInsight] = useState("");
+  const [evolution, setEvolution] = useState("");
+  const [steps, setSteps] = useState("");
+
+  useEffect(() => {
+    return onSnapshot(docIn("groupReports", group.id), (s) => {
+      const data = s.exists() ? ({ id: s.id, ...s.data() } as GroupReport) : null;
+      setReport(data);
+      if (document.activeElement?.id !== "report-summary-box") setSummary(data?.executiveSummary || "");
+      if (document.activeElement?.id !== "report-insight-box") setInsight(data?.keyInsight || "");
+      if (document.activeElement?.id !== "report-evolution-box") setEvolution(data?.evolution || "");
+      if (document.activeElement?.id !== "report-steps-box") setSteps((data?.recommendedNextSteps || []).join("\n"));
+    });
+  }, [group.id]);
+
+  const locked = report?.status === "approved";
+
+  async function saveField(field: string, value: string, setter: (v: string) => void) {
+    if (locked) return;
+    setter(value);
+    await updateDoc(docIn("groupReports", group.id), { [field]: value });
+  }
+
+  async function saveSteps(value: string) {
+    if (locked) return;
+    setSteps(value);
+    await updateDoc(docIn("groupReports", group.id), {
+      recommendedNextSteps: value.split("\n").map((s) => s.trim()).filter(Boolean),
+    });
+  }
+
+  async function submitForApproval() {
+    await updateDoc(docIn("groupReports", group.id), { status: "submitted" });
+  }
+
+  if (!report) {
+    return <TabIntro>Your group's report hasn't been generated yet — check back once the admin has created it from their side.</TabIntro>;
+  }
+
+  return (
+    <div>
+      <TabIntro>
+        Review your group's closing report and edit anything that needs a tweak, then submit it for the admin's approval.
+      </TabIntro>
+
+      <div className="flex items-center gap-2 mb-4">
+        <Tag color={report.status === "approved" ? "green" : report.status === "submitted" ? "coral" : "default"}>
+          {report.status === "approved" ? "Approved by admin" : report.status === "submitted" ? "Submitted — pending approval" : "Draft"}
+        </Tag>
+        {locked && <span className="text-xs text-gray-400">This report is approved and can no longer be edited.</span>}
+      </div>
+
+      <Card className="space-y-3">
+        <TextArea
+          label="Executive summary"
+          value={summary}
+          onChange={(v) => saveField("executiveSummary", v, setSummary)}
+          rows={3}
+          disabled={locked}
+        />
+        <TextArea
+          label="Key insight"
+          value={insight}
+          onChange={(v) => saveField("keyInsight", v, setInsight)}
+          rows={2}
+          disabled={locked}
+        />
+        <TextArea
+          label="How your thinking evolved"
+          value={evolution}
+          onChange={(v) => saveField("evolution", v, setEvolution)}
+          rows={3}
+          disabled={locked}
+        />
+        <TextArea
+          label="Recommended next steps (one per line)"
+          value={steps}
+          onChange={saveSteps}
+          rows={4}
+          disabled={locked}
+        />
+        {!locked && report.status === "draft" && (
+          <Btn variant="coral" onClick={submitForApproval}>Submit for approval</Btn>
+        )}
+        {!locked && report.status === "submitted" && (
+          <p className="text-xs text-gray-400">Already submitted — you can keep editing, the admin sees your latest changes.</p>
+        )}
+      </Card>
+    </div>
   );
 }
 
@@ -452,8 +592,10 @@ export default function ParticipantApp({ workshopId }: { workshopId: string }) {
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [participant, setParticipant] = useState<Participant | null>(null);
   const [challenges, setChallenges] = useState<Challenge[]>([]);
+  const [responses, setResponses] = useState<SurveyResponse[]>([]);
   const [myGroup, setMyGroup] = useState<Group | null>(null);
   const [loading, setLoading] = useState(true);
+  const [section, setSection] = useState<"myGroup" | "workshop" | "report">("workshop");
 
   useEffect(() => {
     return onSnapshot(docIn("workshops", workshopId), (s) => {
@@ -465,6 +607,12 @@ export default function ParticipantApp({ workshopId }: { workshopId: string }) {
   useEffect(() => {
     return onSnapshot(query(col.participants, where("workshopId", "==", workshopId)), (snap) => {
       setParticipants(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Participant)));
+    });
+  }, [workshopId]);
+
+  useEffect(() => {
+    return onSnapshot(query(col.surveyResponses, where("workshopId", "==", workshopId)), (snap) => {
+      setResponses(snap.docs.map((d) => ({ id: d.id, ...d.data() } as SurveyResponse)));
     });
   }, [workshopId]);
 
@@ -525,37 +673,91 @@ export default function ParticipantApp({ workshopId }: { workshopId: string }) {
   }
 
   const groupChallenges = challenges.filter((c) => c.groupId === myGroup.id);
-  const isFacilitator = participant.role === "facilitator";
-
-  if (workshop.status === "setup") {
-    return <Waiting message="The workshop hasn't started yet. Sit tight — you'll pick your challenge once it launches." />;
-  }
-
-  if (!myGroup.challengeId) {
-    if (groupChallenges.length === 0) {
-      return <Waiting message="Your challenge options are being prepared. Sit tight." />;
-    }
-    return <ChallengePicker group={myGroup} challenges={groupChallenges} canSelect={isFacilitator} />;
-  }
-
   const challenge = groupChallenges.find((c) => c.id === myGroup.challengeId);
 
-  return (
-    <div className="min-h-screen bg-[#FAFAFA] py-10 px-4">
-      <div className="max-w-2xl mx-auto space-y-6">
-        <div className="text-center space-y-2">
-          <div className="flex justify-center"><ROAILogo size="md" /></div>
-          <h1 className="text-2xl font-black text-[#14121F]">{workshop.name}</h1>
-          <p className="text-gray-400 text-sm flex items-center justify-center gap-2">
-            Welcome back, {participant.name}.
-            <button onClick={logOut} className="text-[#DD4B4E] font-bold inline-flex items-center gap-1">
-              <LogOut className="w-3.5 h-3.5" /> Log out
-            </button>
-          </p>
-        </div>
+  const navItems = [
+    { key: "myGroup" as const, label: "My group", icon: Users },
+    { key: "workshop" as const, label: "Workshop", icon: PlayCircle },
+    { key: "report" as const, label: "Report", icon: FileBarChart },
+  ];
 
-        <GroupWorkspace group={myGroup} challenge={challenge} workshop={workshop} isFacilitator={isFacilitator} />
+  return (
+    <div className="min-h-screen bg-white flex">
+      {/* Mobile top bar */}
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-40 bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
+        <ROAILogo size="sm" />
+        <button onClick={logOut} className="text-xs font-semibold text-gray-500 hover:text-[#14121F] flex items-center gap-1">
+          <LogOut className="w-3.5 h-3.5" /> Log out
+        </button>
       </div>
+
+      {/* Sidebar — desktop only */}
+      <aside className="hidden lg:flex w-56 shrink-0 border-r border-gray-200 flex-col h-screen sticky top-0">
+        <div className="p-5 border-b border-gray-200">
+          <ROAILogo size="sm" />
+        </div>
+        <nav className="flex-1 p-3 space-y-1">
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            const active = section === item.key;
+            return (
+              <button
+                key={item.key}
+                onClick={() => setSection(item.key)}
+                className={cn(
+                  "w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-semibold transition-colors",
+                  active ? "roai-mark text-white" : "text-gray-500 hover:bg-gray-50 hover:text-[#14121F]"
+                )}
+              >
+                <Icon className="w-4 h-4" />
+                {item.label}
+              </button>
+            );
+          })}
+        </nav>
+        <div className="p-3 border-t border-gray-200">
+          <button onClick={logOut} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-semibold text-gray-500 hover:bg-gray-50 hover:text-[#14121F] text-left">
+            <LogOut className="w-4 h-4" /> Log out
+          </button>
+        </div>
+      </aside>
+
+      {/* Bottom tab bar — mobile only */}
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-gray-200 flex items-stretch">
+        {navItems.map((item) => {
+          const Icon = item.icon;
+          const active = section === item.key;
+          return (
+            <button
+              key={item.key}
+              onClick={() => setSection(item.key)}
+              className={cn(
+                "flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-semibold transition-colors",
+                active ? "text-[#DD4B4E]" : "text-gray-400"
+              )}
+            >
+              <Icon className="w-5 h-5" />
+              {item.label}
+            </button>
+          );
+        })}
+      </nav>
+
+      {/* Main content */}
+      <main className="flex-1 min-w-0 px-4 py-4 pt-20 pb-24 lg:px-8 lg:py-8 lg:pt-8 lg:pb-8">
+        <div className="max-w-3xl">
+          <div className="mb-6">
+            <p className="text-xs font-semibold text-gray-400 mb-1">Welcome back, {participant.name}</p>
+            <h1 className="text-2xl font-black text-[#14121F]">{myGroup.name}</h1>
+          </div>
+
+          {section === "myGroup" && <MyGroupSection group={myGroup} participants={participants} responses={responses} />}
+          {section === "workshop" && (
+            <WorkshopSection group={myGroup} challenge={challenge} groupChallenges={groupChallenges} workshop={workshop} />
+          )}
+          {section === "report" && <ReportSection group={myGroup} />}
+        </div>
+      </main>
     </div>
   );
 }

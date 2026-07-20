@@ -1317,6 +1317,7 @@ function ReportTab({
         groupId: g.id,
         workshopId: workshop.id,
         ...result,
+        status: "draft",
         createdAt: new Date().toISOString(),
       });
     } catch (e: any) {
@@ -1324,6 +1325,16 @@ function ReportTab({
     } finally {
       setGenerating(null);
     }
+  }
+
+  async function approveReport() {
+    if (!activeGroup) return;
+    await updateDoc(docIn("groupReports", activeGroup.id), { status: "approved" });
+  }
+
+  async function reopenReport() {
+    if (!activeGroup) return;
+    await updateDoc(docIn("groupReports", activeGroup.id), { status: "draft" });
   }
 
   async function saveEdits() {
@@ -1347,8 +1358,9 @@ function ReportTab({
   return (
     <div>
       <TabIntro>
-        Generate a report for each group once their work is done, edit any field by hand if it needs a tweak, and mark
-        the workshop as closed when everyone's finished.
+        Generate a report for each group once their work is done. The facilitator can review and edit it from their
+        own link, then submit it for your approval — approve it here once it looks right, or reopen it for more edits.
+        Mark the workshop as closed when everyone's finished.
       </TabIntro>
       <StepTabs
         steps={groups.map((g) => ({ key: g.id, label: g.name }))}
@@ -1371,8 +1383,19 @@ function ReportTab({
       />
 
       {activeGroup && (
-        <Section title={activeGroup.name}>
-          <div className="flex items-center gap-2">
+        <Section
+          title={
+            <div className="flex items-center justify-between">
+              <span>{activeGroup.name}</span>
+              {activeReport && (
+                <Tag color={activeReport.status === "approved" ? "green" : activeReport.status === "submitted" ? "coral" : "default"}>
+                  {activeReport.status === "approved" ? "Approved" : activeReport.status === "submitted" ? "Submitted by facilitator" : "Draft"}
+                </Tag>
+              )}
+            </div>
+          }
+        >
+          <div className="flex items-center gap-2 flex-wrap">
             <Btn variant="outline" onClick={() => generateReport(activeGroup)} loading={generating === activeGroup.id} disabled={!activeGroup.challengeId}>
               {activeReport && <RefreshCw className="w-3.5 h-3.5" />}
               {activeReport ? "Regenerate report" : "Generate report"}
@@ -1381,6 +1404,14 @@ function ReportTab({
               <Btn variant="outline" onClick={() => setEditing(true)}>
                 <Pencil className="w-3.5 h-3.5" /> Edit
               </Btn>
+            )}
+            {activeReport?.status === "submitted" && (
+              <Btn variant="success" onClick={approveReport}>
+                <CheckCircle2 className="w-3.5 h-3.5" /> Approve
+              </Btn>
+            )}
+            {activeReport?.status === "approved" && (
+              <Btn variant="outline" onClick={reopenReport}>Reopen for edits</Btn>
             )}
           </div>
 
@@ -1585,15 +1616,18 @@ function WorkshopDashboard({ workshop: initialWorkshop, adminSecret, onBackToLis
         <div className="max-w-6xl">
           <PageHeader
             eyebrow={`${workshop.date} · status: ${workshop.status}`}
-            title={workshop.name}
+            title={
+              <span className="inline-flex items-center gap-2">
+                {workshop.name}
+                <button onClick={openEditDetails} className="text-gray-300 hover:text-[#DD4B4E] transition-colors" title="Edit workshop details">
+                  <Pencil className="w-4 h-4" />
+                </button>
+              </span>
+            }
             right={
               <div className="relative">
                 {/* Desktop — unchanged */}
                 <div className="hidden lg:flex items-center gap-2 flex-wrap justify-end">
-                  <button onClick={openEditDetails}
-                    className="text-gray-500 hover:bg-gray-50 flex items-center gap-1.5 font-semibold text-xs bg-white border border-gray-200 rounded-lg px-3 py-1.5">
-                    <Pencil className="w-3.5 h-3.5" /> Edit workshop details
-                  </button>
                   <button onClick={() => navigator.clipboard.writeText(facilitatorLink)}
                     className="text-[#DD4B4E] hover:bg-[#DD4B4E]/5 flex items-center gap-1.5 font-semibold text-xs bg-white border border-[#DD4B4E]/20 rounded-lg px-3 py-1.5">
                     <Copy className="w-3.5 h-3.5" /> Facilitator link
@@ -1616,10 +1650,6 @@ function WorkshopDashboard({ workshop: initialWorkshop, adminSecret, onBackToLis
                   </button>
                   {showMobileMenu && (
                     <div className="absolute right-0 mt-1 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-30 overflow-hidden">
-                      <button onClick={() => { openEditDetails(); setShowMobileMenu(false); }}
-                        className="w-full text-left px-3 py-2.5 text-sm text-gray-600 hover:bg-gray-50 flex items-center gap-2">
-                        <Pencil className="w-3.5 h-3.5" /> Edit workshop details
-                      </button>
                       <button onClick={() => { navigator.clipboard.writeText(facilitatorLink); setShowMobileMenu(false); }}
                         className="w-full text-left px-3 py-2.5 text-sm text-[#DD4B4E] hover:bg-gray-50 flex items-center gap-2">
                         <Copy className="w-3.5 h-3.5" /> Facilitator link

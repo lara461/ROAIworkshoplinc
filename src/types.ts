@@ -119,6 +119,8 @@ export interface BoardChallenge {
   createdAt: string;
 }
 
+export type GroupReportStatus = "draft" | "submitted" | "approved";
+
 export interface GroupReport {
   id: string; // == groupId
   groupId: string;
@@ -127,6 +129,7 @@ export interface GroupReport {
   keyInsight: string;
   evolution: string; // how the group's thinking changed from their solution to their reviewed solution
   recommendedNextSteps: string[];
+  status: GroupReportStatus; // draft (facilitator can edit) -> submitted (facilitator can still edit) -> approved (locked for facilitator, admin can still edit)
   createdAt: string;
 }
 
