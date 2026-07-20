@@ -85,7 +85,7 @@ server.ts                          — Backend Express + Claude API endpoints
 src/App.tsx                        — Path-based router (/admin, /w/:workshopId, /groups/:workshopId, /present/:id)
 src/components/AdminApp.tsx         — Knowledge Base / Group & Challenge / Workshop / Presentation / Report tabs
 src/components/ParticipantApp.tsx   — Facilitator-only login; My group / Workshop / Report dashboard (sidebar desktop, bottom bar mobile)
-src/components/PublicGroupsView.tsx — Public, no-login: a live progress rail per group (4 segments, filled up to their current step — genuinely encodes where each group is, not just a status label) plus a pulsing "Live" badge; tap a group to see the same rail plus everything they've written so far, mobile-first since this is where participants watch along on their own phones
+src/components/PublicGroupsView.tsx — Public, no-login: each group's progress shown via a simple status tag; tap a group to see everything they've written so far — challenge, initial answer, board feedback, revised answer, 30/60/90 actions — each in its own colored-title callout box for easy scanning. On mobile, a bottom tab bar (app-style) lets a spectator flip between phases instead of scrolling through everything at once; on desktop everything's just stacked and scrollable.
 src/components/PresentationView.tsx — Admin-driven single-screen plenary view
 src/firebase.ts                     — Lazy Firestore init (fow_* collections)
 src/types.ts                        — Shared types, step labels, presentation section keys

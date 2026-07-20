@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { onSnapshot, query, where } from "firebase/firestore";
-import { ArrowLeft, ChevronRight, Loader2 } from "lucide-react";
+import { ArrowLeft, ChevronRight, ClipboardList, Compass, ListChecks, Loader2, MessageSquareWarning, Target } from "lucide-react";
 import { col, docIn } from "../firebase";
 import { cn } from "../utils";
 import { Card, FacilitatorBadge, PageHeader, ROAILogo, Tag } from "../ui";
 import type { BoardChallenge, Challenge, Group, GroupSolution, Participant, Workshop } from "../types";
+import { GROUP_STEP_LABELS } from "../types";
 
 function Waiting({ message }: { message: string }) {
   return (
@@ -32,66 +33,23 @@ function LiveBadge() {
   );
 }
 
-// The one signature element this page needs: a real progress rail. Order
-// genuinely carries information here (this is the actual sequence every
-// group moves through), so a step indicator earns its place — a plain
-// status tag can't show at a glance how far along a group is versus how
-// far they have left.
-const STEP_SEQUENCE: { key: "initial" | "board" | "actions" | "done"; label: string }[] = [
-  { key: "initial", label: "Question 1" },
-  { key: "board", label: "Board Feedback" },
-  { key: "actions", label: "Actions" },
-  { key: "done", label: "Done" },
-];
-
-function stepIndex(step: string | undefined) {
-  const idx = STEP_SEQUENCE.findIndex((s) => s.key === (step || "initial"));
-  return idx === -1 ? 0 : idx;
-}
-
-function ProgressRail({ currentStep, withLabels = false }: { currentStep: string | undefined; withLabels?: boolean }) {
-  const idx = stepIndex(currentStep);
-  return (
-    <div>
-      <div className="flex items-center gap-1">
-        {STEP_SEQUENCE.map((s, i) => (
-          <div key={s.key} className={cn("h-1.5 flex-1 rounded-full transition-colors", i <= idx ? "roai-mark" : "bg-gray-200")} />
-        ))}
-      </div>
-      {withLabels && (
-        <div className="flex items-start justify-between mt-1.5">
-          {STEP_SEQUENCE.map((s, i) => (
-            <p
-              key={s.key}
-              className={cn(
-                "text-[10px] font-semibold uppercase tracking-wide flex-1",
-                i === 1 ? "text-center" : i === 2 ? "text-center" : i === 3 ? "text-right" : "text-left",
-                i <= idx ? "text-[#14121F]" : "text-gray-300"
-              )}
-            >
-              {s.label}
-            </p>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
+// A tinted, colored-title callout box — the shared look for every content
+// section on this page (challenge, initial answer, revised answer, actions),
+// so they all read as the same kind of thing at a glance.
 function SectionBlock({
   accent,
   label,
   tag,
   children,
 }: {
-  accent: "indigo" | "teal" | "gray";
+  accent: "indigo" | "teal" | "coral";
   label: string;
   tag?: ReactNode;
   children: ReactNode;
 }) {
-  const border = accent === "indigo" ? "border-[#3545A3]" : accent === "teal" ? "border-[#1FA398]" : "border-gray-300";
-  const bg = accent === "indigo" ? "bg-[#3545A3]/5" : accent === "teal" ? "bg-[#1FA398]/5" : "bg-gray-50";
-  const labelColor = accent === "indigo" ? "text-[#3545A3]" : accent === "teal" ? "text-[#1FA398]" : "text-gray-400";
+  const border = accent === "indigo" ? "border-[#3545A3]" : accent === "teal" ? "border-[#1FA398]" : "border-[#DD4B4E]";
+  const bg = accent === "indigo" ? "bg-[#3545A3]/5" : accent === "teal" ? "bg-[#1FA398]/5" : "bg-[#DD4B4E]/5";
+  const labelColor = accent === "indigo" ? "text-[#3545A3]" : accent === "teal" ? "text-[#1FA398]" : "text-[#DD4B4E]";
   return (
     <div className={cn("border-l-4 rounded-r-lg p-4", border, bg)}>
       <div className="flex items-center justify-between mb-1">
@@ -102,6 +60,17 @@ function SectionBlock({
     </div>
   );
 }
+
+// The phases a spectator can flip between — only the ones this group
+// actually has content for show up as tabs.
+type PhaseKey = "challenge" | "initial" | "board" | "revised" | "actions";
+const PHASE_META: Record<PhaseKey, { label: string; icon: typeof Target }> = {
+  challenge: { label: "Challenge", icon: Target },
+  initial: { label: "Answer", icon: MessageSquareWarning },
+  board: { label: "Board", icon: ClipboardList },
+  revised: { label: "Revised", icon: Compass },
+  actions: { label: "Actions", icon: ListChecks },
+};
 
 function GroupDetail({
   group,
@@ -118,88 +87,124 @@ function GroupDetail({
   board: BoardChallenge | undefined;
   onBack: () => void;
 }) {
-  return (
-    <div className="max-w-2xl md:max-w-3xl mx-auto space-y-5 py-8 px-4 md:px-0">
-      <button onClick={onBack} className="text-[#DD4B4E] font-bold text-sm inline-flex items-center gap-1.5">
-        <ArrowLeft className="w-4 h-4" /> All groups
-      </button>
+  const availablePhases: PhaseKey[] = [
+    "challenge",
+    ...(solution?.initialSolution ? (["initial"] as const) : []),
+    ...(board ? (["board"] as const) : []),
+    ...(solution?.revisedSolution ? (["revised"] as const) : []),
+    ...(solution?.actionsSubmitted ? (["actions"] as const) : []),
+  ];
+  const [phase, setPhase] = useState<PhaseKey>("challenge");
+  const activePhase = availablePhases.includes(phase) ? phase : availablePhases[0];
 
-      <div>
-        <h1 className="text-2xl font-black text-[#14121F]">{group.name}</h1>
-        <p className="text-gray-400 text-sm flex items-center flex-wrap gap-x-1.5 mt-0.5">
-          {members.map((m, i) => (
-            <span key={m.id} className="inline-flex items-center gap-1">
-              {i > 0 && <span>·</span>}
-              {m.name}
-              {m.role === "facilitator" && <FacilitatorBadge />}
-            </span>
-          ))}
-        </p>
-        <div className="mt-4">
-          <ProgressRail currentStep={group.currentStep} withLabels />
+  const challengeBlock = !challenge ? (
+    <Card><p className="text-gray-400 text-sm">No challenge selected yet.</p></Card>
+  ) : (
+    <SectionBlock accent="indigo" label="Challenge">
+      <p className="font-bold text-[#14121F]">{challenge.title}</p>
+      <p className="text-sm text-gray-600 mt-1">{challenge.description}</p>
+    </SectionBlock>
+  );
+
+  const initialBlock = solution?.initialSolution && (
+    <SectionBlock accent="coral" label="Initial answer" tag={solution.initialSubmitted && <Tag color="green">submitted</Tag>}>
+      <p className="text-sm text-[#14121F] whitespace-pre-wrap">{solution.initialSolution}</p>
+    </SectionBlock>
+  );
+
+  const boardBlock = board && (
+    <div>
+      <p className="text-[10px] font-bold uppercase tracking-widest text-[#DD4B4E] mb-2">The C-level board's challenge</p>
+      <div className="grid sm:grid-cols-2 gap-2">
+        {board.personaChallenges.map((pc, i) => (
+          <div key={i} className="bg-[#14121F] rounded-md p-3 text-sm">
+            <div className="text-white/90">{pc.objection}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  const revisedBlock = solution?.revisedSolution && (
+    <SectionBlock accent="teal" label="Revised answer" tag={solution.revisedSubmitted && <Tag color="green">submitted</Tag>}>
+      <p className="text-sm text-[#14121F] whitespace-pre-wrap">{solution.revisedSolution}</p>
+    </SectionBlock>
+  );
+
+  const actionsBlock = solution?.actionsSubmitted && (
+    <div className="space-y-3">
+      <SectionBlock accent="indigo" label="Next 30 days"><p className="text-sm text-[#14121F] whitespace-pre-wrap">{solution.action30}</p></SectionBlock>
+      <SectionBlock accent="teal" label="Next 60 days"><p className="text-sm text-[#14121F] whitespace-pre-wrap">{solution.action60}</p></SectionBlock>
+      <SectionBlock accent="coral" label="Next 90 days"><p className="text-sm text-[#14121F] whitespace-pre-wrap">{solution.action90}</p></SectionBlock>
+    </div>
+  );
+
+  const blockFor: Record<PhaseKey, ReactNode> = {
+    challenge: challengeBlock,
+    initial: initialBlock,
+    board: boardBlock,
+    revised: revisedBlock,
+    actions: actionsBlock,
+  };
+
+  return (
+    <div className="min-h-screen bg-[#FAFAFA]">
+      <div className="max-w-2xl md:max-w-3xl mx-auto px-4 md:px-0 py-8 pb-28 lg:pb-8 space-y-5">
+        <button onClick={onBack} className="text-[#DD4B4E] font-bold text-sm inline-flex items-center gap-1.5">
+          <ArrowLeft className="w-4 h-4" /> All groups
+        </button>
+
+        <div>
+          <h1 className="text-2xl font-black text-[#14121F]">{group.name}</h1>
+          <p className="text-gray-400 text-sm flex items-center flex-wrap gap-x-1.5 mt-0.5">
+            {members.map((m, i) => (
+              <span key={m.id} className="inline-flex items-center gap-1">
+                {i > 0 && <span>·</span>}
+                {m.name}
+                {m.role === "facilitator" && <FacilitatorBadge />}
+              </span>
+            ))}
+          </p>
+          <div className="mt-2">
+            <Tag color={group.currentStep === "done" ? "green" : "coral"}>{GROUP_STEP_LABELS[group.currentStep || "initial"]}</Tag>
+          </div>
+        </div>
+
+        {/* Mobile — only the active phase shows, switched via the bottom navigator */}
+        <div className="lg:hidden">{blockFor[activePhase]}</div>
+
+        {/* Desktop — everything stacked, scrollable, no navigator needed */}
+        <div className="hidden lg:block space-y-5">
+          {challengeBlock}
+          {initialBlock}
+          {boardBlock}
+          {revisedBlock}
+          {actionsBlock}
         </div>
       </div>
 
-      {!challenge && <Card><p className="text-gray-400 text-sm">No challenge selected yet.</p></Card>}
-
-      {challenge && (
-        <SectionBlock accent="indigo" label="Challenge">
-          <p className="font-bold text-[#14121F]">{challenge.title}</p>
-          <p className="text-sm text-gray-600 mt-1">{challenge.description}</p>
-        </SectionBlock>
-      )}
-
-      {solution?.initialSolution && (
-        <SectionBlock
-          accent="gray"
-          label="Initial answer"
-          tag={solution.initialSubmitted && <Tag color="green">submitted</Tag>}
-        >
-          <p className="text-sm text-[#14121F] whitespace-pre-wrap">{solution.initialSolution}</p>
-        </SectionBlock>
-      )}
-
-      {board && (
-        <div>
-          <p className="text-[10px] font-bold uppercase tracking-widest text-[#DD4B4E] mb-2">The C-level board's challenge</p>
-          <div className="grid sm:grid-cols-2 gap-2">
-            {board.personaChallenges.map((pc, i) => (
-              <div key={i} className="bg-[#14121F] rounded-md p-3 text-sm">
-                <div className="text-white/90">{pc.objection}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {solution?.revisedSolution && (
-        <SectionBlock
-          accent="teal"
-          label="Revised answer"
-          tag={solution.revisedSubmitted && <Tag color="green">submitted</Tag>}
-        >
-          <p className="text-sm text-[#14121F] whitespace-pre-wrap">{solution.revisedSolution}</p>
-        </SectionBlock>
-      )}
-
-      {solution?.actionsSubmitted && (
-        <Card>
-          <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">30 / 60 / 90-day actions</p>
-          <div className="grid sm:grid-cols-3 gap-3 text-sm">
-            <div className="bg-gray-50 rounded-lg p-3">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-[#3545A3] mb-1">30 days</p>
-              <p className="text-gray-600 whitespace-pre-wrap">{solution.action30}</p>
-            </div>
-            <div className="bg-gray-50 rounded-lg p-3">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-[#1FA398] mb-1">60 days</p>
-              <p className="text-gray-600 whitespace-pre-wrap">{solution.action60}</p>
-            </div>
-            <div className="bg-gray-50 rounded-lg p-3">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-[#DD4B4E] mb-1">90 days</p>
-              <p className="text-gray-600 whitespace-pre-wrap">{solution.action90}</p>
-            </div>
-          </div>
-        </Card>
+      {/* Bottom phase navigator — mobile only, app-style */}
+      {availablePhases.length > 1 && (
+        <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-gray-200 flex items-stretch">
+          {availablePhases.map((key) => {
+            const meta = PHASE_META[key];
+            const Icon = meta.icon;
+            const active = key === activePhase;
+            return (
+              <button
+                key={key}
+                onClick={() => setPhase(key)}
+                className={cn(
+                  "flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-semibold transition-colors",
+                  active ? "text-[#DD4B4E]" : "text-gray-400"
+                )}
+              >
+                <Icon className="w-5 h-5" />
+                {meta.label}
+              </button>
+            );
+          })}
+        </nav>
       )}
     </div>
   );
@@ -249,16 +254,14 @@ export default function PublicGroupsView({ workshopId }: { workshopId: string })
   if (selectedGroup) {
     const members = selectedGroup.participantIds.map((id) => participants.find((p) => p.id === id)).filter(Boolean) as Participant[];
     return (
-      <div className="min-h-screen bg-[#FAFAFA]">
-        <GroupDetail
-          group={selectedGroup}
-          members={members}
-          challenge={challenges.find((c) => c.id === selectedGroup.challengeId)}
-          solution={solutions.find((s) => s.groupId === selectedGroup.id)}
-          board={boards.find((b) => b.groupId === selectedGroup.id)}
-          onBack={() => setSelectedGroupId(null)}
-        />
-      </div>
+      <GroupDetail
+        group={selectedGroup}
+        members={members}
+        challenge={challenges.find((c) => c.id === selectedGroup.challengeId)}
+        solution={solutions.find((s) => s.groupId === selectedGroup.id)}
+        board={boards.find((b) => b.groupId === selectedGroup.id)}
+        onBack={() => setSelectedGroupId(null)}
+      />
     );
   }
 
@@ -286,8 +289,11 @@ export default function PublicGroupsView({ workshopId }: { workshopId: string })
               >
                 <div className="flex items-center gap-3">
                   <div className="flex-1 min-w-0">
-                    <div className="font-bold text-[#14121F]">{g.name}</div>
-                    <p className="text-sm text-gray-500 mt-0.5 flex items-center flex-wrap gap-x-1.5">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <div className="font-bold text-[#14121F]">{g.name}</div>
+                      <Tag color={g.currentStep === "done" ? "green" : "coral"}>{GROUP_STEP_LABELS[g.currentStep || "initial"]}</Tag>
+                    </div>
+                    <p className="text-sm text-gray-500 mt-1 flex items-center flex-wrap gap-x-1.5">
                       {members.length === 0 ? (
                         "No members yet"
                       ) : (
@@ -302,9 +308,6 @@ export default function PublicGroupsView({ workshopId }: { workshopId: string })
                     </p>
                   </div>
                   <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-[#DD4B4E] transition-colors shrink-0" />
-                </div>
-                <div className="mt-3">
-                  <ProgressRail currentStep={g.currentStep} />
                 </div>
               </button>
             );
