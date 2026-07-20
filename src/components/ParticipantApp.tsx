@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { CSSProperties } from "react";
 import { onSnapshot, query, setDoc, updateDoc, where } from "firebase/firestore";
 import { CheckCircle2, FileBarChart, HelpCircle, LogOut, Loader2, PlayCircle, Sparkles, Users, X } from "lucide-react";
 import { col, docIn } from "../firebase";
@@ -761,7 +762,7 @@ function onboardingKey(workshopId: string, participantId: string) {
   return `fow_onboarded_${workshopId}_${participantId}`;
 }
 
-const ONBOARDING_SLIDES = [
+const ONBOARDING_SLIDES: { icon: any; title: string; body: string; target?: "myGroup" | "workshop" | "report" }[] = [
   {
     icon: Sparkles,
     title: "Welcome, facilitator",
@@ -770,43 +771,120 @@ const ONBOARDING_SLIDES = [
   {
     icon: Users,
     title: "My group",
-    body: "Your group's members, their emails, and the survey answers they gave before the workshop — all visible at a glance, no clicking through. There's also a short AI briefing on how the group is composed, to help you walk in with a sense of who you've got.",
+    body: "Tap here for your group's members, their emails, and the survey answers they gave before the workshop — all visible at a glance. There's also a short AI briefing on how the group is composed.",
+    target: "myGroup",
   },
   {
     icon: PlayCircle,
     title: "Workshop",
-    body: "This is where you do the work: Question 1, then the C-level board's feedback with a revised answer, then 30/60/90-day actions. Move through the tabs at your own pace — once you submit a step you can still tab back to review it, but only the current step is editable.",
+    body: "Tap here to do the actual work: Question 1, then the C-level board's feedback with a revised answer, then 30/60/90-day actions. Move through the tabs at your own pace — you can tab back to review a step you've already done, but only the current one is editable.",
+    target: "workshop",
   },
   {
     icon: FileBarChart,
     title: "Report",
-    body: "Once your group is done, the admin generates a closing report here. You'll be able to edit it right in the page — click any line and type, like a Google Doc — then submit it for the admin's approval when it's ready.",
+    body: "Tap here once your group is done — the admin generates a closing report, and you can edit it right in the page, click any line and type, like a Google Doc, then submit it for the admin's approval.",
+    target: "report",
   },
 ];
 
-function OnboardingWizard({ name, onClose }: { name: string; onClose: () => void }) {
+// Finds the on-screen (visible) element for a data-tour key — there are two
+// candidates in the DOM (desktop sidebar + mobile bottom bar) but only one
+// is actually rendered at a time, depending on the viewport.
+function findVisibleTourTarget(key: string): HTMLElement | null {
+  const els = document.querySelectorAll<HTMLElement>(`[data-tour="${key}"]`);
+  for (const el of Array.from(els)) {
+    const r = el.getBoundingClientRect();
+    if (r.width > 0 && r.height > 0) return el;
+  }
+  return null;
+}
+
+function OnboardingWizard({
+  name,
+  onClose,
+  onStepTarget,
+}: {
+  name: string;
+  onClose: () => void;
+  onStepTarget: (target?: "myGroup" | "workshop" | "report") => void;
+}) {
   const [step, setStep] = useState(0);
+  const [rect, setRect] = useState<DOMRect | null>(null);
   const slide = ONBOARDING_SLIDES[step];
   const Icon = slide.icon;
   const isLast = step === ONBOARDING_SLIDES.length - 1;
+  const isDesktop = window.innerWidth >= 1024;
+
+  useEffect(() => {
+    onStepTarget(slide.target);
+    function measure() {
+      if (!slide.target) { setRect(null); return; }
+      const el = findVisibleTourTarget(slide.target!);
+      setRect(el ? el.getBoundingClientRect() : null);
+    }
+    // small delay lets the section switch (and any layout shift) settle first
+    const t = setTimeout(measure, 60);
+    window.addEventListener("resize", measure);
+    return () => { clearTimeout(t); window.removeEventListener("resize", measure); };
+  }, [step]);
+
+  const PAD = 6;
+  const tooltipStyle: CSSProperties = {};
+  if (rect) {
+    if (isDesktop) {
+      tooltipStyle.top = Math.min(rect.top, window.innerHeight - 260);
+      tooltipStyle.left = rect.right + 16;
+    } else {
+      tooltipStyle.bottom = window.innerHeight - rect.top + 12;
+      tooltipStyle.left = "50%";
+      tooltipStyle.transform = "translateX(-50%)";
+    }
+  }
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-xl border border-gray-200 max-w-md w-full p-8 relative">
-        <button onClick={onClose} className="absolute top-4 right-4 text-gray-300 hover:text-gray-500">
+    <div className="fixed inset-0 z-50">
+      {/* Dimmed backdrop with a cut-out spotlight around the target, if any */}
+      {rect ? (
+        <div
+          className="fixed transition-all duration-200 pointer-events-none"
+          style={{
+            top: rect.top - PAD,
+            left: rect.left - PAD,
+            width: rect.width + PAD * 2,
+            height: rect.height + PAD * 2,
+            borderRadius: 12,
+            boxShadow: "0 0 0 9999px rgba(0,0,0,0.65)",
+            outline: "2px solid #DD4B4E",
+            outlineOffset: 2,
+          }}
+        />
+      ) : (
+        <div className="fixed inset-0 bg-black/60" />
+      )}
+
+      {/* Tooltip / welcome card */}
+      <div
+        className={cn(
+          "bg-white rounded-xl border border-gray-200 w-[calc(100vw-2rem)] max-w-sm p-6 relative",
+          !rect && "fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
+        )}
+        style={rect ? { position: "fixed", ...tooltipStyle } : undefined}
+      >
+        <button onClick={onClose} className="absolute top-3 right-3 text-gray-300 hover:text-gray-500">
           <X className="w-4 h-4" />
         </button>
 
-        <div className="w-12 h-12 rounded-lg roai-mark flex items-center justify-center mb-4">
-          <Icon className="w-6 h-6 text-white" />
+        <div className="w-10 h-10 rounded-lg roai-mark flex items-center justify-center mb-3">
+          <Icon className="w-5 h-5 text-white" />
         </div>
 
-        <h2 className="text-lg font-black text-[#14121F] mb-2">
+        <h2 className="text-base font-black text-[#14121F] mb-1.5">
           {step === 0 ? slide.title.replace("facilitator", name) : slide.title}
         </h2>
         <p className="text-sm text-gray-600 leading-relaxed">{slide.body}</p>
 
-        <div className="flex items-center justify-center gap-1.5 mt-6 mb-4">
+        <div className="flex items-center justify-center gap-1.5 mt-4 mb-3">
           {ONBOARDING_SLIDES.map((_, i) => (
             <span key={i} className={cn("w-1.5 h-1.5 rounded-full", i === step ? "bg-[#DD4B4E]" : "bg-gray-200")} />
           ))}
@@ -967,6 +1045,7 @@ export default function ParticipantApp({ workshopId }: { workshopId: string }) {
             return (
               <button
                 key={item.key}
+                data-tour={item.key}
                 onClick={() => setSection(item.key)}
                 className={cn(
                   "w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-semibold transition-colors",
@@ -994,6 +1073,7 @@ export default function ParticipantApp({ workshopId }: { workshopId: string }) {
           return (
             <button
               key={item.key}
+              data-tour={item.key}
               onClick={() => setSection(item.key)}
               className={cn(
                 "flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-semibold transition-colors",
@@ -1023,7 +1103,13 @@ export default function ParticipantApp({ workshopId }: { workshopId: string }) {
         </div>
       </main>
 
-      {showOnboarding && <OnboardingWizard name={participant.name.split(" ")[0]} onClose={dismissOnboarding} />}
+      {showOnboarding && (
+        <OnboardingWizard
+          name={participant.name.split(" ")[0]}
+          onClose={dismissOnboarding}
+          onStepTarget={(target) => target && setSection(target)}
+        />
+      )}
     </div>
   );
 }
