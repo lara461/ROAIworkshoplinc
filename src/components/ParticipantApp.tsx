@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { onSnapshot, query, setDoc, updateDoc, where } from "firebase/firestore";
-import { CheckCircle2, Copy, FileBarChart, HelpCircle, LogOut, Loader2, Pencil, PlayCircle, Sparkles, Users, X } from "lucide-react";
+import { CheckCircle2, Copy, Download, FileBarChart, HelpCircle, LogOut, Loader2, Pencil, PlayCircle, Sparkles, Users, X } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { col, docIn } from "../firebase";
 import { Accordion, Btn, Card, ROAILogo, StepTabs, Tag, TabIntro, Toast } from "../ui";
@@ -160,20 +160,18 @@ function MyGroupSection({
   group,
   participants,
   responses,
-  currentParticipantId,
 }: {
   group: Group;
   participants: Participant[];
   responses: SurveyResponse[];
-  currentParticipantId: string;
 }) {
   const [generatingInsight, setGeneratingInsight] = useState(false);
   const members = group.participantIds
     .map((id) => participants.find((p) => p.id === id))
     .filter(Boolean) as Participant[];
-  // The facilitator is viewing their own group and already knows they're in
-  // it — no need to show their own card in the member list.
-  const displayMembers = members.filter((m) => m.id !== currentParticipantId);
+  // Facilitators aren't part of the group being profiled — exclude by role,
+  // not by matching whoever happens to be logged in and viewing right now.
+  const displayMembers = members.filter((m) => m.role !== "facilitator");
 
   async function runInsight() {
     const responsePayload = displayMembers.map((m) => {
@@ -765,6 +763,7 @@ function ReportSection({ group }: { group: Group }) {
   const [insight, setInsight] = useState("");
   const [evolution, setEvolution] = useState("");
   const [steps, setSteps] = useState("");
+  const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
     return onSnapshot(docIn("groupReports", group.id), (s) => {
@@ -808,11 +807,29 @@ function ReportSection({ group }: { group: Group }) {
         Submit it for the admin's approval once it looks right.
       </TabIntro>
 
-      <div className="flex items-center gap-2 mb-4">
+      <div className="flex items-center gap-2 mb-4 flex-wrap">
         <Tag color={report.status === "approved" ? "green" : report.status === "submitted" ? "coral" : "default"}>
           {report.status === "approved" ? "Approved by admin" : report.status === "submitted" ? "Submitted — pending approval" : "Draft"}
         </Tag>
         {locked && <span className="text-xs text-gray-400">This report is approved and can no longer be edited.</span>}
+        {report.status === "approved" && (
+          <Btn
+            variant="outline"
+            className="ml-auto text-xs px-3 py-1.5"
+            loading={downloading}
+            onClick={async () => {
+              setDownloading(true);
+              try {
+                const { downloadReportPdf } = await import("../reportPdf");
+                await downloadReportPdf(report, group.name);
+              } finally {
+                setDownloading(false);
+              }
+            }}
+          >
+            <Download className="w-3.5 h-3.5" /> Download PDF
+          </Btn>
+        )}
       </div>
 
       <Card className="space-y-6">
@@ -1340,7 +1357,7 @@ export default function ParticipantApp({ workshopId }: { workshopId: string }) {
             <h1 className="text-2xl font-black text-[#14121F]">{myGroup.name}</h1>
           </div>
 
-          {section === "myGroup" && <MyGroupSection group={myGroup} participants={participants} responses={responses} currentParticipantId={participant.id} />}
+          {section === "myGroup" && <MyGroupSection group={myGroup} participants={participants} responses={responses} />}
           {section === "workshop" && (
             <WorkshopSection group={myGroup} challenge={challenge} groupChallenges={groupChallenges} workshop={workshop} />
           )}

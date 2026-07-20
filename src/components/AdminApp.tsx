@@ -15,6 +15,7 @@ import {
   CheckCircle2,
   ClipboardList,
   Copy,
+  Download,
   FileBarChart,
   FileText,
   Loader2,
@@ -1354,6 +1355,7 @@ function ReportTab({
   const [generating, setGenerating] = useState<string | null>(null);
   const [activeGroupId, setActiveGroupId] = useState<string | null>(groups[0]?.id ?? null);
   const [editing, setEditing] = useState(false);
+  const [downloadingReport, setDownloadingReport] = useState(false);
   const [editSummary, setEditSummary] = useState("");
   const [editInsight, setEditInsight] = useState("");
   const [editEvolution, setEditEvolution] = useState("");
@@ -1498,7 +1500,24 @@ function ReportTab({
               </Btn>
             )}
             {activeReport?.status === "approved" && (
-              <Btn variant="outline" onClick={reopenReport}>Reopen for edits</Btn>
+              <>
+                <Btn variant="outline" onClick={reopenReport}>Reopen for edits</Btn>
+                <Btn
+                  variant="outline"
+                  loading={downloadingReport}
+                  onClick={async () => {
+                    setDownloadingReport(true);
+                    try {
+                      const { downloadReportPdf } = await import("../reportPdf");
+                      await downloadReportPdf(activeReport, activeGroup.name);
+                    } finally {
+                      setDownloadingReport(false);
+                    }
+                  }}
+                >
+                  <Download className="w-3.5 h-3.5" /> Download PDF
+                </Btn>
+              </>
             )}
           </div>
 

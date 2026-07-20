@@ -67,7 +67,7 @@ Groups appear as tabs, same as elsewhere — pick one, generate its report (exec
 
 1. **Draft** — the admin generates it; the facilitator can see and edit it from their own link's Report section.
 2. **Submitted** — the facilitator submits it for approval once it looks right. They can keep editing after submitting — the admin always sees the latest.
-3. **Approved** — the admin approves it from the Report tab. Once approved, the facilitator can no longer edit it (the admin still can, via **Edit**, and can always **Reopen for edits** to send it back to draft).
+3. **Approved** — the admin approves it from the Report tab. Once approved, the facilitator can no longer edit it (the admin still can, via **Edit**, and can always **Reopen for edits** to send it back to draft). A **Download PDF** button appears once approved — for both the admin and the facilitator — generating a real PDF from the report on the spot, client-side, with no server round-trip. PDF rather than an editable format on purpose: at this point the report is a final, locked deliverable, not a draft.
 
 Mark the workshop as closed when it's over, right from the same tab row; if you close it by mistake before everyone's done, **Reopen workshop** puts it back into active mode without touching any reports you've already generated.
 
@@ -85,12 +85,13 @@ server.ts                          — Backend Express + Claude API endpoints
 src/App.tsx                        — Path-based router (/admin, /w/:workshopId, /groups/:workshopId, /present/:id)
 src/components/AdminApp.tsx         — Knowledge Base / Group & Challenge / Workshop / Presentation / Report tabs
 src/components/ParticipantApp.tsx   — Facilitator-only login; My group / Workshop / Report dashboard (sidebar desktop, bottom bar mobile)
-src/components/PublicGroupsView.tsx — Public, no-login: browse groups and their live progress
+src/components/PublicGroupsView.tsx — Public, no-login: a live progress rail per group (4 segments, filled up to their current step — genuinely encodes where each group is, not just a status label) plus a pulsing "Live" badge; tap a group to see the same rail plus everything they've written so far, mobile-first since this is where participants watch along on their own phones
 src/components/PresentationView.tsx — Admin-driven single-screen plenary view
 src/firebase.ts                     — Lazy Firestore init (fow_* collections)
 src/types.ts                        — Shared types, step labels, presentation section keys
 src/csvImport.ts                    — CSV/XLSX parsing (tolerant of export preamble rows)
 src/pdfExtract.ts                   — Client-side PDF text extraction (pdfjs-dist) for the Knowledge Base
+src/reportPdf.ts                    — Generates the approved report as a downloadable PDF, client-side (lazy-loaded, not in the main bundle)
 src/ui.tsx                          — Shared UI primitives matching ROAI brand
 firestore.rules                     — Firestore security rules
 firebase-blueprint.json             — Data model reference
