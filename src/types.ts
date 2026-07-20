@@ -105,6 +105,7 @@ export interface GroupSolution {
   action90: string;
   actionsSubmitted?: boolean;
   actionsSubmittedAt?: string;
+  actionsBasedOnRevisedAnswer?: string; // fixed baseline — what the actions were actually written in response to, so later edits can be compared reliably
 }
 
 export interface PersonaChallenge {
@@ -117,6 +118,7 @@ export interface BoardChallenge {
   groupId: string;
   workshopId: string;
   personaChallenges: PersonaChallenge[];
+  basedOnAnswer?: string; // the exact initial-answer text this feedback was generated from, so later edits can be compared against a fixed baseline instead of the live-autosaving solution doc
   createdAt: string;
 }
 

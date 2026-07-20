@@ -1025,6 +1025,7 @@ function WorkshopTab({
         groupId: group.id,
         workshopId: workshop.id,
         personaChallenges,
+        basedOnAnswer: solution.initialSolution,
         createdAt: new Date().toISOString(),
       });
     } catch (e: any) {

@@ -356,6 +356,7 @@ function WorkshopSection({
         groupId: group.id,
         workshopId: workshop.id,
         personaChallenges,
+        basedOnAnswer: answerText,
         createdAt: new Date().toISOString(),
       });
     } catch (e: any) {
@@ -385,8 +386,10 @@ function WorkshopSection({
   async function submitInitial() {
     setSaving(true);
     try {
-      const contentChanged = (solutionDoc?.initialSolution || "") !== initialSolution;
-      const needsRegeneration = contentChanged && !!board;
+      // Compare against what the existing board feedback was actually
+      // generated from — NOT against solutionDoc, which autosaves on every
+      // keystroke and would already match the live text by the time this runs.
+      const needsRegeneration = !!board && board.basedOnAnswer !== initialSolution;
       const updates: Record<string, any> = {
         groupId: group.id,
         workshopId: workshop.id,
@@ -421,7 +424,10 @@ function WorkshopSection({
   async function submitRevised() {
     setSaving(true);
     try {
-      const contentChanged = (solutionDoc?.revisedSolution || "") !== revisedSolution;
+      // Compare against the fixed baseline the actions were actually written
+      // against — NOT solutionDoc, which autosaves on every keystroke and
+      // would already match the live text by the time this runs.
+      const needsActionsReset = !!solutionDoc?.actionsSubmitted && solutionDoc?.actionsBasedOnRevisedAnswer !== revisedSolution;
       const updates: Record<string, any> = {
         groupId: group.id,
         workshopId: workshop.id,
@@ -432,7 +438,7 @@ function WorkshopSection({
       // Same idea one step down: if the revised answer actually changed and
       // 30/60/90 actions were already written based on the old one, those
       // are now stale too.
-      if (contentChanged && solutionDoc?.actionsSubmitted) {
+      if (needsActionsReset) {
         updates.action30 = "";
         updates.action60 = "";
         updates.action90 = "";
@@ -456,6 +462,7 @@ function WorkshopSection({
         action90,
         actionsSubmitted: true,
         actionsSubmittedAt: new Date().toISOString(),
+        actionsBasedOnRevisedAnswer: revisedSolution,
       }, { merge: true });
       await updateDoc(docIn("groups", group.id), { currentStep: "done" });
     } finally {

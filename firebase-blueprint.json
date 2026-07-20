@@ -271,6 +271,10 @@
         "actionsSubmittedAt": {
           "type": "string",
           "format": "date-time"
+        },
+        "actionsBasedOnRevisedAnswer": {
+          "type": "string",
+          "description": "Fixed baseline \u2014 the revised-answer text the 30/60/90 actions were actually written in response to."
         }
       },
       "required": [
@@ -306,6 +310,10 @@
         "createdAt": {
           "type": "string",
           "format": "date-time"
+        },
+        "basedOnAnswer": {
+          "type": "string",
+          "description": "The exact initial-answer text this feedback was generated from \u2014 a fixed baseline so later edits can be reliably compared against it, instead of the live-autosaving group solution doc."
         }
       },
       "required": [
