@@ -323,25 +323,27 @@ function WorkshopSection({
     });
   }, [group.id]);
 
-  // Auto-generate the board challenge once the group enters the "board"
-  // step, so the facilitator doesn't need the admin to trigger it.
-  useEffect(() => {
-    if (currentStep !== "board" || board || generatingBoard || !challenge || !kbLoaded) return;
-    if (!solutionDoc?.initialSolution) return;
+  // The facilitator explicitly pushes the answer to the board (button in the
+  // "board" step UI below) rather than this happening automatically — they
+  // should feel like they're sending it, not have it happen behind their back.
+  async function pushToBoard() {
+    if (!challenge || !solutionDoc?.initialSolution || !kbLoaded) return;
     setGeneratingBoard(true);
     const knowledgeBase = knowledgeDocs.map((d) => `--- ${d.name} ---\n${d.content}`).join("\n\n");
-    generateBoardChallenge(challenge, solutionDoc.initialSolution, group.name, knowledgeBase)
-      .then(({ personaChallenges }) =>
-        setDoc(docIn("boardChallenges", group.id), {
-          groupId: group.id,
-          workshopId: workshop.id,
-          personaChallenges,
-          createdAt: new Date().toISOString(),
-        })
-      )
-      .catch((e) => alert(e.message))
-      .finally(() => setGeneratingBoard(false));
-  }, [currentStep, board, challenge, solutionDoc?.initialSolution, kbLoaded]);
+    try {
+      const { personaChallenges } = await generateBoardChallenge(challenge, solutionDoc.initialSolution, group.name, knowledgeBase);
+      await setDoc(docIn("boardChallenges", group.id), {
+        groupId: group.id,
+        workshopId: workshop.id,
+        personaChallenges,
+        createdAt: new Date().toISOString(),
+      });
+    } catch (e: any) {
+      alert(e.message);
+    } finally {
+      setGeneratingBoard(false);
+    }
+  }
 
   async function saveField(field: string, value: string, setter: (v: string) => void) {
     setter(value);
@@ -472,14 +474,28 @@ function WorkshopSection({
           </div>
 
           {!board ? (
-            <p className="text-sm text-gray-400 flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> The board is reviewing your answer...</p>
+            <div className="space-y-2">
+              <p className="text-sm text-gray-500">
+                When you're ready, push your answer to the C-level board — they'll react to it, and then you can respond below.
+              </p>
+              <Btn variant="coral" onClick={pushToBoard} loading={generatingBoard} disabled={currentStep !== "board"}>
+                Push to the C-level board
+              </Btn>
+            </div>
           ) : (
             <div data-tour="step2Board">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-[#DD4B4E] mb-2">The C-level board is challenging your answer</p>
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[#DD4B4E]">The C-level board is challenging your answer</p>
+                <button
+                  onClick={() => document.getElementById("revised-box")?.scrollIntoView({ behavior: "smooth", block: "center" })}
+                  className="text-[10px] font-semibold text-gray-400 hover:text-[#DD4B4E] shrink-0 whitespace-nowrap"
+                >
+                  Scroll to reply ↓
+                </button>
+              </div>
               <div className="grid sm:grid-cols-2 gap-2">
                 {board.personaChallenges.map((pc, i) => (
                   <div key={i} className="bg-[#14121F] rounded-md p-3 text-sm">
-                    <div className="text-[#DD4B4E] font-bold text-xs uppercase tracking-widest mb-1">{pc.role}</div>
                     <div className="text-white/90">{pc.objection}</div>
                   </div>
                 ))}
@@ -830,7 +846,7 @@ const ONBOARDING_SLIDES: { icon: any; title: string; body: string; target?: Tour
   {
     icon: Sparkles,
     title: "Step 2 — the board's response",
-    body: "Once you submit, the C-level board's feedback is generated automatically — nothing to click. Just read their pushback and write your revised answer in response.",
+    body: "When you're ready, push your answer to the C-level board — they'll react to it, and then you reply below.",
     target: "step2Board",
   },
   {

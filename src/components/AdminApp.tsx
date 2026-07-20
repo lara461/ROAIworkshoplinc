@@ -1114,7 +1114,6 @@ function WorkshopTab({
                   <div className="grid sm:grid-cols-2 gap-2">
                     {openBoard.personaChallenges.map((pc, i) => (
                       <div key={i} className="bg-white/5 rounded-md p-2.5 text-xs">
-                        <div className="text-[#DD4B4E] font-bold uppercase tracking-widest text-[10px] mb-1">{pc.role}</div>
                         <div className="text-white">{pc.objection}</div>
                       </div>
                     ))}

@@ -80,7 +80,6 @@ function GroupDetail({
           <div className="grid sm:grid-cols-2 gap-2">
             {board.personaChallenges.map((pc, i) => (
               <div key={i} className="bg-[#14121F] rounded-md p-3 text-sm">
-                <div className="text-[#DD4B4E] font-bold text-xs uppercase tracking-widest mb-1">{pc.role}</div>
                 <div className="text-white/90">{pc.objection}</div>
               </div>
             ))}

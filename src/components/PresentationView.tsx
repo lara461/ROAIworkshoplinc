@@ -88,7 +88,6 @@ export default function PresentationView({ workshopId }: { workshopId: string })
               <div className="grid sm:grid-cols-2 gap-4">
                 {board.personaChallenges.map((pc, i) => (
                   <div key={i} className="bg-white/5 border border-white/10 rounded-md p-4">
-                    <div className="text-[#DD4B4E] font-bold text-xs uppercase tracking-widest mb-1">{pc.role}</div>
                     <div className="text-white text-lg">{pc.objection}</div>
                   </div>
                 ))}
