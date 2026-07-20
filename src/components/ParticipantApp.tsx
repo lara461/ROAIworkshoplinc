@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
-import { onSnapshot, query, setDoc, updateDoc, where } from "firebase/firestore";
+import { deleteDoc, onSnapshot, query, setDoc, updateDoc, where } from "firebase/firestore";
 import { CheckCircle2, Copy, FileBarChart, HelpCircle, LogOut, Loader2, Pencil, PlayCircle, Sparkles, Users, X } from "lucide-react";
 import { col, docIn } from "../firebase";
 import { Accordion, Btn, Card, ROAILogo, StepTabs, Tag, TabIntro, Toast } from "../ui";
@@ -380,13 +380,28 @@ function WorkshopSection({
   async function submitInitial() {
     setSaving(true);
     try {
-      await setDoc(docIn("groupSolutions", group.id), {
+      const contentChanged = (solutionDoc?.initialSolution || "") !== initialSolution;
+      const updates: Record<string, any> = {
         groupId: group.id,
         workshopId: workshop.id,
         initialSolution,
         initialSubmitted: true,
         initialSubmittedAt: new Date().toISOString(),
-      }, { merge: true });
+      };
+      // The board's feedback (and anything written in response to it) was
+      // grounded in the old answer — if the admin reopened this step and the
+      // facilitator actually changed the content, that downstream work is now
+      // stale and needs to be redone. Resubmitting the same text leaves it alone.
+      if (contentChanged && board) {
+        updates.revisedSolution = "";
+        updates.revisedSubmitted = false;
+        updates.action30 = "";
+        updates.action60 = "";
+        updates.action90 = "";
+        updates.actionsSubmitted = false;
+        await deleteDoc(docIn("boardChallenges", group.id));
+      }
+      await setDoc(docIn("groupSolutions", group.id), updates, { merge: true });
       await updateDoc(docIn("groups", group.id), { currentStep: "board", stepStartedAt: new Date().toISOString() });
     } finally {
       setSaving(false);
@@ -396,13 +411,24 @@ function WorkshopSection({
   async function submitRevised() {
     setSaving(true);
     try {
-      await setDoc(docIn("groupSolutions", group.id), {
+      const contentChanged = (solutionDoc?.revisedSolution || "") !== revisedSolution;
+      const updates: Record<string, any> = {
         groupId: group.id,
         workshopId: workshop.id,
         revisedSolution,
         revisedSubmitted: true,
         revisedSubmittedAt: new Date().toISOString(),
-      }, { merge: true });
+      };
+      // Same idea one step down: if the revised answer actually changed and
+      // 30/60/90 actions were already written based on the old one, those
+      // are now stale too.
+      if (contentChanged && solutionDoc?.actionsSubmitted) {
+        updates.action30 = "";
+        updates.action60 = "";
+        updates.action90 = "";
+        updates.actionsSubmitted = false;
+      }
+      await setDoc(docIn("groupSolutions", group.id), updates, { merge: true });
       await updateDoc(docIn("groups", group.id), { currentStep: "actions", stepStartedAt: new Date().toISOString() });
     } finally {
       setSaving(false);
@@ -473,12 +499,12 @@ function WorkshopSection({
 
       {displayedStep === "initial" && (
         <Card data-tour="step1Input" className="space-y-3">
-          {!board ? (
+          {!board || currentStep === "initial" ? (
             <>
               <p className="text-sm text-gray-500">
-                Write your group's first answer to the challenge above, then save and continue to the next tab.
-                {currentStep !== "initial" && " You can keep editing it here"} — once you push it to the C-level board (next
-                tab), it locks and can't be changed, so make sure the group agrees on the final wording before you push.
+                {board
+                  ? "The admin reopened this step. If you change the answer, the board's feedback (and anything written after it) will be regenerated once you push again — leave it as-is and nothing downstream changes."
+                  : <>Write your group's first answer to the challenge above, then save and continue to the next tab.{currentStep !== "initial" && " You can keep editing it here"} — once you push it to the C-level board (next tab), it locks and can't be changed, so make sure the group agrees on the final wording before you push.</>}
               </p>
               <textarea
                 id="initial-box"
@@ -489,7 +515,7 @@ function WorkshopSection({
                 placeholder="Write your group's answer here..."
               />
               <Btn variant="coral" onClick={submitInitial} loading={saving} disabled={!initialSolution.trim()}>
-                {currentStep === "initial" ? "Save & continue" : "Save changes"}
+                {currentStep === "initial" && !board ? "Save & continue" : "Save changes"}
               </Btn>
             </>
           ) : (
