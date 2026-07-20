@@ -3,7 +3,7 @@ import type { CSSProperties } from "react";
 import { onSnapshot, query, setDoc, updateDoc, where } from "firebase/firestore";
 import { CheckCircle2, Copy, FileBarChart, HelpCircle, LogOut, Loader2, Pencil, PlayCircle, Sparkles, Users, X } from "lucide-react";
 import { col, docIn } from "../firebase";
-import { Btn, Card, FacilitatorBadge, ROAILogo, StepTabs, Tag, TabIntro, Toast } from "../ui";
+import { Accordion, Btn, Card, ROAILogo, StepTabs, Tag, TabIntro, Toast } from "../ui";
 import { cn } from "../utils";
 import type {
   BoardChallenge,
@@ -159,15 +159,20 @@ function MyGroupSection({
   group,
   participants,
   responses,
+  currentParticipantId,
 }: {
   group: Group;
   participants: Participant[];
   responses: SurveyResponse[];
+  currentParticipantId: string;
 }) {
   const [generatingInsight, setGeneratingInsight] = useState(false);
   const members = group.participantIds
     .map((id) => participants.find((p) => p.id === id))
     .filter(Boolean) as Participant[];
+  // The facilitator is viewing their own group and already knows they're in
+  // it — no need to show their own card in the member list.
+  const displayMembers = members.filter((m) => m.id !== currentParticipantId);
 
   async function runInsight() {
     const responsePayload = members.map((m) => {
@@ -210,30 +215,48 @@ function MyGroupSection({
         Your group's members and the survey answers they gave before the workshop — useful background before you dive in.
       </TabIntro>
 
-      <div data-tour="groupInsight" className="border-l-4 border-[#3545A3] bg-[#3545A3]/5 rounded-r-lg p-4 mb-4">
-        <div className="flex items-center gap-1.5 mb-1.5">
-          <Sparkles className="w-3.5 h-3.5 text-[#3545A3]" />
-          <p className="text-xs font-bold uppercase tracking-widest text-[#3545A3]">AI briefing on this group</p>
-        </div>
-        {group.groupInsight ? (
+      {(() => {
+        const briefingBody = group.groupInsight ? (
           <p className="text-sm text-[#14121F]">{group.groupInsight}</p>
         ) : generatingInsight ? (
           <p className="text-sm text-gray-400 flex items-center gap-2"><Loader2 className="w-3.5 h-3.5 animate-spin" /> Putting together a briefing on your group...</p>
         ) : (
           <p className="text-sm text-gray-400">No survey answers on file yet to brief from.</p>
-        )}
-      </div>
+        );
+        return (
+          <>
+            {/* Mobile — collapsible, so it doesn't push the member list below the fold */}
+            <div data-tour="groupInsight" className="lg:hidden mb-4">
+              <Accordion
+                title={
+                  <span className="flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-[#3545A3]" />
+                    <span className="text-xs font-bold uppercase tracking-widest text-[#3545A3]">AI briefing on this group</span>
+                  </span>
+                }
+              >
+                {briefingBody}
+              </Accordion>
+            </div>
+            {/* Desktop — unchanged, always open */}
+            <div className="hidden lg:block border-l-4 border-[#3545A3] bg-[#3545A3]/5 rounded-r-lg p-4 mb-4">
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-[#3545A3]" />
+                <p className="text-xs font-bold uppercase tracking-widest text-[#3545A3]">AI briefing on this group</p>
+              </div>
+              {briefingBody}
+            </div>
+          </>
+        );
+      })()}
 
       <div className="space-y-3">
-        {members.map((m) => {
+        {displayMembers.map((m) => {
           const r = responses.find((r) => r.participantId === m.id);
           return (
             <Card key={m.id}>
               <div className="flex items-center justify-between mb-2">
-                <span className="font-bold text-[#14121F] flex items-center gap-2">
-                  {m.name}
-                  {m.role === "facilitator" && <FacilitatorBadge />}
-                </span>
+                <span className="font-bold text-[#14121F]">{m.name}</span>
                 {r ? <Tag color="green">survey on file</Tag> : <Tag>no survey</Tag>}
               </div>
               {m.email && <p className="text-xs text-gray-400 mb-2">{m.email}</p>}
@@ -249,7 +272,7 @@ function MyGroupSection({
             </Card>
           );
         })}
-        {members.length === 0 && <p className="text-gray-400 text-sm">No members in your group yet.</p>}
+        {displayMembers.length === 0 && <p className="text-gray-400 text-sm">No other members in your group yet.</p>}
       </div>
     </div>
   );
@@ -422,7 +445,15 @@ function WorkshopSection({
         what you've already written, but you can only edit the activity you're currently on.
       </TabIntro>
 
-      <div className="border-l-4 border-[#3545A3] bg-[#3545A3]/5 rounded-r-lg p-4 mb-6">
+      {/* Mobile — collapsible, so the step tabs and activity aren't pushed below the fold */}
+      <div className="lg:hidden mb-6">
+        <Accordion title={<span className="text-xs font-bold uppercase tracking-widest text-[#3545A3]">Your challenge</span>}>
+          <p className="font-bold text-[#14121F]">{challenge?.title}</p>
+          <p className="text-sm text-gray-600 mt-1">{challenge?.description}</p>
+        </Accordion>
+      </div>
+      {/* Desktop — unchanged, always open */}
+      <div className="hidden lg:block border-l-4 border-[#3545A3] bg-[#3545A3]/5 rounded-r-lg p-4 mb-6">
         <p className="text-xs font-bold uppercase tracking-widest text-[#3545A3] mb-1">Your challenge</p>
         <p className="font-bold text-[#14121F]">{challenge?.title}</p>
         <p className="text-sm text-gray-600 mt-1">{challenge?.description}</p>
@@ -432,7 +463,7 @@ function WorkshopSection({
         <StepTabs
           steps={[
             { key: "initial", label: "Question 1" },
-            { key: "board", label: "Board & revised answer", locked: reached < 1 },
+            { key: "board", label: "Board Feedback", locked: reached < 1 },
             { key: "actions", label: "30/60/90 actions", locked: reached < 2 },
           ]}
           active={displayedStep}
@@ -933,16 +964,28 @@ function OnboardingWizard({
         // bring it into view first (harmless no-op for fixed-position nav
         // chrome, essential for content further down the scrollable page)
         el.scrollIntoView({ block: "center", behavior: "auto" });
-        requestAnimationFrame(() => {
+        // Give the scroll a moment to actually settle before measuring —
+        // "instant" scroll still isn't always reflected in the very next
+        // frame in every browser, and measuring too early causes the
+        // highlighted box to land slightly off from where the element
+        // actually ends up.
+        setTimeout(() => {
           if (!cancelled) setRect(el.getBoundingClientRect());
-        });
+        }, 150);
         return; // found — the resize listener below keeps it accurate from here
       }
       // Some targets (like the report document) depend on data that arrives
       // asynchronously from Firestore and may not exist in the DOM yet —
       // keep trying for a few seconds instead of giving up after one look.
       attempts++;
-      if (attempts < 20) retryTimer = setTimeout(tryMeasure, 100);
+      if (attempts < 20) {
+        retryTimer = setTimeout(tryMeasure, 100);
+      } else {
+        // Genuinely not there (e.g. the report hasn't been generated yet for
+        // this group) — fall back to the plain dimmed state instead of
+        // leaving the spotlight stuck on whatever the previous step highlighted.
+        setRect(null);
+      }
     }
 
     // Wait a frame for the section/step switch triggered by onStepTarget to
@@ -966,28 +1009,35 @@ function OnboardingWizard({
   const tooltipStyle: CSSProperties = {};
   if (rect) {
     const TOOLTIP_W = 380;
+    const MIN_ROOM = 190; // comfortable minimum height for the tooltip card
     const spaceRight = window.innerWidth - rect.right;
+    const spaceAbove = rect.top;
     const spaceBelow = window.innerHeight - rect.bottom;
     const sideCallout = window.innerWidth >= 640 && spaceRight > TOOLTIP_W;
+
+    function setHorizontal() {
+      const tooltipWidth = Math.min(window.innerWidth - 32, 384);
+      const targetCenterX = rect!.left + rect!.width / 2;
+      tooltipStyle.left = Math.max(16, Math.min(targetCenterX - tooltipWidth / 2, window.innerWidth - tooltipWidth - 16));
+    }
 
     if (sideCallout) {
       // plenty of room to the side (e.g. desktop sidebar items) — classic side callout
       tooltipStyle.top = Math.max(16, Math.min(rect.top, window.innerHeight - 280));
       tooltipStyle.left = rect.right + 16;
+    } else if (spaceBelow > MIN_ROOM) {
+      tooltipStyle.top = rect.bottom + 12;
+      setHorizontal();
+    } else if (spaceAbove > MIN_ROOM) {
+      tooltipStyle.bottom = window.innerHeight - rect.top + 12;
+      setHorizontal();
     } else {
-      // stack above or below the target, whichever has more room
-      if (spaceBelow > 240) tooltipStyle.top = rect.bottom + 12;
-      else tooltipStyle.bottom = Math.max(16, window.innerHeight - rect.top + 12);
-
-      // horizontally, center directly under/over the target's actual midpoint
-      // (not a coarse left/center/right bucket, which misjudges anything that
-      // isn't near a screen edge — e.g. a button with other buttons to its
-      // right isn't "in the right third" even though it visually sits right-of-center)
-      // then clamp so the tooltip itself never spills off either edge.
-      const tooltipWidth = Math.min(window.innerWidth - 32, 384);
-      const targetCenterX = rect.left + rect.width / 2;
-      const left = Math.max(16, Math.min(targetCenterX - tooltipWidth / 2, window.innerWidth - tooltipWidth - 16));
-      tooltipStyle.left = left;
+      // The target itself is too large to fit a tooltip beside it (e.g. the
+      // full board-response grid, or the whole report document) — pin to
+      // the bottom of the viewport instead of forcing an awkward overlap.
+      tooltipStyle.bottom = 16;
+      tooltipStyle.left = "50%";
+      tooltipStyle.transform = "translateX(-50%)";
     }
   }
 
@@ -1021,7 +1071,7 @@ function OnboardingWizard({
       {/* Tooltip / welcome card */}
       <div
         className={cn(
-          "bg-white rounded-xl border border-gray-200 w-[calc(100vw-2rem)] max-w-sm p-6 relative",
+          "bg-white rounded-xl border border-gray-200 shadow-2xl w-[calc(100vw-2rem)] max-w-sm p-6 relative",
           !rect && "fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
         )}
         style={rect ? { position: "fixed", ...tooltipStyle } : undefined}
@@ -1086,6 +1136,7 @@ export default function ParticipantApp({ workshopId }: { workshopId: string }) {
 
   useEffect(() => {
     if (!participant) return;
+    if (window.innerWidth < 1024) return; // mobile is simple enough already — no tour there
     if (!localStorage.getItem(onboardingKey(workshopId, participant.id))) {
       setShowOnboarding(true);
     }
@@ -1186,20 +1237,15 @@ export default function ParticipantApp({ workshopId }: { workshopId: string }) {
       {/* Mobile top bar */}
       <div className="lg:hidden fixed top-0 left-0 right-0 z-40 bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
         <ROAILogo size="sm" />
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-4">
           <button
-            data-tour="publicLink"
             onClick={() => copyLink(`${window.location.origin}/groups/${workshopId}`, "Public groups link")}
-            className="text-gray-400 hover:text-[#DD4B4E]"
-            title="Copy the public groups link"
+            className="text-xs font-semibold text-gray-400 hover:text-[#DD4B4E] flex items-center gap-1.5"
           >
-            <Copy className="w-4 h-4" />
+            Public link <Copy className="w-3.5 h-3.5" />
           </button>
-          <button data-tour="help" onClick={() => setShowOnboarding(true)} className="text-gray-400 hover:text-[#DD4B4E]" title="Show the quick tour">
-            <HelpCircle className="w-4 h-4" />
-          </button>
-          <button onClick={logOut} className="text-xs font-semibold text-gray-500 hover:text-[#14121F] flex items-center gap-1">
-            <LogOut className="w-3.5 h-3.5" /> Log out
+          <button onClick={logOut} className="text-gray-400 hover:text-[#14121F]" title="Log out">
+            <LogOut className="w-4 h-4" />
           </button>
         </div>
       </div>
@@ -1286,7 +1332,7 @@ export default function ParticipantApp({ workshopId }: { workshopId: string }) {
             <h1 className="text-2xl font-black text-[#14121F]">{myGroup.name}</h1>
           </div>
 
-          {section === "myGroup" && <MyGroupSection group={myGroup} participants={participants} responses={responses} />}
+          {section === "myGroup" && <MyGroupSection group={myGroup} participants={participants} responses={responses} currentParticipantId={participant.id} />}
           {section === "workshop" && (
             <WorkshopSection group={myGroup} challenge={challenge} groupChallenges={groupChallenges} workshop={workshop} forceActiveStep={workshopForcedStep} />
           )}
