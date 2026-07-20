@@ -42,14 +42,17 @@ function SectionBlock({
   tag,
   children,
 }: {
-  accent: "indigo" | "teal" | "coral";
+  accent: "indigo" | "teal" | "coral" | "amber";
   label: string;
   tag?: ReactNode;
   children: ReactNode;
 }) {
-  const border = accent === "indigo" ? "border-[#3545A3]" : accent === "teal" ? "border-[#1FA398]" : "border-[#DD4B4E]";
-  const bg = accent === "indigo" ? "bg-[#3545A3]/5" : accent === "teal" ? "bg-[#1FA398]/5" : "bg-[#DD4B4E]/5";
-  const labelColor = accent === "indigo" ? "text-[#3545A3]" : accent === "teal" ? "text-[#1FA398]" : "text-[#DD4B4E]";
+  const border =
+    accent === "indigo" ? "border-[#3545A3]" : accent === "teal" ? "border-[#1FA398]" : accent === "coral" ? "border-[#DD4B4E]" : "border-amber-400";
+  const bg =
+    accent === "indigo" ? "bg-[#3545A3]/5" : accent === "teal" ? "bg-[#1FA398]/5" : accent === "coral" ? "bg-[#DD4B4E]/5" : "bg-amber-50";
+  const labelColor =
+    accent === "indigo" ? "text-[#3545A3]" : accent === "teal" ? "text-[#1FA398]" : accent === "coral" ? "text-[#DD4B4E]" : "text-amber-600";
   return (
     <div className={cn("border-l-4 rounded-r-lg p-4", border, bg)}>
       <div className="flex items-center justify-between mb-1">
@@ -132,11 +135,22 @@ function GroupDetail({
   );
 
   const actionsBlock = solution?.actionsSubmitted && (
-    <div className="space-y-3">
-      <SectionBlock accent="indigo" label="Next 30 days"><p className="text-sm text-[#14121F] whitespace-pre-wrap">{solution.action30}</p></SectionBlock>
-      <SectionBlock accent="teal" label="Next 60 days"><p className="text-sm text-[#14121F] whitespace-pre-wrap">{solution.action60}</p></SectionBlock>
-      <SectionBlock accent="coral" label="Next 90 days"><p className="text-sm text-[#14121F] whitespace-pre-wrap">{solution.action90}</p></SectionBlock>
-    </div>
+    <SectionBlock accent="amber" label="30 / 60 / 90-day actions">
+      <div className="space-y-3 mt-1">
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-wide text-gray-500 mb-1">Next 30 days</p>
+          <p className="text-sm text-[#14121F] whitespace-pre-wrap">{solution.action30}</p>
+        </div>
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-wide text-gray-500 mb-1">Next 60 days</p>
+          <p className="text-sm text-[#14121F] whitespace-pre-wrap">{solution.action60}</p>
+        </div>
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-wide text-gray-500 mb-1">Next 90 days</p>
+          <p className="text-sm text-[#14121F] whitespace-pre-wrap">{solution.action90}</p>
+        </div>
+      </div>
+    </SectionBlock>
   );
 
   const blockFor: Record<PhaseKey, ReactNode> = {
@@ -170,17 +184,32 @@ function GroupDetail({
           </div>
         </div>
 
-        {/* Mobile — only the active phase shows, switched via the bottom navigator */}
-        <div className="lg:hidden">{blockFor[activePhase]}</div>
+        {/* Desktop — horizontal tab row with icons up top, same phases as mobile */}
+        {availablePhases.length > 1 && (
+          <div className="hidden lg:flex items-stretch border-b border-gray-200">
+            {availablePhases.map((key) => {
+              const meta = PHASE_META[key];
+              const Icon = meta.icon;
+              const active = key === activePhase;
+              return (
+                <button
+                  key={key}
+                  onClick={() => setPhase(key)}
+                  className={cn(
+                    "flex-1 flex flex-col items-center gap-1 py-3 text-xs font-semibold border-b-2 -mb-px transition-colors",
+                    active ? "text-[#DD4B4E] border-[#DD4B4E]" : "text-gray-400 border-transparent hover:text-gray-600"
+                  )}
+                >
+                  <Icon className="w-5 h-5" />
+                  {meta.label}
+                </button>
+              );
+            })}
+          </div>
+        )}
 
-        {/* Desktop — everything stacked, scrollable, no navigator needed */}
-        <div className="hidden lg:block space-y-5">
-          {challengeBlock}
-          {initialBlock}
-          {boardBlock}
-          {revisedBlock}
-          {actionsBlock}
-        </div>
+        {/* Only the active phase shows, on both mobile and desktop */}
+        <div>{blockFor[activePhase]}</div>
       </div>
 
       {/* Bottom phase navigator — mobile only, app-style */}
