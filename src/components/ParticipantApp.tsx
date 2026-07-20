@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { onSnapshot, query, setDoc, updateDoc, where } from "firebase/firestore";
-import { CheckCircle2, FileBarChart, HelpCircle, LogOut, Loader2, PlayCircle, Sparkles, Users, X } from "lucide-react";
+import { CheckCircle2, FileBarChart, HelpCircle, LogOut, Loader2, Pencil, PlayCircle, Sparkles, Users, X } from "lucide-react";
 import { col, docIn } from "../firebase";
 import { Btn, Card, FacilitatorBadge, ROAILogo, StepTabs, Tag, TabIntro } from "../ui";
 import { cn } from "../utils";
@@ -210,7 +210,7 @@ function MyGroupSection({
         Your group's members and the survey answers they gave before the workshop — useful background before you dive in.
       </TabIntro>
 
-      <div className="border-l-4 border-[#3545A3] bg-[#3545A3]/5 rounded-r-lg p-4 mb-4">
+      <div data-tour="groupInsight" className="border-l-4 border-[#3545A3] bg-[#3545A3]/5 rounded-r-lg p-4 mb-4">
         <div className="flex items-center justify-between mb-1.5">
           <div className="flex items-center gap-1.5">
             <Sparkles className="w-3.5 h-3.5 text-[#3545A3]" />
@@ -707,7 +707,14 @@ function ReportSection({ group }: { group: Group }) {
 
       <Card className="space-y-6">
         <div>
-          <h2 className="text-xl font-black text-[#14121F]">{group.name} — Workshop Report</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-black text-[#14121F]">{group.name} — Workshop Report</h2>
+            {!locked && (
+              <span className="flex items-center gap-1 text-[10px] font-semibold text-gray-400 shrink-0 ml-3">
+                <Pencil className="w-3 h-3" /> click to edit
+              </span>
+            )}
+          </div>
           <DocField
             id="report-summary-box"
             value={summary}
@@ -762,29 +769,63 @@ function onboardingKey(workshopId: string, participantId: string) {
   return `fow_onboarded_${workshopId}_${participantId}`;
 }
 
-const ONBOARDING_SLIDES: { icon: any; title: string; body: string; target?: "myGroup" | "workshop" | "report" }[] = [
+type TourTarget = "help" | "myGroup" | "groupInsight" | "workshop" | "report";
+
+const ONBOARDING_SLIDES: { icon: any; title: string; body: string; target?: TourTarget }[] = [
   {
     icon: Sparkles,
     title: "Welcome, facilitator",
-    body: "Quick tour of the three things you'll use here — takes 30 seconds. You can reopen this anytime with the ? button.",
+    body: "Quick tour of everything you'll use here — takes about a minute. You can reopen it anytime with the ? button.",
+  },
+  {
+    icon: HelpCircle,
+    title: "Come back anytime",
+    body: "This button reopens the tour whenever you want a refresher — nothing to remember, it's always right here.",
+    target: "help",
   },
   {
     icon: Users,
     title: "My group",
-    body: "Tap here for your group's members, their emails, and the survey answers they gave before the workshop — all visible at a glance. There's also a short AI briefing on how the group is composed.",
+    body: "Tap here to see your group's members — who they are, what they told us in the pre-workshop survey, and how they're generally feeling about AI.",
     target: "myGroup",
+  },
+  {
+    icon: Sparkles,
+    title: "AI briefing on this group",
+    body: "We use AI to read through their survey answers and give you a quick sense of how the group feels about AI as a whole, before you even start facilitating.",
+    target: "groupInsight",
   },
   {
     icon: PlayCircle,
     title: "Workshop",
-    body: "Tap here to do the actual work: Question 1, then the C-level board's feedback with a revised answer, then 30/60/90-day actions. Move through the tabs at your own pace — you can tab back to review a step you've already done, but only the current one is editable.",
+    body: "This is where the actual work happens — three quick activities that take your group from a first answer to a fully fleshed-out plan.",
     target: "workshop",
+  },
+  {
+    icon: PlayCircle,
+    title: "Moving between the steps",
+    body: "Use the tabs at the top of this section to move between the 3 activities. A step you haven't reached yet stays locked, but once you're past one you can always tab back to review what was written.",
+  },
+  {
+    icon: Pencil,
+    title: "Step 1 — writing your answer",
+    body: "Write your group's first answer to the challenge, then hit \u201cSubmit & continue\u201d once everyone agrees — you won't be able to change it after that, so make sure the group's on the same page first.",
+  },
+  {
+    icon: Sparkles,
+    title: "Step 2 — the board's response",
+    body: "Once you submit, the C-level board's feedback is generated automatically — nothing to click. Just read their pushback and write your revised answer in response.",
   },
   {
     icon: FileBarChart,
     title: "Report",
-    body: "Tap here once your group is done — the admin generates a closing report, and you can edit it right in the page, click any line and type, like a Google Doc, then submit it for the admin's approval.",
+    body: "Tap here once your group is done — the admin generates a closing report,",
     target: "report",
+  },
+  {
+    icon: Pencil,
+    title: "Editing the report",
+    body: "The report reads like a normal document, but click any line and it becomes editable right there — like a Google Doc, it saves as you type. Submit it for the admin's approval once it's ready.",
   },
 ];
 
@@ -807,7 +848,7 @@ function OnboardingWizard({
 }: {
   name: string;
   onClose: () => void;
-  onStepTarget: (target?: "myGroup" | "workshop" | "report") => void;
+  onStepTarget: (target?: TourTarget) => void;
 }) {
   const [step, setStep] = useState(0);
   const [rect, setRect] = useState<DOMRect | null>(null);
@@ -818,11 +859,15 @@ function OnboardingWizard({
 
   useEffect(() => {
     onStepTarget(slide.target);
-    function measure() {
-      if (!slide.target) { setRect(null); return; }
-      const el = findVisibleTourTarget(slide.target!);
-      setRect(el ? el.getBoundingClientRect() : null);
+    if (!slide.target) {
+      setRect(null);
+      return;
     }
+    function measure() {
+      const el = findVisibleTourTarget(slide.target!);
+      if (el) setRect(el.getBoundingClientRect());
+    }
+    measure();
     // small delay lets the section switch (and any layout shift) settle first
     const t = setTimeout(measure, 60);
     window.addEventListener("resize", measure);
@@ -855,8 +900,6 @@ function OnboardingWizard({
             height: rect.height + PAD * 2,
             borderRadius: 12,
             boxShadow: "0 0 0 9999px rgba(0,0,0,0.65)",
-            outline: "2px solid #DD4B4E",
-            outlineOffset: 2,
           }}
         />
       ) : (
@@ -1021,7 +1064,7 @@ export default function ParticipantApp({ workshopId }: { workshopId: string }) {
       <div className="lg:hidden fixed top-0 left-0 right-0 z-40 bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
         <ROAILogo size="sm" />
         <div className="flex items-center gap-3">
-          <button onClick={() => setShowOnboarding(true)} className="text-gray-400 hover:text-[#DD4B4E]" title="Show the quick tour">
+          <button data-tour="help" onClick={() => setShowOnboarding(true)} className="text-gray-400 hover:text-[#DD4B4E]" title="Show the quick tour">
             <HelpCircle className="w-4 h-4" />
           </button>
           <button onClick={logOut} className="text-xs font-semibold text-gray-500 hover:text-[#14121F] flex items-center gap-1">
@@ -1030,13 +1073,20 @@ export default function ParticipantApp({ workshopId }: { workshopId: string }) {
         </div>
       </div>
 
+      {/* Desktop help button — floating top-right of the screen */}
+      <button
+        data-tour="help"
+        onClick={() => setShowOnboarding(true)}
+        title="Show the quick tour"
+        className="hidden lg:flex fixed top-4 right-4 z-30 items-center justify-center w-8 h-8 rounded-full bg-white border border-gray-200 text-gray-400 hover:text-[#DD4B4E] hover:border-[#DD4B4E]/40"
+      >
+        <HelpCircle className="w-4 h-4" />
+      </button>
+
       {/* Sidebar — desktop only */}
       <aside className="hidden lg:flex w-56 shrink-0 border-r border-gray-200 flex-col h-screen sticky top-0">
-        <div className="p-5 border-b border-gray-200 flex items-center justify-between">
+        <div className="p-5 border-b border-gray-200">
           <ROAILogo size="sm" />
-          <button onClick={() => setShowOnboarding(true)} className="text-gray-300 hover:text-[#DD4B4E]" title="Show the quick tour">
-            <HelpCircle className="w-4 h-4" />
-          </button>
         </div>
         <nav className="flex-1 p-3 space-y-1">
           {navItems.map((item) => {
@@ -1107,7 +1157,10 @@ export default function ParticipantApp({ workshopId }: { workshopId: string }) {
         <OnboardingWizard
           name={participant.name.split(" ")[0]}
           onClose={dismissOnboarding}
-          onStepTarget={(target) => target && setSection(target)}
+          onStepTarget={(target) => {
+            if (target === "groupInsight") setSection("myGroup");
+            else if (target === "myGroup" || target === "workshop" || target === "report") setSection(target);
+          }}
         />
       )}
     </div>
